@@ -167,3 +167,64 @@ I also tested eight concurrent Step additions. All completed successfully, and t
 **Verification:** `bun run test` passed with 12 tests, 54 assertions, and no failures. TypeScript checking and `git diff --check` also passed. Tests used an isolated database and cleaned it up afterward.
 
 **Next:** Register ProcedureMaintaining with sync-engine and check that the implementation matches its formal specification.
+
+## October 11, 2026 — Increment 3: ContextTracking
+
+After completing ProcedureMaintaining, I began implementing ContextTracking, which will manage shared Context Notes and their dependencies.
+
+The main design decision is to distinguish corrections from meaningful changes. A correction updates the wording of a note without creating a Change record, while a meaningful change preserves both the previous and updated text. Later, this distinction will determine whether Relay asks officers to review dependent Playbooks.
+
+I also need to prevent duplicate attachments and ensure that overlapping edits cannot produce an incorrect change history.
+
+I am implementing ContextTracking independently so I can test its behavior before connecting it to ProcedureMaintaining and Reviewing through composition reactions.
+
+**Verification:** Pending implementation and tests.
+
+**Next:** Implement ContextTracking's actions and queries with MongoDB.
+
+### Step 3.1 — Implementing ContextTracking
+
+I implemented ContextTracking using three MongoDB collections: ContextNotes, Attachments, and Changes. The concept has six actions and six queries and uses the same database-injection approach as ProcedureMaintaining.
+
+The most important decision was how to handle corrections differently from meaningful changes. A correction updates the current text without preserving a Change record. A meaningful change updates the text and creates a record containing the exact previous and new versions.
+
+To prevent concurrent updates from producing incorrect history, I placed the note update and Change creation in one MongoDB transaction. This lets overlapping changes conflict and retry against the latest committed text.
+
+I also used a unique compound index on the Context Note, subject, and optional anchor to prevent duplicate attachments, including when two requests occur concurrently.
+
+One limitation I noticed is that Change records currently use UUID identities, so sorting by identity does not establish chronological order. I will avoid assuming that the query returns a timeline until ordering is explicitly designed and tested.
+
+**Verification:** TypeScript checking and `git diff --check` passed. Runtime behavior and concurrency still need to be tested.
+
+**Next:** Write isolated tests for corrections, changes, attachments, refusal cases, and overlapping writes.
+
+### Step 3.2 — Testing ContextTracking
+
+I wrote 11 tests for ContextTracking, bringing the total backend test suite to 23 tests.
+
+I focused on the distinction between corrections and meaningful changes because this is central to Relay's design. The tests verify that corrections update note text without creating history, while meaningful changes preserve the exact before and after values.
+
+I also tested attachments with and without Step anchors, duplicate attachment refusals, detachment, missing Context Notes, and unchanged-text refusals.
+
+The most interesting test was concurrent changes. I ran eight changes at the same time and verified that their history forms a complete before/after chain ending at the current note text. This checks that overlapping operations do not all record the same outdated text.
+
+During the first test run, two assertions incorrectly assumed that query results would follow creation order. I revisited the specification and changed the tests to respect identity ordering instead. This reminded me that tests should verify the actual contract rather than assumptions about how data happens to be returned.
+
+**Verification:** All 23 tests passed, including 11 ContextTracking tests and 12 ProcedureMaintaining tests. TypeScript checking passed. Tests used separate databases and cleaned up afterward. No production code changes were necessary.
+
+**Next:** Register ContextTracking with sync-engine and verify that its implementation matches the formal specification.
+
+### Step 3.3 — Registering ContextTracking
+
+After completing ContextTracking's tests, I registered it with sync-engine alongside ProcedureMaintaining.
+
+The main design choice was preserving the relationship between concepts without introducing direct dependencies. I configured ContextTracking's Subject type to refer to a Procedure identity and its Anchor type to refer to a Step identity. ContextTracking itself still does not need to know how Procedures and Steps are represented.
+
+I also updated the temporary application inventory to include exactly the two implemented concepts. I kept the complete Relay design unchanged so that the final application can include Reviewing and RoleBasedAccessing later.
+
+All 23 direct tests passed, with 132 assertions. TypeScript checking passed, and sync-engine successfully checked both concept implementations with zero advisories.
+
+**Verification:** The two-concept assembly passed sync-engine's source and application diagnostics. The complete Relay application and composition reactions have not yet been validated.
+
+**Next:** Commit the completed ContextTracking increment and begin implementing Reviewing.
+

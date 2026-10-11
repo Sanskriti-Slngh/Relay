@@ -2,9 +2,9 @@ import { assembleApplication } from "./src/assembly.ts";
 
 export default {
   assemble: assembleApplication,
-  title: "Relay ProcedureMaintaining Increment",
+  title: "Relay ProcedureMaintaining and ContextTracking Increment",
   design: {
     version: 1,
-    documents: [new URL("./design/types.procedure-incremental.md", import.meta.url)],
+    documents: [new URL("./design/types.incremental-two-concepts.md", import.meta.url)],
   },
 };
