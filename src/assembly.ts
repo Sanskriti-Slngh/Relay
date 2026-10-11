@@ -3,6 +3,7 @@ import { applicationConceptSet } from "./concepts.ts";
 import { ContextTrackingConcept } from "./concepts/ContextTracking.ts";
 import { db, mongoClient } from "./db.ts";
 import { ProcedureMaintainingConcept } from "./concepts/ProcedureMaintaining.ts";
+import { RoleBasedAccessingConcept } from "./concepts/RoleBasedAccessing.ts";
 import { ReviewingConcept } from "./concepts/Reviewing.ts";
 
 export function assembleApplication() {
@@ -12,6 +13,7 @@ export function assembleApplication() {
       ContextTracking: new ContextTrackingConcept(db, mongoClient),
       ProcedureMaintaining: new ProcedureMaintainingConcept(db, mongoClient),
       Reviewing: new ReviewingConcept(db, mongoClient),
+      RoleBasedAccessing: new RoleBasedAccessingConcept(db, mongoClient),
     },
     composition: {},
   });

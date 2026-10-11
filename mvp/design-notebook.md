@@ -285,3 +285,65 @@ The framework initially supported only the concepts selected in the incremental 
 **Verification:** All 37 tests passed with 237 assertions. TypeScript checking passed, and sync-engine validated all three registered concepts with zero advisories.
 
 **Next:** Commit Reviewing and implement RoleBasedAccessing, the final independent concept needed before composing the complete application.
+
+## October 11, 2026 — Increment 5: RoleBasedAccessing
+
+I began implementing RoleBasedAccessing, the final independent concept in Relay's MVP.
+
+This concept manages Roles, Permissions, and Assignments for a particular Resource. I want it to remain reusable, so it should not need to know what a Playbook or Context Note is. Instead, Relay will use club workspaces as Resources and map application operations to Permissions.
+
+The main challenge is avoiding unauthorized access. Role names and assignments must be unique, and authorization should succeed only when the requested User has the necessary Permission for the specified Resource.
+
+I am keeping authentication separate from authorization. RoleBasedAccessing can decide whether an established User has permission, but it cannot determine whether an incoming HTTP request genuinely belongs to that User. That identity must come from a trusted application boundary during integration.
+
+I will also need a controlled way to establish the first Officer without exposing unrestricted Role creation or Assignment actions publicly.
+
+**Verification:** Pending implementation and tests.
+
+**Next:** Implement the independent concept and test its authorization rules, refusal cases, and concurrent updates.
+
+### Step 5.1 — Implementing RoleBasedAccessing
+
+I implemented RoleBasedAccessing to manage Roles, Permissions, and Assignments independently from Relay's other concepts.
+
+I used unique MongoDB indexes to prevent duplicate Role names and duplicate assignments for the same User, Resource, and Role. I also used transactions and coordination updates on Role documents to prevent concurrent assignment changes and Role deletion from leaving inconsistent state.
+
+One implementation issue was that MongoDB's TypeScript definitions rejected the initial `$pull` operation for revoking a permission. Instead of using an unsafe read-modify-write workaround, I changed the operation to an atomic update pipeline that filters out the requested permission.
+
+Authorization checks that a User has an assigned Role containing the requested Permission for the specific Resource. If authorized, it returns the original Command unchanged; otherwise, it refuses the operation.
+
+I kept authentication outside this concept. RoleBasedAccessing checks permissions but does not verify who is making a request. The application will need a trusted identity boundary and controlled initial Officer setup.
+
+**Verification:** TypeScript compilation and Git whitespace checks passed. Authorization behavior and concurrent operations still need runtime tests.
+
+**Next:** Test permission grants, revocations, resource isolation, Role deletion, refusal conditions, and concurrent authorization changes.
+
+### Step 5.2 — Testing RoleBasedAccessing
+
+I added 17 tests for RoleBasedAccessing, bringing the full backend test suite to 54 tests.
+
+I focused on making sure permissions are enforced for the correct User and Resource. The tests check that users without the required Role or Permission are denied, and that having access to one club workspace does not automatically grant access to another.
+
+I also tested Role creation, permission grants and revocations, assignments, deletion restrictions, and refusal cases. Successful authorization preserves the original Command value unchanged.
+
+The most interesting cases involved concurrency. Eight simultaneous attempts to create the same Role name or Assignment each produced exactly one success. I also tested Role deletion against assignment, authorization against permission revocation, and simultaneous changes to different Permissions. The observed results preserved the expected constraints.
+
+I used an isolated MongoDB database so the tests would not change the actual Relay application data.
+
+**Verification:** All 54 tests passed with 320 assertions and no failures. TypeScript and whitespace checks passed. No production code changes were needed.
+
+**Next:** Register RoleBasedAccessing with sync-engine and validate all four concepts together.
+
+### Step 5.3 — Registering RoleBasedAccessing
+
+I registered RoleBasedAccessing as the fourth independent concept in Relay. I mapped all eight specified refusal codes to the corresponding TypeScript error classes and added the concept to the existing assembly.
+
+This also let me return to the original full application type inventory. During earlier increments, I used temporary inventories containing only the concepts implemented so far. Now that all four concepts exist, `design/types.md` can be used directly without removing any of the intended cross-concept identity relationships.
+
+The main architectural result is that Relay now has four independent concepts that can be coordinated through composition reactions. Each concept owns its own MongoDB state, and the application assembly provides the shared identities needed to connect them.
+
+**Verification:** All 54 tests passed with 323 assertions. TypeScript passed, sync-engine checked all four concepts with zero advisories, and the six design files passed format validation.
+
+The current application assembly still has an empty composition. This means the concepts work independently, but the complete Relay workflow, HTTP access, and trusted Officer setup remain unimplemented.
+
+**Next:** Commit the four-concept backend and begin integrating the MVP workflow through composition reactions.
