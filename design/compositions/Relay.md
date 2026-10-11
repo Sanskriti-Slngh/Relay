@@ -30,6 +30,21 @@ cannot establish a trustworthy User identity. The User value supplied to
 `RoleBasedAccessing.authorize` must come from that trusted boundary, never
 from an unverified request body.
 
+The local P2 host validates stable workspace and officer identities, the
+MongoDB URI, and a high-entropy local access credential before connecting or
+listening. It completes the private Officer provisioning path before binding
+the HTTP listener to `127.0.0.1`. The Fetch wrapper requires the configured
+Bearer credential, replaces any request-body User and workspace values with
+the validated server configuration, and enforces a bounded JSON body size.
+This is a single-user local-demo boundary, not general-purpose authentication;
+network deployment requires a real verified identity mechanism.
+The configured credential is accepted only by the local same-origin login
+route. Successful login issues an in-memory browser session with an HttpOnly,
+SameSite=Strict cookie and a CSRF token; composition requests require that
+session and token and pass an exact local Origin check. The credential is
+neither returned by a configuration endpoint nor included in the frontend
+bundle.
+
 ## Procedures
 
 An officer creates Procedures and adds their ordered Steps through authorized
@@ -43,6 +58,7 @@ guards remain authoritative for active Procedure state and refusals.
 [Creating a Procedure](reaction:Relay.ProcedureOperations.CreateProcedure)
 and [adding a Step](reaction:Relay.ProcedureOperations.AddStep) return their
 created identities. The procedure read endpoint uses
+[ListProcedures](reaction:Relay.ReadOperations.ListProcedures) and
 [WorkspaceProcedures](former:Relay.Reads.WorkspaceProcedures), which lists
 Procedures for the workspace with their identities, titles, statuses, and
 active Steps ordered by position.
@@ -55,7 +71,10 @@ Relay.ReadOperations.ListProcedures at /workspaces/procedures
 
 ## Shared context and review
 
-`RecordContextNote`, `AttachContextNote`, and `AttachContextNoteAtStep`
+[RecordContextNote](reaction:Relay.ContextOperations.RecordContextNote),
+[AttachContextNote](reaction:Relay.ContextOperations.AttachContextNote),
+and
+[AttachContextNoteAtStep](reaction:Relay.ContextOperations.AttachContextNoteAtStep)
 authorize with `EDIT_CONTEXT`. The composition requires a note's Scope and
 the Procedure's Space to be the provisioned workspace, requires the target
 Procedure to be active, and, for an anchored attachment, requires the Step to
@@ -64,8 +83,10 @@ composition call the corresponding `ContextTracking` action. These
 application-level relationships do not make either concept depend on the
 other.
 
-`CorrectContextNote` authorizes and calls `ContextTracking.correct`. It does
-not trigger a Review. `ChangeContextNote` authorizes and calls
+[CorrectContextNote](reaction:Relay.ContextOperations.CorrectContextNote)
+authorizes and calls `ContextTracking.correct`. It does not trigger a Review.
+[ChangeContextNote](reaction:Relay.ContextOperations.ChangeContextNote)
+authorizes and calls
 `ContextTracking.change`; a meaningful change preserves its exact before and
 after text and is handled by two mutually exclusive composition reactions.
 [RequestReviewForChangedContext](reaction:Relay.ContextChanges.RequestReview)
@@ -104,15 +125,23 @@ causal tracking cannot be established for the chosen endpoint flow, the
 response must not claim that Reviews are ready; clients can retrieve pending
 Reviews separately after processing completes.
 
-The context read endpoint uses
+The context read endpoint
+[GetContextHistory](reaction:Relay.ReadOperations.GetContextHistory) uses
 [WorkspaceContextHistory](former:Relay.Reads.WorkspaceContextHistory) to
 return the workspace's ContextNotes, their Attachments (including optional
 Step anchors), and their Change records with the exact before and after text.
-The pending-review endpoint uses
+The pending-review endpoint
+[GetPendingReviews](reaction:Relay.ReadOperations.GetPendingReviews) uses
 [PendingReviews](former:Relay.Reads.PendingReviews) to return unfinished
 Reviews and their Causes, resolving each Cause through
 `ContextTracking._getChange` so the preserved text is available to the
 officer.
+The all-status review-history endpoint
+[GetReviewHistory](reaction:Relay.ReadOperations.GetReviewHistory) uses
+[WorkspaceReviewHistory](former:Relay.Reads.WorkspaceReviewHistory) to return
+each in-workspace Procedure's Reviews, including completed Reviews, with their
+Cause text. The frontend uses the pending endpoint for its actionable inbox
+and the history endpoint to show confirmed state after refresh.
 
 ```endpoints
 Relay.ContextOperations.RecordContextNote at /workspaces/context/notes
@@ -122,12 +151,14 @@ Relay.ContextOperations.CorrectContextNote at /workspaces/context/correct
 Relay.ContextOperations.ChangeContextNote at /workspaces/context/change
 Relay.ReadOperations.GetContextHistory at /workspaces/context
 Relay.ReadOperations.GetPendingReviews at /workspaces/reviews/pending
+Relay.ReadOperations.GetReviewHistory at /workspaces/reviews
 ```
 
 ## Confirming a Review
 
-`ConfirmReview` authorizes with `COMPLETE_REVIEW` for the Review's Procedure
-and workspace, then calls `Reviewing.confirm`. The concept enforces that the
+[ConfirmReview](reaction:Relay.ReviewOperations.ConfirmReview) authorizes with
+`COMPLETE_REVIEW` for the Review's Procedure and workspace, then calls
+`Reviewing.confirm`. The concept enforces that the
 Review is `PENDING`; an authorization result does not bypass its lifecycle
 guard. The operation returns the confirmed Review identity.
 
@@ -147,9 +178,9 @@ interpret or trust a caller-supplied User embedded in that payload.
 
 Read endpoints are also authorized for the officer-only MVP: procedure reads
 use `EDIT_PROCEDURE`, ContextNote and Change reads use `EDIT_CONTEXT`, and
-unfinished Review reads use `COMPLETE_REVIEW`. These are existing application
-Permission values. This keeps workspace data private while the MVP has no
-Member onboarding or read-only Permission policy.
+pending and historical Review reads use `COMPLETE_REVIEW`. These are existing
+application Permission values. This keeps workspace data private while the MVP
+has no Member onboarding or read-only Permission policy.
 
 The authenticated caller identity is not established by any of these
 composition reactions. Sync-engine's documented composition syntax has no

@@ -1,4 +1,5 @@
 import { assemble } from "@mit-sdg/sync-engine/assembly";
+import type { Db, MongoClient } from "mongodb";
 import { applicationConceptSet } from "./concepts.ts";
 import { ContextTrackingConcept } from "./concepts/ContextTracking.ts";
 import { db, mongoClient } from "./db.ts";
@@ -7,15 +8,21 @@ import { RoleBasedAccessingConcept } from "./concepts/RoleBasedAccessing.ts";
 import { ReviewingConcept } from "./concepts/Reviewing.ts";
 import { composition } from "./compositions/Relay.ts";
 
-export function assembleApplication() {
-  return assemble({
+export function createApplication(database: Db, client: MongoClient) {
+  const roleAccess = new RoleBasedAccessingConcept(database, client);
+  const application = assemble({
     conceptSet: applicationConceptSet,
     instances: {
-      ContextTracking: new ContextTrackingConcept(db, mongoClient),
-      ProcedureMaintaining: new ProcedureMaintainingConcept(db, mongoClient),
-      Reviewing: new ReviewingConcept(db, mongoClient),
-      RoleBasedAccessing: new RoleBasedAccessingConcept(db, mongoClient),
+      ContextTracking: new ContextTrackingConcept(database, client),
+      ProcedureMaintaining: new ProcedureMaintainingConcept(database, client),
+      Reviewing: new ReviewingConcept(database, client),
+      RoleBasedAccessing: roleAccess,
     },
     composition,
   });
+  return { application, roleAccess };
+}
+
+export function assembleApplication() {
+  return createApplication(db, mongoClient).application;
 }

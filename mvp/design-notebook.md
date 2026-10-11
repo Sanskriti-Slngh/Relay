@@ -409,3 +409,148 @@ The test invokes actions through the assembled sync-engine application and uses 
 **Remaining limitations:** The request-refusal recovery branch was monitored but not triggered. The composition does not guarantee eventual Cause delivery under every possible race or failure. Sync-engine design diagnostics still report 16 unresolved links associated with planned endpoints and read formers.
 
 **Next:** Verify reaction behavior across repeated runs, then implement the protected application endpoint layer.
+
+### Step 6.3b — Concurrency Regression Verification
+
+After finding and fixing a concurrency issue in the composition reactions, I reran the integration suite ten separate times.
+
+Every run passed all three integration tests with 28 assertions. The concurrent scenario consistently retained four distinct Context Changes as Causes of exactly one unfinished Review.
+
+The tests use the assembled sync-engine application, wait for tracked work through `application.whenIdle()`, and use a fresh isolated MongoDB database for each run.
+
+I also checked the documented behavior of `afterFlowSettles()`. It waits for tracked ordinary work within the triggering flow, not all independent concurrent flows. The successful repeated runs therefore support the specific tested behavior but do not prove that Causes can never be lost under arbitrary scheduling or failures.
+
+The `REQUEST_ALREADY_UNFINISHED` recovery reaction was not confirmed as exercised. It remains a separate test and reliability concern.
+
+**Verification:** Ten integration runs passed. The complete backend suite passed 57 tests with 351 assertions. TypeScript and Git whitespace checks passed.
+
+**Next:** Commit the completed internal composition work and begin implementing a trusted application identity boundary before exposing protected operations.
+
+### Step 7.1 — Investigating Trusted Identity and Hosting
+
+Before exposing Relay through HTTP, I investigated how sync-engine handles requests and whether it provides authentication.
+
+I found that sync-engine supports HTTP hosting through a gateway and Fetch handler, but does not automatically establish a trustworthy caller identity. RoleBasedAccessing can check permissions, but the application must first determine which User is making the request.
+
+For the P2 MVP, I chose a local single-officer architecture. The Bun host will use one configured workspace and officer identity, and the server will control these values rather than trusting identities submitted by the browser.
+
+The host will also provision the initial Officer Role and grant EDIT_PROCEDURE, EDIT_CONTEXT, and COMPLETE_REVIEW permissions before serving requests. Role creation and assignment will remain private operations.
+
+I decided that missing configuration or inconsistent provisioning should prevent the server from starting rather than silently create an insecure fallback.
+
+The investigation also identified the remaining formal design gaps: eleven endpoint declarations, two endpoint-reaction links, and three read-former links.
+
+**Verification:** Read-only investigation of the installed sync-engine and HTTP documentation. No code changes, server startup, or database writes.
+
+**Next:** Implement and test host configuration validation before introducing provisioning or publicly accessible routes.
+
+### Step 7.2 — Validating Host Configuration
+
+I implemented a host configuration validator to establish Relay's workspace and officer identities through server-controlled configuration rather than browser input.
+
+The validator requires a stable ClubWorkspace ID, Officer User ID, local access credential, and MongoDB URL. It rejects missing values, malformed identities, obvious placeholders, weak-looking credentials, and invalid MongoDB connection strings.
+
+I kept the function pure so tests can provide configuration directly without modifying environment variables or starting the application. The returned configuration is immutable, and validation errors avoid exposing credentials or MongoDB connection details.
+
+One limitation is that checking a credential's character distribution does not prove it was randomly generated. The host will still need to generate and store its access credential securely.
+
+**Verification:** All 79 tests passed. TypeScript and Git whitespace checks passed. No MongoDB connections or server operations were performed.
+
+**Next:** Implement private, repeatable Officer provisioning before creating public application endpoints.
+
+### Increment 7 — Completing the Backend MVP
+
+I completed Relay's backend integration by adding private Officer provisioning, authorized composition endpoints, three read formers, and a local Bun HTTP host.
+
+The main architectural challenge was separating authentication from authorization. The host establishes the configured User and workspace, while RoleBasedAccessing determines whether that User can perform an operation. I made the host overwrite caller-supplied identities so clients cannot impersonate another User through request data.
+
+I also implemented repeatable Officer provisioning. On startup, Relay checks the Officer Role, its three permissions, and its assignment to the configured workspace. Unexpected state causes provisioning to fail rather than silently granting additional access.
+
+The application now exposes operations for Procedures, Steps, Context Notes, attachments, changes, pending Reviews, and Review confirmation. The read formers combine information from independent concepts without moving that logic into the concepts themselves.
+
+An HTTP integration test exercised the main MVP scenario: create two Procedures, attach one shared Context Note, correct its wording without generating Reviews, change its meaning to create two pending Reviews, and confirm one.
+
+**Verification:** All 94 tests passed, TypeScript passed, complete design checking passed, and Git whitespace checking passed. Sync-engine application diagnostics passed with eleven nonfatal advisories.
+
+**Remaining work:** Build the Vue frontend, establish a suitable browser access mechanism, investigate the endpoint fallback advisories, and run the actual local application end to end.
+
+### Increment 8 — Relay P2 Browser Demo
+
+I added a responsive Vue interface for the P2 club workflow: a workspace
+dashboard, ordered playbooks and Steps, shared Context Notes and attachments,
+separate wording correction and meaningful-change actions, exact before/after
+history, and a pending Review inbox.
+
+The existing shared host credential is now used only at a same-origin sign-in
+route. The server exchanges it for an expiring in-memory session cookie
+(HttpOnly, SameSite=Strict) and a CSRF token. Mutating requests require the
+session, CSRF token, and the exact local Vite Origin. User and workspace values
+remain host-injected; no secret is built into the frontend or returned by a
+configuration endpoint. A new authorized review-history read exposes persisted
+completed states so the UI can distinguish pending and complete Reviews after
+refresh.
+
+The dev supervisor starts the Bun API and Vite together. An optional
+`RELAY_DEMO_DATABASE` selects a separate MongoDB database name without changing
+the configured application URI, making it possible to demonstrate startup
+provisioning from a clean database. The README documents the setup and warns
+that this shared-credential local host is not production authentication.
+
+**Diagnostic review:** The eight `MISSING_ENDPOINT_FALLBACK` warnings remain.
+Sync-engine 1.1.0 explicitly notes that its coverage analyzer cannot prove
+complementary state guards and that adding an unconditional sibling may create
+overlapping answers. I did not add unsafe catch-all responses or weaken
+authorization. The three `ORDER_SENSITIVE_FORMER` notices remain associated
+with the declared ordered selections; all user-visible collections are
+explicitly arranged by stable identities or Step position. Procedure
+collections now use unique Procedure identity as their stable order rather than
+title (titles may repeat). The analyzer still reports each arrangement as
+source-order-sensitive because its check does not prove the selected key is
+unique.
+
+**Verification:** `bun run test` passed all 99 tests across 9 files;
+`bunx tsc --noEmit`, `bun run typecheck:web`, `bun run build`, and the full
+design check passed; `git diff --check` was clean. The sync-engine application
+check passed with 8 `MISSING_ENDPOINT_FALLBACK` warnings and 4
+`ORDER_SENSITIVE_FORMER` notices. Browser smoke testing confirmed the Vue
+sign-in screen loads through Vite and that the proxied API denies unauthenticated
+requests. The full application workflow, including persisted Review history,
+was exercised by isolated MongoDB integration tests.
+
+The local demo is running at `http://127.0.0.1:5173` against a separate
+`RELAY_DEMO_DATABASE`; no fixtures were written to the configured application
+database. The browser credential remains only in ignored `.env` and was not
+printed.
+
+### Increment 9 — Submission Readiness Walkthrough
+
+I completed the full workflow in headless Chrome through the Vue interface,
+using the isolated `relay_browser_demo_verified_c4197e` database. I created two
+Playbooks with ordered Steps, recorded one shared Context Note, attached it to
+both Playbooks with a Step 1 anchor on Playbook A, corrected the wording, and
+verified that correction produced no Reviews. The meaningful change preserved
+the exact annual-to-semester before/after text and produced two pending Reviews.
+After confirming one, refreshing, and reloading the page, the browser still
+showed one pending Review and the completed Review in history.
+
+The narrow 390-pixel walkthrough exposed a usability gap: the responsive
+stylesheet hides the sidebar footer, which previously made its Sign out button
+inaccessible on mobile. I added a compact Sign out control to the mobile
+topbar; the final 390×844 viewport has no horizontal overflow, retains fixed
+bottom navigation, and exposes sign-out.
+
+Live host checks returned 401 for unauthenticated API access, 403 for missing
+CSRF and cross-origin requests, and 404 for an unexposed role-administration
+path. A same-origin authorized read remained successful when the body supplied
+forged User and workspace values, confirming the host replaces them with its
+configured identities. A scan of the production JavaScript bundle did not find
+the configured local credential. The credential was not printed or captured in
+screenshots. Desktop and mobile evidence was saved outside the repository at
+`/tmp/relay-p2-desktop.png` and `/tmp/relay-p2-mobile.png`.
+
+**Final verification:** 99 tests passed across 9 files; `bunx tsc --noEmit`,
+`bun run typecheck`, `bun run build`, the full design check, and
+`git diff --check` passed. Sync-engine reported the same 8
+`MISSING_ENDPOINT_FALLBACK` warnings for guarded mutation paths and 4
+`ORDER_SENSITIVE_FORMER` notices for explicitly arranged selections. The local
+demo database was distinct from the configured application database.
