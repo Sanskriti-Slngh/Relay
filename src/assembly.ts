@@ -5,6 +5,7 @@ import { db, mongoClient } from "./db.ts";
 import { ProcedureMaintainingConcept } from "./concepts/ProcedureMaintaining.ts";
 import { RoleBasedAccessingConcept } from "./concepts/RoleBasedAccessing.ts";
 import { ReviewingConcept } from "./concepts/Reviewing.ts";
+import { composition } from "./compositions/Relay.ts";
 
 export function assembleApplication() {
   return assemble({
@@ -15,6 +16,6 @@ export function assembleApplication() {
       Reviewing: new ReviewingConcept(db, mongoClient),
       RoleBasedAccessing: new RoleBasedAccessingConcept(db, mongoClient),
     },
-    composition: {},
+    composition,
   });
 }

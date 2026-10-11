@@ -73,6 +73,11 @@ requests one Review for each attached, active Procedure that has no unfinished
 Review. [AddCauseToUnfinishedReview](reaction:Relay.ContextChanges.AddChangeCause)
 adds the new Change as a Cause to that Procedure's existing unfinished Review.
 The second reaction uses `Reviewing.addCause`, not another `Reviewing.request`.
+If a concurrent request wins after the no-unfinished-Review check, its
+`REQUEST_ALREADY_UNFINISHED` refusal is handled by
+[AddCauseAfterConcurrentRequestRefusal](reaction:Relay.ContextChanges.AddCauseAfterConcurrentRequestRefusal),
+which looks up the existing unfinished Review and attempts to add the Change as
+a Cause.
 Both reactions ignore attachments whose Procedure is not active and bind only
 the affected Procedure identity from `ContextTracking._attachments`. They must
 not bind the distinct Step anchors or Attachment identities, so multiple
