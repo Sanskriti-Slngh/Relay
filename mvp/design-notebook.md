@@ -347,3 +347,65 @@ The main architectural result is that Relay now has four independent concepts th
 The current application assembly still has an empty composition. This means the concepts work independently, but the complete Relay workflow, HTTP access, and trusted Officer setup remain unimplemented.
 
 **Next:** Commit the four-concept backend and begin integrating the MVP workflow through composition reactions.
+
+### Step 6.1 — Investigating Composition Reactions
+
+Before implementing cross-concept behavior, I reviewed sync-engine's reaction and execution semantics to understand what guarantees the framework actually provides.
+
+I found that a reaction can observe a successful ContextTracking change, read its attachments, check whether the related Procedure is active, and either request a new Review or add a Cause to an existing unfinished Review.
+
+One important detail is that attachment queries produce distinct matches based on which values the reaction binds. I plan to bind only the Procedure identity so that attaching one Context Note to multiple Steps of the same Procedure does not create unnecessary duplicate Review requests.
+
+I also investigated concurrency. Reviewing already enforces one unfinished Review per Procedure using a MongoDB constraint, but composition-level checks can become outdated between reading and acting. I plan to handle duplicate-request refusals through a recovery reaction.
+
+A remaining limitation is that a Review might finish between being found and receiving a new Cause. Sync-engine does not automatically guarantee exactly-once execution or eventual success under arbitrary concurrent changes. I will test the normal concurrent cases and avoid claiming stronger guarantees than the framework provides.
+
+**Verification:** Reviewed the installed sync-engine 1.1.0 reaction, read-matching, refusal, and flow-settlement documentation and examples. No implementation files were changed.
+
+**Next:** Implement the minimal ContextTracking-to-Reviewing reactions and validate them independently before adding public endpoints.
+
+### Step 6.2 — Implementing Context Change Reactions
+
+I implemented Relay's first three internal composition reactions.
+
+When a Context Note changes, the composition finds its attached active Procedures. If a Procedure has no unfinished Review, it requests one. Otherwise, it adds the Change as another Cause.
+
+I also added a recovery reaction for a concurrent request that is refused because an unfinished Review already exists. This attempts to attach the Change to that Review instead of losing it.
+
+The reactions bind only Procedure identities from attachments, so multiple attachments to Steps of the same Procedure do not create separate matches.
+
+An important limitation is that a Review can finish between being found and receiving a Cause. The current recovery reaction does not guarantee eventual delivery under every possible race.
+
+**Verification:** TypeScript and whitespace checks passed. Sync-engine diagnostics reported three missing composition-design coverage links. No application database operations or runtime integration tests were performed.
+
+**Next:** Align the formal composition design and diagnostic configuration with the three implemented reactions, then test the assembled application.
+
+### Step 6.2b — Aligning Reactions with the Formal Design
+
+After implementing the first composition reactions, sync-engine reported three missing design coverage links.
+
+The executable reaction names did not have complete coverage in the configured design documents. I updated `generated.config.ts` to include the Relay composition design and added a formal link documenting recovery from `REQUEST_ALREADY_UNFINISHED`.
+
+I preserved the existing descriptions of the other two reactions and did not remove any planned endpoint declarations.
+
+**Verification:** TypeScript and whitespace checks passed. The configured sync-engine check now passes without the three missing coverage diagnostics. A separate full design check still reports 16 unresolved links or endpoints associated with application functionality that has not been implemented.
+
+**Next:** Test the actual reaction behavior using an assembled sync-engine application with an isolated MongoDB database, before implementing HTTP endpoints.
+
+### Step 6.3 — Integration Testing the Context Change Reactions
+
+I added integration tests that assemble all four Relay concepts with the real sync-engine composition and an isolated MongoDB database.
+
+The main test creates two active Procedures connected to one shared Context Note. Changing that note creates a pending Review for each Procedure, both referencing the correct Change. I also verified that retired Procedures are skipped, corrections do not trigger Reviews, and subsequent changes accumulate Causes without replacing unfinished Reviews.
+
+The concurrency test uncovered a real integration bug. Four simultaneous Context Changes initially produced only three Review Causes. The two reactions could independently observe different Review states, leaving one Change unmatched.
+
+I updated the add-Cause reaction to defer its query until the triggering flow's ordinary work settles, using `afterFlowSettles()`. I also added a condition to avoid adding Causes that are already present. The integration test then passed with all four Causes retained.
+
+The test invokes actions through the assembled sync-engine application and uses `application.whenIdle()` before checking the resulting state.
+
+**Verification:** All 57 tests passed with 348 assertions. TypeScript and whitespace checks passed. The tests used an isolated MongoDB database that was removed afterward.
+
+**Remaining limitations:** The request-refusal recovery branch was monitored but not triggered. The composition does not guarantee eventual Cause delivery under every possible race or failure. Sync-engine design diagnostics still report 16 unresolved links associated with planned endpoints and read formers.
+
+**Next:** Verify reaction behavior across repeated runs, then implement the protected application endpoint layer.
