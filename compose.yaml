@@ -1,0 +1,57 @@
+services:
+  mongodb:
+    image: docker.io/library/mongo:8.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    ports:
+      - "127.0.0.1:27018:27018"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--port", "27018", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+  mongodb-init:
+    image: docker.io/library/mongo:8.0
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    entrypoint: ["mongosh", "mongodb://mongodb:27018/admin?directConnection=true", "--quiet", "--eval"]
+    command:
+      - |
+        let initialized = false;
+        try {
+          initialized = rs.status().ok === 1;
+        } catch (error) {
+          if (error.code !== 94 && error.codeName !== "NotYetInitialized") {
+            throw error;
+          }
+        }
+
+        if (!initialized) {
+          const initResult = rs.initiate({
+            _id: "rs0",
+            members: [{ _id: 0, host: "localhost:27018" }]
+          });
+          if (initResult.ok !== 1) {
+            throw new Error("Replica set initialization failed: " + JSON.stringify(initResult));
+          }
+        }
+
+        let isPrimary = false;
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          const hello = db.adminCommand({ hello: 1 });
+          if (hello.setName === "rs0" && hello.isWritablePrimary) {
+            isPrimary = true;
+            break;
+          }
+          sleep(1000);
+        }
+        if (!isPrimary) {
+          throw new Error("Replica set rs0 did not elect its single member as primary.");
+        }
+    restart: "no"
+
+volumes:
+  mongodb_data:

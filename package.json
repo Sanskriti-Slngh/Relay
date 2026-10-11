@@ -18,6 +18,9 @@
   "scripts": {
     "generate": "sync-engine artifacts pin",
     "check": "sync-engine check && sync-engine artifacts check && tsc --noEmit",
-    "start": "bun src/main.ts"
+    "start": "bun src/main.ts",
+    "test": "bun test",
+    "db:up": "podman compose up -d mongodb && podman compose run --rm mongodb-init",
+    "db:check": "bun src/db.ts"
   }
 }

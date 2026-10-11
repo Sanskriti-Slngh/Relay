@@ -114,3 +114,56 @@ I also learned that sibling reaction work may continue after an endpoint sends i
 
 **Next:** Finalize the composition and proceed to implementing the first concept.
 
+## October 11, 2026 — Increment 2: Implementing ProcedureMaintaining
+
+I began backend implementation with `ProcedureMaintaining` because the rest of Relay relies on having Procedures and Steps with stable identities.
+
+My plan is to first establish the MongoDB connection, then implement the concept's actions and queries, and finally test its invariants and refusal cases before integrating it with other concepts.
+
+I want to verify the database separately from the concept logic so that if something fails later, I can distinguish a connection problem from an error in my implementation.
+
+**Verification:** Pending.
+
+**Next:** Set up and test the local MongoDB connection.
+
+### Step 2.1 — Setting Up MongoDB
+
+I started backend implementation by setting up MongoDB separately from the concept logic. I created a reusable database connection in `src/db.ts`, configured MongoDB through Podman Compose, and added scripts to start the database and verify its connection.
+
+I ran into a port conflict because my existing MongoDB practice container was already using port 27017. Rather than stopping that container or resetting its data, I configured Relay to use port 27018. This allowed both environments to remain independent.
+
+I also kept the MongoDB connection string in `.env` and added an `.env.example` file so the local setup can be reproduced without committing environment-specific configuration.
+
+**Verification:** Ran `bun run db:up` and `bun run db:check`. The database container started successfully, and the connection check printed `MongoDB connection successful: relay`. The agent also reported successful TypeScript, Compose configuration, and specification-format checks.
+
+Separating database setup from concept implementation made it easier to verify that the connection worked before introducing application logic.
+
+### Step 2.2a — Enabling MongoDB Transactions
+
+While implementing ProcedureMaintaining, I discovered that my local MongoDB setup did not support the multi-document transactions needed to update Step positions safely.
+
+I considered simplifying the implementation to use individual updates, but that could leave Steps in an inconsistent order if an operation failed halfway through. Instead, I decided to preserve the transactional approach and update the development environment.
+
+I configured MongoDB as a single-node replica set named `rs0`, keeping port 27018 to avoid interfering with my existing MongoDB practice environment. I also added an initialization service so the replica set can be started reproducibly without resetting the database.
+
+To verify the change, I tested an actual transaction that inserted documents into two collections. Both writes committed successfully, confirming that the database supports the operations needed for Step reordering.
+
+**Verification:** The replica set reported itself as PRIMARY, the multi-document transaction committed successfully, and TypeScript and Compose checks passed. The original MongoDB data volume was preserved.
+
+**Next:** Test ProcedureMaintaining's actions, failure cases, and Step-ordering invariants against the transaction-enabled database.
+
+### Step 2.3 — Testing ProcedureMaintaining
+
+After implementing ProcedureMaintaining, I wrote an automated test suite to check its actions, refusal cases, and Step-ordering invariants.
+
+One issue I encountered was test isolation. The original implementation used MongoDB collections defined at the module level, which meant the tests would use the same database as the application. I changed the concept constructor to accept an optional database and MongoDB client, while keeping the application's existing connection as the default.
+
+This let me test the real concept against a separate database without changing production data. Each test creates its setup through concept actions rather than manually inserting documents.
+
+I focused on testing behavior that could easily break, especially Step reordering and removal. The tests check that positions remain consecutive, Step identities are preserved, removed Steps remain accessible, and invalid operations are refused without changing the observable state.
+
+I also tested eight concurrent Step additions. All completed successfully, and the resulting Steps had distinct identities and positions from 1 through 8. This gave me more confidence in the transaction-based ordering approach, although one successful concurrency test cannot rule out every possible race condition.
+
+**Verification:** `bun run test` passed with 12 tests, 54 assertions, and no failures. TypeScript checking and `git diff --check` also passed. Tests used an isolated database and cleaned it up afterward.
+
+**Next:** Register ProcedureMaintaining with sync-engine and check that the implementation matches its formal specification.
