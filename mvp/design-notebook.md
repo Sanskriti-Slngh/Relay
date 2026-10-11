@@ -228,3 +228,60 @@ All 23 direct tests passed, with 132 assertions. TypeScript checking passed, and
 
 **Next:** Commit the completed ContextTracking increment and begin implementing Reviewing.
 
+## October 11, 2026 — Increment 4: Reviewing
+
+I began implementing Reviewing after completing ProcedureMaintaining and ContextTracking.
+
+The main design challenge is enforcing that each Procedure has at most one unfinished Review. If several pieces of shared context change before an officer addresses the Procedure, Relay should collect those changes as Causes of one Review rather than create several separate Reviews.
+
+I plan to enforce this invariant in Reviewing's MongoDB storage rather than relying only on reaction conditions. This matters because concurrent requests could otherwise create duplicate pending Reviews.
+
+I will also implement the Review lifecycle, including confirming a Review, requiring changes, resolving it, and cancelling it. The concept should remain independent of both Procedures and Context Notes: it stores Item and Cause identities without needing to know their internal representations.
+
+**Verification:** Pending implementation and tests.
+
+**Next:** Implement Reviewing's actions, queries, lifecycle checks, and atomic uniqueness constraint.
+
+### Step 4.1 — Implementing Reviewing
+
+I implemented Reviewing as an independent MongoDB-backed concept with six actions and four queries. It stores the Procedure identity as an Item and the Context Change identity as a Cause, without needing to know either concept's internal representation.
+
+The main challenge was ensuring that a Procedure never has more than one unfinished Review. A normal check before inserting would be vulnerable to concurrent requests, so I used a partial unique MongoDB index on Item for Reviews whose status is PENDING or CHANGES_REQUIRED.
+
+I also needed to preserve multiple reasons for a Review. I used MongoDB's atomic `$addToSet` operation so concurrent additions of different Causes cannot overwrite each other, while duplicate Causes are rejected.
+
+For lifecycle transitions, I used conditional updates that only succeed from the allowed starting status. This prevents two simultaneous operations from both applying incompatible transitions.
+
+**Verification:** TypeScript compilation and Git whitespace checking passed. The implementation has not yet been tested against MongoDB.
+
+**Next:** Test Review uniqueness, accumulating Causes, legal and illegal lifecycle transitions, and concurrent operations.
+
+### Step 4.2 — Testing Reviewing
+
+I implemented 14 tests for Reviewing, bringing the total backend test suite to 37 tests.
+
+I focused on the unfinished-Review invariant because it is one of the most important guarantees in Relay. The tests verify that a Procedure can have only one unfinished Review, but can have another Review after the previous one is completed or cancelled.
+
+I tested the full Review lifecycle, including confirming, requiring changes, resolving, and cancelling Reviews. I also checked that illegal operations return the expected refusal errors without changing stored state.
+
+The most useful tests involved concurrency. Eight simultaneous requests for the same Item produced exactly one Review. Eight different Causes added concurrently were all retained, while simultaneous attempts to add the same Cause resulted in only one addition. I also raced two incompatible lifecycle transitions and verified that only one succeeded.
+
+These tests helped confirm that the partial unique index, atomic Cause updates, and conditional status changes behave correctly against MongoDB.
+
+**Verification:** All 37 tests passed with 237 assertions and no failures. TypeScript and Git whitespace checks passed. The Reviewing tests used an isolated database and did not modify application data. No production changes were necessary.
+
+**Next:** Register Reviewing with sync-engine and extend the incremental assembly to three concepts.
+
+### Step 4.3 — Registering Reviewing
+
+After testing Reviewing independently, I registered it with sync-engine alongside ProcedureMaintaining and ContextTracking.
+
+I updated the incremental application types to connect Reviewing's Item identity to a Procedure and its Cause identity to a ContextTracking Change. This maintains the separation between concepts while allowing the eventual composition to coordinate them.
+
+I also registered all twelve specified refusal codes and expanded the assembly to include Reviewing using the existing MongoDB connection.
+
+The framework initially supported only the concepts selected in the incremental inventory, so I replaced the previous two-concept inventory with a temporary three-concept version. I preserved the full application specification for later integration.
+
+**Verification:** All 37 tests passed with 237 assertions. TypeScript checking passed, and sync-engine validated all three registered concepts with zero advisories.
+
+**Next:** Commit Reviewing and implement RoleBasedAccessing, the final independent concept needed before composing the complete application.
