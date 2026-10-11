@@ -235,6 +235,7 @@ describe("Relay trusted HTTP backend", () => {
   });
 
   test("denies mutations after permission removal and leaves procedure state unchanged", async () => {
+    const procedure = await createProcedure("Archive permission check");
     const officerRole = (await roleAccess._roles()).find(({ name }) => name === "Officer")!.role;
     await roleAccess.revokePermission({ role: officerRole, permission: "EDIT_PROCEDURE" });
     const response = await request("/workspaces/procedures/create", { title: "Denied create" });
@@ -242,6 +243,15 @@ describe("Relay trusted HTTP backend", () => {
     expect(response.body.error).toBe("FORBIDDEN");
     const deniedRead = await request("/workspaces/procedures", {});
     expect(deniedRead.status).toBe(403);
+    const deniedArchive = await request("/workspaces/procedures/archive", { procedure });
+    expect(deniedArchive.status).toBe(403);
+    expect(await application.concepts.ProcedureMaintaining._get({ procedure })).toEqual([
+      {
+        space: hostConfig.clubWorkspaceId,
+        title: "Archive permission check",
+        status: "ACTIVE",
+      },
+    ]);
     await roleAccess.revokePermission({ role: officerRole, permission: "COMPLETE_REVIEW" });
     const deniedHistory = await request("/workspaces/reviews", {});
     expect(deniedHistory.status).toBe(403);
@@ -252,6 +262,85 @@ describe("Relay trusted HTTP backend", () => {
       space: hostConfig.clubWorkspaceId,
     });
     expect(listed.some(({ title }) => title === "Denied create")).toBe(false);
+  });
+
+  test("archives only an active in-workspace Playbook and retains its Steps, attachments, and Reviews", async () => {
+    const procedure = await createProcedure("Archive keeps history");
+    const stepResponse = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Keep the ordered Step",
+    });
+    expect(stepResponse.status).toBe(200);
+
+    const noteResponse = await request("/workspaces/context/notes", {
+      text: "Context retained after archiving",
+    });
+    const context = requireString(noteResponse.body.context, "ContextNote");
+    expect((await request("/workspaces/context/attachments", { context, procedure })).status).toBe(200);
+    const changeResponse = await request("/workspaces/context/change", {
+      context,
+      text: "Meaningful update before archival",
+    });
+    expect(changeResponse.status).toBe(200);
+    const beforeArchive = await request("/workspaces/reviews/pending", {});
+    expect(beforeArchive.body.reviews).toHaveLength(1);
+
+    const archived = await request("/workspaces/procedures/archive", { procedure });
+    expect(archived).toEqual({
+      status: 200,
+      body: { procedure, status: "RETIRED" },
+    });
+    expect(await application.concepts.ProcedureMaintaining._get({ procedure })).toEqual([
+      {
+        space: hostConfig.clubWorkspaceId,
+        title: "Archive keeps history",
+        status: "RETIRED",
+      },
+    ]);
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure })).toHaveLength(1);
+    expect(await application.concepts.ContextTracking._attachments({ context })).toHaveLength(1);
+    expect((await request("/workspaces/procedures", {})).body.procedures).toContainEqual(
+      expect.objectContaining({ procedure, status: "RETIRED" }),
+    );
+    expect((await request("/workspaces/reviews/pending", {})).body.reviews).toContainEqual(
+      expect.objectContaining({ procedure, title: "Archive keeps history" }),
+    );
+    expect((await request("/workspaces/reviews", {})).body.procedures).toContainEqual(
+      expect.objectContaining({
+        procedure,
+        reviews: [expect.objectContaining({ status: "PENDING" })],
+      }),
+    );
+    expect((await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Cannot add a Step after archiving",
+    })).status).toBe(404);
+    expect((await request("/workspaces/procedures/archive", { procedure })).status).toBe(404);
+
+    const retainedReview = (beforeArchive.body.reviews as { review: string }[])[0]?.review;
+    if (!retainedReview) throw new Error("Expected the archived Playbook's Review to remain available.");
+    expect((await request("/workspaces/reviews/confirm", {
+      review: retainedReview,
+      procedure,
+    })).status).toBe(200);
+
+    const foreign = await application.concepts.ProcedureMaintaining.create({
+      space: "foreign-workspace",
+      title: "Foreign active Playbook",
+    });
+    const foreignProcedure = requireString(foreign.procedure, "Foreign Procedure");
+    expect((await request("/workspaces/procedures/archive", {
+      procedure: foreignProcedure,
+    })).status).toBe(404);
+    expect(await application.concepts.ProcedureMaintaining._get({
+      procedure: foreignProcedure,
+    })).toEqual([
+      {
+        space: "foreign-workspace",
+        title: "Foreign active Playbook",
+        status: "ACTIVE",
+      },
+    ]);
   });
 
   test("does not let the configured officer mutate a Procedure from another workspace", async () => {
@@ -400,13 +489,16 @@ describe("Relay trusted HTTP backend", () => {
     const historyResponse = await request("/workspaces/reviews", {});
     expect(historyResponse.status).toBe(200);
     const reviewHistory = historyResponse.body.procedures as {
+      procedure: string;
       title: string;
       reviews: {
         status: string;
         causes: { cause: string; before: string; after: string }[];
       }[];
     }[];
-    const persistedReviews = reviewHistory.flatMap(({ reviews }) => reviews);
+    const persistedReviews = reviewHistory
+      .filter(({ procedure }) => [firstProcedure, secondProcedure].includes(procedure))
+      .flatMap(({ reviews }) => reviews);
     expect(persistedReviews.map(({ status }) => status).toSorted()).toEqual([
       "COMPLETE",
       "PENDING",

@@ -63,9 +63,17 @@ created identities. The procedure read endpoint uses
 Procedures for the workspace with their identities, titles, statuses, and
 active Steps ordered by position.
 
+[Archiving a Playbook](reaction:Relay.ProcedureOperations.ArchiveProcedure)
+authorizes with `EDIT_PROCEDURE` and calls `ProcedureMaintaining.retire` only
+for an active Procedure owned by the configured workspace. It preserves the
+Procedure, Steps, Context attachments, and Review history; archived Procedures
+are omitted from active lists but remain queryable for history. Unknown,
+foreign-workspace, or already archived Procedures are refused as unavailable.
+
 ```endpoints
 Relay.ProcedureOperations.CreateProcedure at /workspaces/procedures/create
 Relay.ProcedureOperations.AddStep at /workspaces/procedures/steps/add
+Relay.ProcedureOperations.ArchiveProcedure at /workspaces/procedures/archive
 Relay.ReadOperations.ListProcedures at /workspaces/procedures
 ```
 

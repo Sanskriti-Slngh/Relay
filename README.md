@@ -67,6 +67,9 @@ check and CSRF token. Restarting the host expires all browser sessions.
      settle before refreshing the dashboard.
    - Open **Reviews**, inspect each playbook's cause text, and confirm a Review.
      The other affected Review remains pending.
+   - Archive a Playbook from the Playbooks page when it is no longer active.
+     Archiving preserves its Steps, Context attachments, and Reviews; open
+     **Archived playbooks** to inspect it later.
 
 The browser talks only to the composition's authorized HTTP operations and
 read formers. Role-management and bootstrap actions are not public. User and

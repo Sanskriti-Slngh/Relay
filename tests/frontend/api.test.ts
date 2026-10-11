@@ -42,6 +42,25 @@ describe("Relay browser API client", () => {
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ title: "Club event setup" });
   });
 
+  test("archives a Playbook through the authorized composition endpoint", async () => {
+    const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
+    const api = createRelayApi(async (input, init) => {
+      calls.push({ input, init });
+      return Response.json({ procedure: "archived-procedure", status: "RETIRED" });
+    });
+
+    await expect(api.archiveProcedure("archived-procedure", "session-csrf")).resolves.toEqual({
+      procedure: "archived-procedure",
+      status: "RETIRED",
+    });
+
+    expect(calls[0].input).toBe("/api/workspaces/procedures/archive");
+    expect(new Headers(calls[0].init?.headers).get("X-Relay-CSRF")).toBe("session-csrf");
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({
+      procedure: "archived-procedure",
+    });
+  });
+
   test("surfaces unauthenticated API responses as an explicit sign-in error", async () => {
     const api = createRelayApi(async () => Response.json(
       { error: "UNAUTHORIZED" },

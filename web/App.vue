@@ -51,6 +51,9 @@ const completedReviews = computed(() =>
 const activeProcedures = computed(() =>
   procedures.value.filter((procedure) => procedure.status === "ACTIVE"),
 );
+const archivedProcedures = computed(() =>
+  procedures.value.filter((procedure) => procedure.status === "RETIRED"),
+);
 const navigation: { id: Section; label: string; short: string }[] = [
   { id: "overview", label: "Overview", short: "01" },
   { id: "procedures", label: "Playbooks", short: "02" },
@@ -170,6 +173,15 @@ async function addStep(procedure: Procedure) {
     await api.addStep(procedure.procedure, text, csrfToken.value);
     stepDraft[procedure.procedure] = "";
   }, "Step added to the playbook.");
+}
+
+async function archiveProcedure(procedure: Procedure) {
+  if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved.`)) {
+    return;
+  }
+  await runAction(`archive-${procedure.procedure}`, async () => {
+    await api.archiveProcedure(procedure.procedure, csrfToken.value);
+  }, "Playbook archived. Its context and review history are preserved.");
 }
 
 async function recordContext() {
@@ -396,14 +408,14 @@ onMounted(async () => {
                   <div><p class="eyebrow">THE WAY YOU WORK</p><h2>Playbooks</h2></div>
                   <button class="text-button" type="button" @click="section = 'procedures'">All playbooks <span>→</span></button>
                 </div>
-                <div v-if="!procedures.length" class="empty-state compact-empty">
+                <div v-if="!activeProcedures.length" class="empty-state compact-empty">
                   <span class="empty-icon">↗</span>
-                  <h3>Start with a playbook</h3>
-                  <p>Capture the repeatable steps your club relies on.</p>
+                  <h3>{{ archivedProcedures.length ? "No active playbooks" : "Start with a playbook" }}</h3>
+                  <p>{{ archivedProcedures.length ? "Archived playbooks remain available below and in review history." : "Capture the repeatable steps your club relies on." }}</p>
                   <button class="button button-secondary" type="button" @click="section = 'procedures'">Create a playbook</button>
                 </div>
                 <div v-else class="overview-procedures">
-                  <article v-for="procedure in procedures.slice(0, 4)" :key="procedure.procedure" class="overview-procedure">
+                  <article v-for="procedure in activeProcedures.slice(0, 4)" :key="procedure.procedure" class="overview-procedure">
                     <span class="procedure-glyph">P</span>
                     <div class="procedure-summary">
                       <strong>{{ procedure.title }}</strong>
@@ -464,12 +476,12 @@ onMounted(async () => {
                 {{ actionBusy === "create-procedure" ? "Creating…" : "Create playbook" }}
               </button>
             </form>
-            <div v-if="!procedures.length" class="panel empty-page-state">
-              <span class="empty-icon">↗</span><h2>Your first playbook starts here</h2>
-              <p>Give it a clear name above, then add the steps your team follows.</p>
+            <div v-if="!activeProcedures.length" class="panel empty-page-state">
+              <span class="empty-icon">↗</span><h2>{{ archivedProcedures.length ? "No active playbooks" : "Your first playbook starts here" }}</h2>
+              <p>{{ archivedProcedures.length ? "There are no active playbooks. Archived ones remain available below." : "Give it a clear name above, then add the steps your team follows." }}</p>
             </div>
-            <div v-else class="procedure-list">
-              <article v-for="procedure in procedures" :key="procedure.procedure" class="panel procedure-card">
+            <div v-if="activeProcedures.length" class="procedure-list">
+              <article v-for="procedure in activeProcedures" :key="procedure.procedure" class="panel procedure-card">
                 <header class="procedure-card-heading">
                   <span class="procedure-glyph large-glyph">P</span>
                   <div class="procedure-title-group"><span class="eyebrow">PLAYBOOK</span><h2>{{ procedure.title }}</h2></div>
@@ -499,8 +511,36 @@ onMounted(async () => {
                   </div>
                   <p v-else class="subtle-empty">Shared notes attached to this playbook will appear here.</p>
                 </div>
+                <footer class="procedure-card-footer">
+                  <button
+                    class="button button-small button-secondary"
+                    type="button"
+                    :disabled="actionBusy === `archive-${procedure.procedure}`"
+                    @click="archiveProcedure(procedure)"
+                  >
+                    {{ actionBusy === `archive-${procedure.procedure}` ? "Archiving…" : "Archive playbook" }}
+                  </button>
+                </footer>
               </article>
             </div>
+            <details v-if="archivedProcedures.length" class="panel archived-playbooks">
+              <summary>Archived playbooks <span class="badge badge-archived">{{ archivedProcedures.length }}</span></summary>
+              <p class="archived-description">Archived playbooks are excluded from active lists. Their Steps, Context attachments, and Reviews are retained.</p>
+              <article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook">
+                <div class="archived-playbook-heading">
+                  <strong>{{ procedure.title }}</strong>
+                  <span class="badge badge-archived">Archived</span>
+                </div>
+                <ol v-if="procedure.steps.length" class="step-list">
+                  <li v-for="step in procedure.steps" :key="step.step">
+                    <span class="step-index">{{ String(step.position).padStart(2, "0") }}</span>
+                    <span>{{ step.text }}</span>
+                  </li>
+                </ol>
+                <p v-else class="subtle-empty">This Playbook has no Steps.</p>
+                <p class="archived-context-count">{{ notesForProcedure(procedure.procedure).length }} connected Context Notes · Review history remains available in Reviews.</p>
+              </article>
+            </details>
           </template>
 
           <template v-else-if="section === 'context'">
