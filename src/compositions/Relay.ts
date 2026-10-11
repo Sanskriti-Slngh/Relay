@@ -183,6 +183,33 @@ const AddStep = endpoint(
   stringInput(["user", "workspace", "procedure", "text"], ["user", "workspace", "procedure"]),
 );
 
+const ArchiveProcedure = endpoint(
+  "/workspaces/procedures/archive",
+  ({ user, workspace, procedure }) =>
+    receive({ user, workspace, procedure })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "EDIT_PROCEDURE",
+          command: "ARCHIVE_PROCEDURE",
+        }).responds({}),
+      )
+      .then(
+        where(
+          ProcedureMaintaining._get({ procedure })
+            .is({ space: workspace, status: "ACTIVE" }),
+        )
+          .then(ProcedureMaintaining.retire({ procedure }))
+          .then(respond({ procedure, status: "RETIRED" }))
+          .named("procedure-available"),
+        where(no(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" })))
+          .then(respond({ error: "PROCEDURE_NOT_AVAILABLE" }))
+          .named("procedure-unavailable"),
+      ),
+  stringInput(["user", "workspace", "procedure"], ["user", "workspace", "procedure"]),
+);
+
 const RecordContextNote = endpoint(
   "/workspaces/context/notes",
   ({ user, workspace, text, context }) =>
@@ -436,7 +463,7 @@ export const composition = {
       AddChangeCause,
       AddCauseAfterConcurrentRequestRefusal,
     },
-    ProcedureOperations: { CreateProcedure, AddStep },
+    ProcedureOperations: { CreateProcedure, AddStep, ArchiveProcedure },
     ContextOperations: {
       RecordContextNote,
       AttachContextNote,

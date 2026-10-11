@@ -163,6 +163,11 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         text,
       }, csrfToken);
     },
+    archiveProcedure(procedure: string, csrfToken: string) {
+      return post<{ procedure: string; status: string }>("/workspaces/procedures/archive", {
+        procedure,
+      }, csrfToken);
+    },
     recordContextNote(text: string, csrfToken: string) {
       return post<{ context: string }>("/workspaces/context/notes", { text }, csrfToken);
     },

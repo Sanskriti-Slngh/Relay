@@ -554,3 +554,19 @@ screenshots. Desktop and mobile evidence was saved outside the repository at
 `MISSING_ENDPOINT_FALLBACK` warnings for guarded mutation paths and 4
 `ORDER_SENSITIVE_FORMER` notices for explicitly arranged selections. The local
 demo database was distinct from the configured application database.
+
+### Increment 10 — Archiving Playbooks
+
+The Playbooks page now offers an authorized archive action. It uses the
+existing `ProcedureMaintaining.retire` lifecycle transition, so archiving
+preserves the Procedure and its Steps rather than cascading deletion. The
+shared ContextNote and its attachments remain unchanged, and existing pending
+and completed Reviews remain available. Active Playbooks are separated from a
+collapsible archived list; the review-history read continues to include retired
+Procedures.
+
+The archive endpoint authorizes `EDIT_PROCEDURE` before checking workspace
+ownership and active status. Tests cover permission denial, foreign-workspace
+refusal, repeat archival, and retention of Steps, attachments, and pending
+Review history. The frontend confirms the consequential action and refreshes
+server state after it succeeds.

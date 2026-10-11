@@ -126,6 +126,7 @@ a { color: inherit; }
 .procedure-summary small span { margin: 0 4px; }
 .badge { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; border-radius: 20px; padding: 5px 8px; font-size: 9px; font-weight: 700; }
 .badge-active { color: #278068; background: #eaf7f2; }
+.badge-archived { color: #6e7285; background: #eff0f4; }
 .badge-pending { color: #a3691d; background: #fff3df; }
 .badge-complete { color: #277760; background: #e8f6f0; }
 .review-marker { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #dfa349; }
@@ -160,6 +161,14 @@ a { color: inherit; }
 .empty-page-state p { max-width: 400px; margin: 0; color: #9296a8; font-size: 11px; line-height: 1.7; }
 .procedure-list, .context-list, .review-list { display: flex; flex-direction: column; gap: 14px; }
 .procedure-card { padding: 20px 22px; }
+.procedure-card-footer { display: flex; justify-content: flex-end; margin-top: 14px; border-top: 1px solid #f0f0f5; padding-top: 12px; }
+.archived-playbooks { margin-top: 18px; padding: 16px 20px; }
+.archived-playbooks > summary { display: flex; align-items: center; gap: 9px; color: #55596d; cursor: pointer; font-size: 12px; font-weight: 700; list-style-position: inside; }
+.archived-description { margin: 12px 0; color: #85899b; font-size: 10px; line-height: 1.6; }
+.archived-playbook { border-top: 1px solid #f0f0f5; padding: 13px 0 5px; }
+.archived-playbook-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #53576b; font-size: 11px; }
+.archived-playbook .step-list { margin-bottom: 5px; }
+.archived-context-count { margin: 8px 0 2px; color: #9296a8; font-size: 9px; }
 .procedure-card-heading { display: flex; align-items: center; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f5; }
 .large-glyph { width: 42px; height: 42px; flex-basis: 42px; font-size: 15px; }
 .procedure-title-group { min-width: 0; flex: 1; }
