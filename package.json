@@ -8,17 +8,25 @@
   "dependencies": {
     "@mit-sdg/sync-engine": "1.1.0",
     "@mit-sdg/sync-engine-http": "1.1.0",
-    "mongodb": "^7.7.0"
+    "mongodb": "^7.7.0",
+    "vue": "^3.5.43"
   },
   "devDependencies": {
-    "typescript": ">=6 <7",
     "@types/bun": "^1.3.4",
-    "@types/node": "^24.0.0"
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "typescript": ">=6 <7",
+    "vite": "^8.3.4",
+    "vue-tsc": "^3.3.13"
   },
   "scripts": {
     "generate": "sync-engine artifacts pin",
     "check": "sync-engine check && sync-engine artifacts check && tsc --noEmit",
     "start": "bun src/main.ts",
+    "dev": "bun scripts/dev.ts",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit && vue-tsc --noEmit -p tsconfig.web.json",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json",
     "test": "bun test",
     "db:up": "podman compose up -d mongodb && podman compose run --rm mongodb-init",
     "db:check": "bun src/db.ts"
