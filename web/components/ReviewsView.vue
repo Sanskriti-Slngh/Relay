@@ -44,7 +44,7 @@ const completedReviews = computed(() =>
         <div class="cause-diff"><div class="diff-before"><span>BEFORE</span><p>{{ cause.before }}</p></div><span class="diff-arrow" aria-hidden="true">→</span><div class="diff-after"><span>AFTER</span><p>{{ cause.after }}</p></div></div>
       </article>
       <div v-if="!review.causes.length" class="subtle-empty cause-empty">No cause text is available for this review.</div>
-      <footer class="review-card-footer"><span>{{ review.status === "PENDING" ? "Confirm after the playbook has been reconsidered." : "This Review needs the deferred resolution workflow." }}</span><button class="button button-primary" type="button" :disabled="review.status !== 'PENDING' || actionBusy === `review-${review.review}`" @click="emit('confirm', review)">{{ actionBusy === `review-${review.review}` ? "Confirming…" : "Confirm review" }} <span aria-hidden="true">✓</span></button></footer>
+      <footer class="review-card-footer"><span>{{ review.status === "PENDING" ? "Confirm after the playbook has been reconsidered." : "This Review needs the deferred resolution workflow." }}</span><button class="button button-primary" type="button" :disabled="review.status !== 'PENDING' || !!actionBusy" @click="emit('confirm', review)">{{ actionBusy === `review-${review.review}` ? "Confirming…" : "Confirm review" }} <span aria-hidden="true">✓</span></button></footer>
     </article>
   </div>
   <section v-if="completedReviews.length" class="panel completed-history">

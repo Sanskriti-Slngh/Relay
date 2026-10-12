@@ -24,6 +24,7 @@ const procedures = ref<Procedure[]>([]);
 const contexts = ref<ContextNote[]>([]);
 const reviews = ref<PendingReview[]>([]);
 const reviewHistory = ref<ProcedureReviewHistory[]>([]);
+let refreshSequence = 0;
 
 const unfinishedCount = computed(() => reviews.value.length);
 const navigation: { id: Section; label: string; short: string }[] = [
@@ -55,6 +56,7 @@ function showValidationError(message: string) { clearMessages(); errorMessage.va
 
 async function refreshData(announce = false): Promise<boolean> {
   if (!csrfToken.value) return false;
+  const sequence = ++refreshSequence;
   refreshing.value = true;
   clearMessages();
   try {
@@ -62,6 +64,7 @@ async function refreshData(announce = false): Promise<boolean> {
       api.procedures(csrfToken.value), api.contextHistory(csrfToken.value),
       api.pendingReviews(csrfToken.value), api.reviewHistory(csrfToken.value),
     ]);
+    if (sequence !== refreshSequence) return false;
     procedures.value = procedureResult.procedures;
     contexts.value = contextResult.contexts;
     reviews.value = reviewResult.reviews;
@@ -69,12 +72,18 @@ async function refreshData(announce = false): Promise<boolean> {
     if (announce) successMessage.value = "Workspace information is up to date.";
     return true;
   } catch (error) {
-    showError(error);
+    if (sequence === refreshSequence) showError(error);
     return false;
-  } finally { refreshing.value = false; }
+  } finally {
+    if (sequence === refreshSequence) refreshing.value = false;
+  }
 }
 
 async function runAction(label: string, action: () => Promise<void>, success: string) {
+  if (actionBusy.value) {
+    showValidationError("Please wait for the current workspace action to finish.");
+    return;
+  }
   clearMessages();
   actionBusy.value = label;
   try {
@@ -188,12 +197,12 @@ onMounted(async () => {
             <span class="nav-number">{{ item.short }}</span><span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span>
           </button>
         </nav>
-        <div class="sidebar-bottom"><div class="secure-note"><span aria-hidden="true">◈</span> Private local session</div><button type="button" class="sign-out-button" @click="signOut">Sign out <span aria-hidden="true">↗</span></button></div>
+        <div class="sidebar-bottom"><div class="secure-note"><span aria-hidden="true">◈</span> Private local session</div><button type="button" class="sign-out-button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out <span aria-hidden="true">↗</span></button></div>
       </aside>
       <section class="main-column">
         <header class="topbar">
           <div class="breadcrumb">Relay <span>/</span> {{ navigation.find((item) => item.id === section)?.label }}</div>
-          <div class="topbar-actions"><span class="live-indicator"><span></span> Workspace connected</span><button class="icon-button" type="button" :disabled="refreshing" aria-label="Refresh workspace" @click="refreshData(true)"><span :class="{ spinning: refreshing }" aria-hidden="true">↻</span></button><button class="mobile-sign-out" type="button" @click="signOut">Sign out</button></div>
+          <div class="topbar-actions"><span class="live-indicator"><span></span> Workspace connected</span><button class="icon-button" type="button" :disabled="refreshing || !!actionBusy" aria-label="Refresh workspace" @click="refreshData(true)"><span :class="{ spinning: refreshing }" aria-hidden="true">↻</span></button><button class="mobile-sign-out" type="button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
         </header>
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>

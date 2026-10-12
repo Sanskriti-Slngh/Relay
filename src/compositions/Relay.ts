@@ -12,7 +12,11 @@ import { concepts } from "../concepts.ts";
 
 const { ContextTracking, ProcedureMaintaining, Reviewing, RoleBasedAccessing } = concepts;
 
-function stringInput(required: string[], nonEmpty: string[] = []) {
+function stringInput(
+  required: string[],
+  nonEmpty: string[] = [],
+  maxLengths: Record<string, number> = {},
+) {
   return {
     input: { required },
     validators: {
@@ -29,6 +33,14 @@ function stringInput(required: string[], nonEmpty: string[] = []) {
         for (const field of nonEmpty) {
           if (typeof fields[field] === "string" && fields[field].trim().length === 0) {
             return { ok: false as const, detail: `Field ${field} must not be empty.` };
+          }
+        }
+        for (const [field, maxLength] of Object.entries(maxLengths)) {
+          if (typeof fields[field] === "string" && fields[field].length > maxLength) {
+            return {
+              ok: false as const,
+              detail: `Field ${field} must be at most ${maxLength} characters.`,
+            };
           }
         }
         return { ok: true as const };
@@ -153,7 +165,11 @@ const CreateProcedure = endpoint(
       )
       .then(ProcedureMaintaining.create({ space: workspace, title }).responds({ procedure }))
       .then(respond({ procedure })),
-  stringInput(["user", "workspace", "title"], ["user", "workspace", "title"]),
+  stringInput(
+    ["user", "workspace", "title"],
+    ["user", "workspace", "title"],
+    { title: 160 },
+  ),
 );
 
 const AddStep = endpoint(
@@ -183,6 +199,7 @@ const AddStep = endpoint(
   stringInput(
     ["user", "workspace", "procedure", "text"],
     ["user", "workspace", "procedure", "text"],
+    { text: 500 },
   ),
 );
 
@@ -227,7 +244,11 @@ const RecordContextNote = endpoint(
       )
       .then(ContextTracking.record({ scope: workspace, text }).responds({ context }))
       .then(respond({ context })),
-  stringInput(["user", "workspace", "text"], ["user", "workspace", "text"]),
+  stringInput(
+    ["user", "workspace", "text"],
+    ["user", "workspace", "text"],
+    { text: 4_000 },
+  ),
 );
 
 const AttachContextNote = endpoint(
@@ -335,6 +356,7 @@ const CorrectContextNote = endpoint(
   stringInput(
     ["user", "workspace", "context", "text"],
     ["user", "workspace", "context", "text"],
+    { text: 4_000 },
   ),
 );
 
@@ -362,6 +384,7 @@ const ChangeContextNote = endpoint(
   stringInput(
     ["user", "workspace", "context", "text"],
     ["user", "workspace", "context", "text"],
+    { text: 4_000 },
   ),
 );
 

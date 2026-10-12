@@ -307,4 +307,53 @@ describe("Relay internal composition reactions", () => {
     expect(causes).toHaveLength(expectedCauses.length);
 
   });
+
+  test("recovers a concurrent request refusal by attaching its Cause to the existing Review", async () => {
+    const item = "concurrent-request-recovery-procedure";
+    const causes = ["recovery-cause-a", "recovery-cause-b"];
+    const priorEventCount = actionEvents.length;
+    const outcomes = await Promise.all(
+      causes.map((cause) => application.concepts.Reviewing.request({ item, cause })),
+    );
+    await application.whenIdle();
+
+    const successes = outcomes.filter(
+      (outcome): outcome is { review: string } => !("error" in outcome),
+    );
+    const refusals = outcomes.filter(
+      (outcome): outcome is { error: string } => "error" in outcome,
+    );
+    expect(successes).toHaveLength(1);
+    expect(refusals).toHaveLength(1);
+    expect(refusals[0].error).toBe("REQUEST_ALREADY_UNFINISHED");
+
+    const events = actionEvents.slice(priorEventCount);
+    const requestRefusals = events.filter(
+      (event) =>
+        event.type === "action-settled" &&
+        event.concept === "Reviewing" &&
+        event.action === "request" &&
+        event.result === "refusal",
+    );
+    const recoveryAdds = events.filter(
+      (event) =>
+        event.type === "action-settled" &&
+        event.concept === "Reviewing" &&
+        event.action === "addCause" &&
+        event.reaction === "Relay.ContextChanges.AddCauseAfterConcurrentRequestRefusal" &&
+        event.result === "success",
+    );
+    expect(requestRefusals).toHaveLength(1);
+    expect(recoveryAdds).toHaveLength(1);
+
+    const itemReviews = await reviewsFor(item);
+    expect(itemReviews).toHaveLength(1);
+    const [review] = itemReviews;
+    expect(review.status).toBe("PENDING");
+    const persistedCauses: { cause: string }[] = await application.concepts.Reviewing._causes({
+      review: review.review,
+    });
+    expect(new Set(persistedCauses.map(({ cause }) => cause))).toEqual(new Set(causes));
+    expect(persistedCauses).toHaveLength(causes.length);
+  });
 });

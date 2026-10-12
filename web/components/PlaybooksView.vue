@@ -51,7 +51,7 @@ function addStep(procedure: Procedure) {
   <form class="create-bar" @submit.prevent="createProcedure">
     <label class="sr-only" for="procedure-title">New playbook title</label>
     <input id="procedure-title" v-model="procedureTitle" placeholder="Name a playbook…" required maxlength="160">
-    <button class="button button-primary" type="submit" :disabled="actionBusy === 'create-procedure' || !procedureTitle.trim()">
+    <button class="button button-primary" type="submit" :disabled="!!actionBusy || !procedureTitle.trim()">
       {{ actionBusy === "create-procedure" ? "Creating…" : "Create playbook" }}
     </button>
   </form>
@@ -77,7 +77,7 @@ function addStep(procedure: Procedure) {
         <form class="inline-form add-step-form" @submit.prevent="addStep(procedure)">
           <label class="sr-only" :for="`step-${procedure.procedure}`">New step for {{ procedure.title }}</label>
           <input :id="`step-${procedure.procedure}`" v-model="stepDraft[procedure.procedure]" placeholder="Describe the next step…" required maxlength="500">
-          <button class="button button-secondary" type="submit" :disabled="actionBusy === `step-${procedure.procedure}` || !(stepDraft[procedure.procedure] ?? '').trim()">
+          <button class="button button-secondary" type="submit" :disabled="!!actionBusy || !(stepDraft[procedure.procedure] ?? '').trim()">
             {{ actionBusy === `step-${procedure.procedure}` ? "Adding…" : "Add step" }}
           </button>
         </form>
@@ -90,7 +90,7 @@ function addStep(procedure: Procedure) {
         <p v-else class="subtle-empty">Shared notes attached to this playbook will appear here.</p>
       </div>
       <footer class="procedure-card-footer">
-        <button class="button button-small button-secondary" type="button" :disabled="actionBusy === `archive-${procedure.procedure}`" @click="emit('archive', procedure)">
+        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="emit('archive', procedure)">
           {{ actionBusy === `archive-${procedure.procedure}` ? "Archiving…" : "Archive playbook" }}
         </button>
       </footer>

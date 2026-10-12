@@ -210,6 +210,9 @@ policy, so it is deliberately not declared as a public endpoint here.
 All composition routes are `POST /api<endpoint-path>` with a JSON object,
 same-origin session cookie, and `X-Relay-CSRF` header. The host supplies
 `user` and `workspace`; callers do not need and cannot override them.
+User-authored text is nonblank and bounded at the same limits as the UI:
+Procedure titles are at most 160 characters, Step text at most 500, and
+Context Note text for record, correction, or meaningful change at most 4,000.
 
 - `/workspaces/procedures/create` accepts `{ title }` and returns
   `{ procedure }`; `/workspaces/procedures/steps/add` accepts

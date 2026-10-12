@@ -633,3 +633,99 @@ demonstrates separation of responsibilities? Which failure-path result most
 changed confidence in the MVP? Why is host-side identity injection preferable
 to accepting User/workspace fields from this browser? Which P3 workflow should
 be implemented first, and what new concept or reaction would it require?
+
+### Increment 12 — Independent bug and security review follow-up
+
+A Bugbot review of the complete branch identified four concrete issues. First,
+different mutation controls could remain enabled while another mutation was
+refreshing, allowing concurrent refresh results to overwrite newer Vue state.
+The coordinator now admits one mutation at a time, all mutation controls share
+the busy state, manual refresh and sign-out are disabled during mutations, and
+refresh responses carry a monotonically increasing sequence so stale reads are
+discarded.
+
+Second, the browser declared limits of 160 characters for Procedure titles,
+500 for Step text, and 4,000 for Context text, but the composition boundary
+enforced only type and nonblank content. Endpoint validators now enforce the
+same limits for direct HTTP callers. Integration tests verify that oversized
+titles, Steps, notes, corrections, and meaningful changes are refused without
+partial state.
+
+Third, the Overview called its identity-ordered note preview "recent" despite
+having no timestamp, and counted attachments as Playbooks. The neutral label
+now describes a shared-context preview, and the displayed Playbook count uses
+distinct attachment subjects.
+
+Fourth, the earlier final increment referred to an external run report without
+recording exact durable results. After the review fixes, `bun run test` passed
+107 tests with 547 assertions across 9 files. `bun run typecheck`, `bun run
+build`, the six-file design check, pinned artifact check, and `git diff
+--check` all passed. The application diagnostic check passed with the same nine
+endpoint-fallback warnings and four ordering information notices documented
+above.
+
+A separate security review found no actionable issue. It verified loopback
+binding, exact-Origin enforcement, HttpOnly/SameSite session cookies, CSRF and
+expiry checks, bounded request bodies, host-controlled User/workspace
+injection, workspace-scoped authorization, private Role provisioning, filtered
+Vite environment variables, ignored `.env`, escaped Vue rendering, and
+type-only use of the generated wire contract.
+
+The two most recent existing commits are both named `delete`. This pass does
+not rewrite Git history automatically. Before submission, the author should
+decide whether those local commits can be safely reworded or whether the final
+descriptive hardening commit plus this notebook provides sufficient history.
+
+### Step 6.3b Follow-up — Deterministic Refusal Recovery Coverage
+
+The four-Context-Change concurrency test is intentionally not required to
+produce a `REQUEST_ALREADY_UNFINISHED` refusal: its four concurrent flows can
+serialize such that every other request sees the existing Review and adds its
+Cause without attempting another `Reviewing.request`.
+
+I added a separate regression test through the assembled application's
+`Reviewing.request` action. It starts two requests concurrently for the same
+Item with distinct Causes. The Reviewing concept's MongoDB uniqueness
+constraint guarantees one request succeeds and the other returns the exact
+`REQUEST_ALREADY_UNFINISHED` refusal. After `application.whenIdle()`, the test
+asserts that the refusal occurred, the named recovery reaction successfully
+called `addCause`, only one unfinished Review exists, and both Causes are
+persisted exactly once. The existing four-Change reaction test remains intact
+and continues to test its broader composed ContextTracking journey without a
+flaky expectation that this particular refusal must occur.
+
+**Verification:** The full isolated composition suite passed ten separate
+runs: four tests and 37 assertions per run. In every run the dedicated
+recovery test observed exactly one refusal and one successful recovery action.
+
+### Concurrent Context Changes — Validation and Design Decision
+
+**Problem observed:** During concurrent Context Changes, the initial implementation sometimes retained only three of four expected Review Causes.
+
+**Why this mattered:** If Relay silently lost a Cause, an officer could confirm a Review without seeing every policy change that required reconsideration. This would undermine Relay's central purpose of preserving the reasons behind procedures.
+
+**Root cause:** Document the specific ordering or reaction-settlement behavior observed in the execution trace. Do not infer a root cause solely from the failed assertion.
+
+**Alternatives considered:** Document the actual alternatives evaluated, such as changing reaction coordination, retrying refused requests, or relying on eventual re-reads. Include only alternatives genuinely considered.
+
+**Implementation decision:** The current implementation uses `afterFlowSettles()` and duplicate-Cause protection. Explain why these were chosen, based on the actual investigation.
+
+**Regression validation:** Record the exact test that submits four distinct concurrent changes, the invariants it asserts, and the repeated test results.
+
+**Limitations:** State whether the refusal-recovery branch is deterministically exercised and what guarantees remain untested, including failures across process crashes.
+
+### Increment 11 — Browser Recording and Final Validation
+
+After completing the P2 implementation and security reviews, I worked on validating the final user journey through the real browser and preparing the narrated screen recording.
+
+The goal was to demonstrate the complete workflow: create two Playbooks, attach one shared Context Note to both, correct its wording without generating Reviews, make a meaningful change that generates two Reviews, and confirm one independently. I also wanted to validate Playbook archiving and persistence after reloading.
+
+**Issue encountered:** Browser automation was more difficult than the backend integration tests. Existing server processes occupied the default ports, and previous demo attempts had already created data in the isolated database. Several automation runs failed while selecting the intended Playbook, attaching Context Notes, or advancing through the recording sequence.
+
+**Investigation and approach:** The automation was revised to target specific Playbooks and Context Notes instead of relying only on generic DOM selectors. Additional checks were introduced to verify the expected interface state before proceeding. Separate database inspection and browser interactions helped distinguish application state from automation failures.
+
+**Design decision:** I kept these issues separate from the production application rather than changing concept behavior to accommodate the recording script. The application tests and design checks were already passing, so the browser automation needed to demonstrate the existing implementation faithfully.
+
+**Validation status:** The earlier isolated browser walkthrough established that Relay's core workflow could run end to end. The most recent implementation passed 107 automated tests, along with typechecking, build, design, and generated-artifact checks. However, the latest recording attempts in the attached trace did not end with a confirmed successful full recording run.
+
+**Remaining work:** Manually inspect the final screen recording, confirm that its actions and outcomes are visible, add the required narration, and verify that the recording matches the submitted Git revision. If any browser interaction fails, diagnose and document the specific failure before claiming final validation.

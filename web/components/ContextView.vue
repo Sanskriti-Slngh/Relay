@@ -104,7 +104,7 @@ function changeContext(note: ContextNote) {
     <div class="form-heading"><span class="context-form-icon">“</span><div><h2>Record a context note</h2><p>Capture a decision, constraint, or piece of history your club may need again.</p></div></div>
     <label class="sr-only" for="new-context">Context note</label>
     <textarea id="new-context" v-model="contextDraft" placeholder="Add the background worth carrying forward…" required maxlength="4000" rows="3"></textarea>
-    <div class="form-foot"><span>Shared across this workspace</span><button class="button button-primary" type="submit" :disabled="actionBusy === 'record-context' || !contextDraft.trim()">{{ actionBusy === "record-context" ? "Saving…" : "Save context note" }}</button></div>
+    <div class="form-foot"><span>Shared across this workspace</span><button class="button button-primary" type="submit" :disabled="!!actionBusy || !contextDraft.trim()">{{ actionBusy === "record-context" ? "Saving…" : "Save context note" }}</button></div>
   </form>
   <div class="list-heading"><div><span class="eyebrow">WORKSPACE KNOWLEDGE</span><h2>{{ contexts.length }} {{ contexts.length === 1 ? "note" : "notes" }}</h2></div></div>
   <div v-if="!contexts.length" class="panel empty-page-state">
@@ -137,7 +137,7 @@ function changeContext(note: ContextNote) {
             <option value="">Whole playbook</option>
             <option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option>
           </select>
-          <button class="button button-small button-secondary" type="submit" :disabled="actionBusy === `attach-${note.context}` || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button>
+          <button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button>
         </form>
         <p v-else class="subtle-empty">Create an active playbook before attaching context.</p>
       </div>
@@ -152,11 +152,11 @@ function changeContext(note: ContextNote) {
       <div class="note-actions">
         <form class="note-action-form" @submit.prevent="correctContext(note)">
           <label :for="`correct-${note.context}`">Correct wording <span>· does not create a review</span></label>
-          <div class="action-input-row"><input :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" placeholder="Revised wording…" required maxlength="4000"><button class="button button-small button-secondary" type="submit" :disabled="actionBusy === `correct-${note.context}` || !(correctionDraft[note.context] ?? '').trim()">Correct</button></div>
+          <div class="action-input-row"><input :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" placeholder="Revised wording…" required maxlength="4000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">Correct</button></div>
         </form>
         <form class="note-action-form meaningful-change-form" @submit.prevent="changeContext(note)">
           <label :for="`change-${note.context}`">Meaningful change <span>· preserves before and after</span></label>
-          <div class="action-input-row"><input :id="`change-${note.context}`" v-model="changeDraft[note.context]" placeholder="What changed in meaning?…" required maxlength="4000"><button class="button button-small button-change" type="submit" :disabled="actionBusy === `change-${note.context}` || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : "Record change" }}</button></div>
+          <div class="action-input-row"><input :id="`change-${note.context}`" v-model="changeDraft[note.context]" placeholder="What changed in meaning?…" required maxlength="4000"><button class="button button-small button-change" type="submit" :disabled="!!actionBusy || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : "Record change" }}</button></div>
         </form>
       </div>
     </article>
