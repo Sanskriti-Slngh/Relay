@@ -74,4 +74,46 @@ describe("Relay browser API client", () => {
       message: "Your local session has expired. Sign in again.",
     });
   });
+
+  test("surfaces actionable messages for guarded failure paths", async () => {
+    const conflictApi = createRelayApi(async () =>
+      Response.json({ error: "CONFLICT" }, { status: 409 }),
+    );
+    await expect(conflictApi.attachContextNote("context", "procedure", "csrf"))
+      .rejects.toMatchObject({
+        code: "ATTACHMENT_ALREADY_EXISTS",
+        message: "That context note is already attached to the selected target.",
+      });
+    await expect(conflictApi.confirmReview("review", "procedure", "csrf"))
+      .rejects.toMatchObject({
+        code: "REVIEW_NOT_PENDING_FOR_CONFIRMATION",
+        message: "That review is no longer pending and cannot be confirmed again.",
+      });
+
+    const completedApi = createRelayApi(async () =>
+      Response.json({ error: "NOT_FOUND" }, { status: 404 }),
+    );
+    await expect(completedApi.confirmReview("review", "procedure", "csrf"))
+      .rejects.toMatchObject({
+        code: "REVIEW_NOT_AVAILABLE",
+        message: "That review is no longer pending or available in this workspace.",
+      });
+
+    const unchangedApi = createRelayApi(async () =>
+      Response.json({ error: "INVALID_REQUEST" }, { status: 400 }),
+    );
+    await expect(unchangedApi.changeContextNote("context", "same", "csrf"))
+      .rejects.toMatchObject({
+        code: "CHANGE_NOT_DIFFERENT",
+        message: "A meaningful change must differ from the current note.",
+      });
+
+    const csrfApi = createRelayApi(async () =>
+      Response.json({ error: "CSRF_REJECTED" }, { status: 403 }),
+    );
+    await expect(csrfApi.procedures("csrf")).rejects.toMatchObject({
+      code: "CSRF_REJECTED",
+      message: "Your session verification failed. Sign in again.",
+    });
+  });
 });

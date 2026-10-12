@@ -27,7 +27,7 @@ function stringInput(required: string[], nonEmpty: string[] = []) {
           }
         }
         for (const field of nonEmpty) {
-          if (typeof fields[field] === "string" && fields[field].length === 0) {
+          if (typeof fields[field] === "string" && fields[field].trim().length === 0) {
             return { ok: false as const, detail: `Field ${field} must not be empty.` };
           }
         }
@@ -153,7 +153,7 @@ const CreateProcedure = endpoint(
       )
       .then(ProcedureMaintaining.create({ space: workspace, title }).responds({ procedure }))
       .then(respond({ procedure })),
-  stringInput(["user", "workspace", "title"], ["user", "workspace"]),
+  stringInput(["user", "workspace", "title"], ["user", "workspace", "title"]),
 );
 
 const AddStep = endpoint(
@@ -180,7 +180,10 @@ const AddStep = endpoint(
           .then(respond({ error: "PROCEDURE_NOT_AVAILABLE" }))
           .named("procedure-unavailable"),
       ),
-  stringInput(["user", "workspace", "procedure", "text"], ["user", "workspace", "procedure"]),
+  stringInput(
+    ["user", "workspace", "procedure", "text"],
+    ["user", "workspace", "procedure", "text"],
+  ),
 );
 
 const ArchiveProcedure = endpoint(
@@ -224,7 +227,7 @@ const RecordContextNote = endpoint(
       )
       .then(ContextTracking.record({ scope: workspace, text }).responds({ context }))
       .then(respond({ context })),
-  stringInput(["user", "workspace", "text"], ["user", "workspace"]),
+  stringInput(["user", "workspace", "text"], ["user", "workspace", "text"]),
 );
 
 const AttachContextNote = endpoint(
@@ -329,7 +332,10 @@ const CorrectContextNote = endpoint(
           .then(respond({ error: "CONTEXT_NOT_AVAILABLE" }))
           .named("context-unavailable"),
       ),
-  stringInput(["user", "workspace", "context", "text"], ["user", "workspace", "context"]),
+  stringInput(
+    ["user", "workspace", "context", "text"],
+    ["user", "workspace", "context", "text"],
+  ),
 );
 
 const ChangeContextNote = endpoint(
@@ -353,7 +359,10 @@ const ChangeContextNote = endpoint(
           .then(respond({ error: "CONTEXT_NOT_AVAILABLE" }))
           .named("context-unavailable"),
       ),
-  stringInput(["user", "workspace", "context", "text"], ["user", "workspace", "context"]),
+  stringInput(
+    ["user", "workspace", "context", "text"],
+    ["user", "workspace", "context", "text"],
+  ),
 );
 
 const ListProcedures = endpoint(

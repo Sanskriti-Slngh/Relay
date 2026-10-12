@@ -5,6 +5,11 @@ connected. A meaningful context change preserves its before/after text and
 creates a pending Review for each attached active Procedure; a wording
 correction does not.
 
+The implemented P2 walkthrough is documented in
+[design/p2-mvp-user-journey.md](design/p2-mvp-user-journey.md). Its room-renewal
+policy is fictional demo content, not a statement of current MIT policy. The
+broader P1 journey remains design direction for later work.
+
 ## Local P2 demo
 
 The local host is a **single-officer demo**, not production authentication. It
@@ -58,9 +63,10 @@ check and CSRF token. Restarting the host expires all browser sessions.
 
 5. Demonstrate the MVP:
 
-   - Create two playbooks and add ordered steps to each.
-   - Record one shared context note, then attach it to both playbooks. Optionally
-     attach it to a particular Step.
+   - Create **Plan the Annual Club Showcase** and **Renew Club Room Access**,
+     then add an ordered Step to each.
+   - Record one fictional annual room-renewal Context Note, then attach it to
+     the relevant Step in both Playbooks.
    - Use **Correct wording** to fix text; this does not create Reviews.
    - Use **Meaningful change** to change the underlying meaning. Relay preserves
      the exact before/after text and waits for the associated review work to
@@ -75,6 +81,11 @@ The browser talks only to the composition's authorized HTTP operations and
 read formers. Role-management and bootstrap actions are not public. User and
 workspace identities are injected by the host; request-body identity fields
 cannot change them.
+
+P2 deliberately has one host-configured workspace and Officer and four
+implemented concepts. Member questions, multiple clubs, general registration,
+multi-user authentication, and complete editing/resolution workflows are P3
+work. Archive Playbook is implemented now and is not a deferred feature.
 
 ### Local security boundary
 
@@ -96,8 +107,16 @@ bun run typecheck
 bun run build
 bunx sync-engine check --show-advisories
 bunx sync-engine check-design design/concepts/*.md design/types.md design/compositions/*.md
+bunx sync-engine artifacts check
 git diff --check
 ```
+
+`artifacts check` verifies the pinned read-back and wire contract under
+`generated/`; it does not generate or modify them. The browser adapter derives
+its response types from that wire contract but remains host-aware because it
+must omit caller-controlled User and workspace fields from protected request
+bodies. After an intentional composition or contract change, run
+`bun run generate`, review both generated diffs, and then rerun the check.
 
 The MongoDB-backed tests require the configured test MongoDB replica set and
 create/drop uniquely named test databases. They do not use the configured Relay

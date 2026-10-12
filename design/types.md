@@ -20,6 +20,11 @@ concrete Command
   An opaque application command passed through authorization unchanged.
 ```
 
+The broader type inventory preserves the P1 question-related permission names,
+but the P2 host provisions only `EDIT_PROCEDURE`, `EDIT_CONTEXT`, and
+`COMPLETE_REVIEW`. No public P2 endpoint creates Roles, grants Permissions, or
+assigns Users.
+
 ```instances
 instantiate ProcedureMaintaining with
   Space is ClubWorkspace

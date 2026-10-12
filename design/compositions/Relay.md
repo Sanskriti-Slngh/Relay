@@ -33,27 +33,31 @@ from an unverified request body.
 The local P2 host validates stable workspace and officer identities, the
 MongoDB URI, and a high-entropy local access credential before connecting or
 listening. It completes the private Officer provisioning path before binding
-the HTTP listener to `127.0.0.1`. The Fetch wrapper requires the configured
-Bearer credential, replaces any request-body User and workspace values with
-the validated server configuration, and enforces a bounded JSON body size.
+the HTTP listener to `127.0.0.1`. The browser submits the configured credential
+only to the same-origin `/session` login route. The host exchanges it for an
+in-memory session identified by an HttpOnly, SameSite=Strict cookie and returns
+a CSRF token. The frontend sends that cookie and token—not a Bearer
+credential—to protected composition routes. Before those routes reach the
+sync-engine handler, the host replaces any request-body User and workspace
+values with the validated server configuration and enforces a bounded JSON
+body size.
 This is a single-user local-demo boundary, not general-purpose authentication;
 network deployment requires a real verified identity mechanism.
-The configured credential is accepted only by the local same-origin login
-route. Successful login issues an in-memory browser session with an HttpOnly,
-SameSite=Strict cookie and a CSRF token; composition requests require that
-session and token and pass an exact local Origin check. The credential is
-neither returned by a configuration endpoint nor included in the frontend
-bundle.
+Protected requests require the unexpired session, matching CSRF token, and
+exact local Origin. `GET /session` reports session state, `POST /session`
+signs in, and `POST /session/logout` revokes the current session. The
+credential is neither returned by a configuration endpoint nor included in
+the frontend bundle.
 
 ## Procedures
 
 An officer creates Procedures and adds their ordered Steps through authorized
 operations. `CreateProcedure` authorizes the request for `EDIT_PROCEDURE`
 before calling `ProcedureMaintaining.create` for the provisioned workspace.
-`AddStep` first reads the Step's Procedure when needed to establish its
-workspace, authorizes the verified officer for `EDIT_PROCEDURE` in that
-workspace, and then calls `ProcedureMaintaining.addStep`. The concept action
-guards remain authoritative for active Procedure state and refusals.
+`AddStep` authorizes the verified officer for `EDIT_PROCEDURE`, verifies that
+the requested Procedure is active and belongs to the configured workspace,
+and then calls `ProcedureMaintaining.addStep`. The concept action guards remain
+authoritative for active Procedure state and refusals.
 
 [Creating a Procedure](reaction:Relay.ProcedureOperations.CreateProcedure)
 and [adding a Step](reaction:Relay.ProcedureOperations.AddStep) return their
@@ -66,8 +70,10 @@ active Steps ordered by position.
 [Archiving a Playbook](reaction:Relay.ProcedureOperations.ArchiveProcedure)
 authorizes with `EDIT_PROCEDURE` and calls `ProcedureMaintaining.retire` only
 for an active Procedure owned by the configured workspace. It preserves the
-Procedure, Steps, Context attachments, and Review history; archived Procedures
-are omitted from active lists but remain queryable for history. Unknown,
+Procedure, Steps, Context attachments, and Review history. The procedure read
+still returns retired Procedures so the frontend can separate them into its
+archived section; retired Procedures are excluded from active UI lists and
+from reactions that create new Reviews. Unknown,
 foreign-workspace, or already archived Procedures are refused as unavailable.
 
 ```endpoints
@@ -122,16 +128,13 @@ constraint for the Review status transition. This is required even though the
 reaction binds one Procedure identity: reaction-level deduplication does not
 protect against overlapping flows, retries, or multiple processes.
 
-The `ChangeContextNote` endpoint must not promise that pending Reviews are
-already available merely because `ContextTracking.change` returned. Its
-response should be ordered after the relevant review consequences have settled
-if the endpoint promises to include those Reviews. During implementation, use
-the documented `.afterFlowSettles()` stage before forming and sending such a
-response, and verify that the chosen endpoint flow tracks both review reaction
-paths and their `Reviewing.request` or `Reviewing.addCause` actions. If that
-causal tracking cannot be established for the chosen endpoint flow, the
-response must not claim that Reviews are ready; clients can retrieve pending
-Reviews separately after processing completes.
+`ChangeContextNote` returns only `{ context, change }`; it does not include or
+promise a pending-Review snapshot. The local HTTP host waits for the assembled
+application to become idle after a successful change response, and the
+frontend then retrieves pending Reviews separately. The `AddChangeCause`
+reaction uses `.afterFlowSettles()` plus a duplicate-Cause guard to cover the
+tested overlapping-change schedule. This is not an exactly-once guarantee
+under arbitrary process crashes or every possible lifecycle race.
 
 The context read endpoint
 [GetContextHistory](reaction:Relay.ReadOperations.GetContextHistory) uses
@@ -168,7 +171,10 @@ Relay.ReadOperations.GetReviewHistory at /workspaces/reviews
 `COMPLETE_REVIEW` for the Review's Procedure and workspace, then calls
 `Reviewing.confirm`. The concept enforces that the
 Review is `PENDING`; an authorization result does not bypass its lifecycle
-guard. The operation returns the confirmed Review identity.
+guard. The operation returns `{ review, status: "COMPLETE" }`. A completed
+Review no longer matches the pending confirmation route, so repeating the
+request is refused as unavailable. Unknown, mismatched, and foreign-workspace
+identities use the same non-disclosing response.
 
 ```endpoints
 Relay.ReviewOperations.ConfirmReview at /workspaces/reviews/confirm
@@ -198,3 +204,36 @@ are host and deployment responsibilities and must be implemented before the
 public endpoints are enabled. Similarly, the documented syntax does not
 express the trusted one-time bootstrap as an endpoint with a host-only access
 policy, so it is deliberately not declared as a public endpoint here.
+
+## HTTP request and response contract
+
+All composition routes are `POST /api<endpoint-path>` with a JSON object,
+same-origin session cookie, and `X-Relay-CSRF` header. The host supplies
+`user` and `workspace`; callers do not need and cannot override them.
+
+- `/workspaces/procedures/create` accepts `{ title }` and returns
+  `{ procedure }`; `/workspaces/procedures/steps/add` accepts
+  `{ procedure, text }` and returns `{ procedure, step }`;
+  `/workspaces/procedures/archive` accepts `{ procedure }` and returns
+  `{ procedure, status: "RETIRED" }`.
+- `/workspaces/procedures` accepts `{}` and returns `{ procedures }`, where
+  each Procedure has `procedure`, `title`, `status`, and ordered `steps`.
+- `/workspaces/context/notes` accepts `{ text }` and returns `{ context }`.
+  Attachment routes accept `{ context, procedure }` or
+  `{ context, procedure, step }` and return `{ attachment }`.
+  Correction accepts `{ context, text }` and returns `{ context }`; meaningful
+  change accepts the same fields and returns `{ context, change }`.
+- `/workspaces/context` accepts `{}` and returns `{ contexts }`, including each
+  note's current text, attachment identities/subjects/optional anchors, and
+  preserved Change identities with before/after text.
+- `/workspaces/reviews/pending` accepts `{}` and returns `{ reviews }` for
+  unfinished Reviews with Procedure titles and resolved Causes.
+  `/workspaces/reviews` accepts `{}` and returns `{ procedures }` with all
+  Review statuses and Causes. `/workspaces/reviews/confirm` accepts
+  `{ review, procedure }` and returns `{ review, status: "COMPLETE" }`.
+
+The browser transport in `web/api.ts` intentionally omits the generated
+contract's trusted `user` and `workspace` inputs. Its response types are
+derived from the pinned `generated/wire.ts` contract, while its request methods
+remain a small host-aware projection that cannot expose caller-controlled
+identity fields. Backend integration tests exercise the actual routes.

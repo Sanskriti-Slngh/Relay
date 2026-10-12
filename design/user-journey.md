@@ -1,5 +1,11 @@
 ## User Journey
 
+> This is the broader P1 product-direction journey. It includes member-facing
+> questions and fuller Review resolution that are deferred beyond the P2 MVP.
+> See [P2 MVP User Journey](./p2-mvp-user-journey.md) for the implemented
+> screen-recording path. Policy statements below are hypothetical design
+> examples, not assertions about current MIT rules.
+
 **1. Tiya inherits instructions that look trustworthy.** Tiya has just taken over rehearsal-space logistics for the MIT Dance Team after the previous officer graduated. In Relay, she opens the **Book Rehearsal Space** Playbook shown in **Fig. 2, Playbook detail**, and sees a short ordered process instead of having to reconstruct it from old emails. One Step says to check that the rehearsal-space renewal is current before the semester begins. Attached to that Step is the Context Note explaining the assumption behind it: **MIT event spaces only need to be renewed once per academic year**. Because that explanation is preserved with the Playbook, Tiya can see not just what the club has been doing, but what that Step depended on.
 
 **2. The procedure survives, but one of its assumptions stops being true.** A few months later, Tiya learns from the space office that renewals are now required **each semester**. The Playbook itself has not disappeared; in fact, that is what makes the situation dangerous. If Tiya simply left the inherited Playbook alone, the old annual-renewal assumption could remain in the club's documentation and look authoritative to the next officer. As shown in **Fig. 3, Changing a Context Note**, Tiya updates the shared note and chooses **Save as changed information** rather than **Save as correction**, because the meaning—not just the wording—has changed.
