@@ -24,6 +24,10 @@ function notesForProcedure(procedureId: string) {
     note.attachments.some((attachment) => attachment.subject === procedureId),
   );
 }
+
+function playbookCountForNote(note: ContextNote) {
+  return new Set(note.attachments.map(({ subject }) => subject)).size;
+}
 </script>
 
 <template>
@@ -102,7 +106,7 @@ function notesForProcedure(procedureId: string) {
 
   <section class="panel context-overview">
     <div class="panel-heading">
-      <div><p class="eyebrow">KNOWLEDGE THAT TRAVELS</p><h2>Recently shared context</h2></div>
+      <div><p class="eyebrow">KNOWLEDGE THAT TRAVELS</p><h2>Shared context preview</h2></div>
       <button class="text-button" type="button" @click="emit('navigate', 'context')">View context <span>→</span></button>
     </div>
     <div v-if="!contexts.length" class="empty-inline">No shared context notes yet. Add the background that helps your playbooks make sense.</div>
@@ -110,7 +114,7 @@ function notesForProcedure(procedureId: string) {
       <article v-for="note in contexts.slice(0, 3)" :key="note.context" class="context-preview-card">
         <span class="note-mark">“</span>
         <p>{{ note.text }}</p>
-        <small>{{ note.attachments.length }} {{ note.attachments.length === 1 ? "playbook" : "playbooks" }} <span>·</span> {{ note.changes.length }} recorded changes</small>
+        <small>{{ playbookCountForNote(note) }} {{ playbookCountForNote(note) === 1 ? "playbook" : "playbooks" }} <span>·</span> {{ note.changes.length }} recorded changes</small>
       </article>
     </div>
   </section>

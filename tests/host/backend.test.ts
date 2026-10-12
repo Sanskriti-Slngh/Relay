@@ -445,6 +445,49 @@ describe("Relay trusted HTTP backend", () => {
     })).length).toBe(proceduresBefore.length + 1);
   });
 
+  test("enforces the frontend text limits at the server boundary", async () => {
+    const proceduresBefore = await application.concepts.ProcedureMaintaining._procedures({
+      space: hostConfig.clubWorkspaceId,
+    });
+    const longTitle = await request("/workspaces/procedures/create", {
+      title: "t".repeat(161),
+    });
+    expect(longTitle.status).toBe(400);
+
+    const procedure = await createProcedure("Length validation target");
+    const longStep = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "s".repeat(501),
+    });
+    const longNote = await request("/workspaces/context/notes", {
+      text: "n".repeat(4_001),
+    });
+    expect(longStep.status).toBe(400);
+    expect(longNote.status).toBe(400);
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure })).toEqual([]);
+
+    const recorded = await request("/workspaces/context/notes", { text: "Original text" });
+    const context = requireString(recorded.body.context, "ContextNote");
+    const longCorrection = await request("/workspaces/context/correct", {
+      context,
+      text: "c".repeat(4_001),
+    });
+    const longChange = await request("/workspaces/context/change", {
+      context,
+      text: "m".repeat(4_001),
+    });
+    expect(longCorrection.status).toBe(400);
+    expect(longChange.status).toBe(400);
+    expect(await application.concepts.ContextTracking._get({ context })).toEqual([{
+      scope: hostConfig.clubWorkspaceId,
+      text: "Original text",
+    }]);
+    expect(await application.concepts.ContextTracking._changes({ context })).toEqual([]);
+    expect((await application.concepts.ProcedureMaintaining._procedures({
+      space: hostConfig.clubWorkspaceId,
+    })).length).toBe(proceduresBefore.length + 1);
+  });
+
   test("rejects an unavailable attachment target without creating an attachment", async () => {
     const firstProcedure = await createProcedure("Attachment target A");
     const secondProcedure = await createProcedure("Attachment target B");
