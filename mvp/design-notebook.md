@@ -570,3 +570,66 @@ ownership and active status. Tests cover permission denial, foreign-workspace
 refusal, repeat archival, and retention of Steps, attachments, and pending
 Review history. The frontend confirms the consequential action and refreshes
 server state after it succeeds.
+
+### Increment 11 — Final P2 hardening and rubric alignment
+
+This pass separated the Vue feature presentation and feature-local form drafts
+from application coordination. `App.vue` remains the single owner of the
+session, navigation, server-backed workspace state, messages, and API
+mutations. Overview, Playbooks, Shared Context, and Reviews now render through
+typed components under `web/components/`; they receive server state through
+props and report user intent through typed events. No additional state library
+or duplicate server-state store was introduced.
+
+The HTTP boundary now rejects whitespace-only Playbook titles, Step text,
+Context Notes, corrections, and meaningful changes before concept actions run.
+The UI also detects a stale or invalid attachment target and same-text
+meaningful changes, while the server and concept invariants remain
+authoritative. Duplicate attachments, same-text changes, and repeated Review
+confirmation retain the HTTP policy's safe error categories; the route-aware
+browser adapter turns those categories into specific guidance. Unknown and
+foreign-workspace records still collapse to
+`NOT_FOUND` rather than revealing their existence.
+
+The composition specification was corrected to describe the actual
+HttpOnly-cookie and CSRF session flow instead of an obsolete Bearer request
+flow. It now records exact route payloads and response shapes, the server's
+identity overwrite, retired-Procedure behavior, the separate pending/history
+reads, and the tested scope of `afterFlowSettles()`. A separate P2 MVP journey
+preserves the broader P1 journey while stating that the room-renewal policy is
+fictional and identifying both implemented and deferred scope.
+
+The sync-engine read-back and wire contract are now pinned under `generated/`.
+The browser adapter derives response shapes from that wire contract but keeps a
+small handwritten request projection because it deliberately removes
+host-controlled `user` and `workspace` inputs from browser calls; directly
+exposing the assembly's raw input contract would weaken that boundary.
+Integration tests continue to validate the live projection.
+
+**Verification performed:** The final command results and browser outcome are
+recorded in the run report rather than predicted here. All MongoDB-backed tests
+use uniquely named databases distinct from the configured application
+database. A newly named browser-demo database was requested for this pass, but
+the dev pair could not bind because an existing Relay API/Vite pair already
+owned ports 3000/5173; those user processes were left untouched. The earlier
+isolated full walkthrough remains recorded in Increment 9. Browser control for
+the existing local tab was also denied by the environment's admin policy, so
+no new desktop or 390-pixel visual claim is recorded for this refactor.
+
+**Current diagnostics:** The application check passes with nine
+`MISSING_ENDPOINT_FALLBACK` warnings on guarded mutation endpoints and four
+`ORDER_SENSITIVE_FORMER` information notices. The analyzer cannot prove the
+existing complementary guards or stable arrangement keys. No overlapping
+catch-all response branch was added solely to silence those advisories.
+
+**Remaining engineering risks:** In-memory sessions disappear on restart;
+the local shared credential is not production authentication; Bun remains
+outside the HTTP package's documented Node runtime contract; and the reaction
+design does not claim exactly-once Cause delivery across arbitrary process
+crashes or every lifecycle race.
+
+**Reflection questions for the author:** Which component boundary best
+demonstrates separation of responsibilities? Which failure-path result most
+changed confidence in the MVP? Why is host-side identity injection preferable
+to accepting User/workspace fields from this browser? Which P3 workflow should
+be implemented first, and what new concept or reaction would it require?

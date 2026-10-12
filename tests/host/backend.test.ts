@@ -212,6 +212,45 @@ describe("Relay trusted HTTP backend", () => {
     csrfToken = (await renewed.json() as { csrfToken: string }).csrfToken;
   });
 
+  test("expires a browser session after its configured lifetime", async () => {
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => now;
+    try {
+      const expiringHandler = createRelayHttpHandler(application, hostConfig);
+      const login = await expiringHandler(new Request("http://127.0.0.1/session", {
+        method: "POST",
+        headers: { origin: frontendOrigin, "content-type": "application/json" },
+        body: JSON.stringify({ credential: hostConfig.localAccessCredential }),
+      }));
+      const cookie = login.headers.get("set-cookie")!.split(";")[0];
+      const token = (await login.json() as { csrfToken: string }).csrfToken;
+      now += 8 * 60 * 60 * 1_000 + 1;
+
+      const status = await expiringHandler(new Request("http://127.0.0.1/session", {
+        headers: { cookie },
+      }));
+      expect(await status.json()).toEqual({ authenticated: false });
+      const protectedRequest = await expiringHandler(new Request(
+        "http://127.0.0.1/api/workspaces/procedures",
+        {
+          method: "POST",
+          headers: {
+            origin: frontendOrigin,
+            cookie,
+            "x-relay-csrf": token,
+            "content-type": "application/json",
+          },
+          body: "{}",
+        },
+      ));
+      expect(protectedRequest.status).toBe(401);
+      expect(await protectedRequest.json()).toEqual({ error: "UNAUTHORIZED" });
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
   test("overwrites forged User and workspace input with server-controlled identities", async () => {
     const response = await request("/workspaces/procedures/create", {
       title: "Trusted host injection",
@@ -383,6 +422,48 @@ describe("Relay trusted HTTP backend", () => {
     });
     expect(malformed.status).toBe(400);
     expect(malformed.body.error).toBe("INVALID_REQUEST");
+  });
+
+  test("rejects blank user-authored text at the server boundary", async () => {
+    const proceduresBefore = await application.concepts.ProcedureMaintaining._procedures({
+      space: hostConfig.clubWorkspaceId,
+    });
+    const blankTitle = await request("/workspaces/procedures/create", { title: "   " });
+    expect(blankTitle.status).toBe(400);
+
+    const procedure = await createProcedure("Blank validation target");
+    const blankStep = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "\n\t",
+    });
+    const blankContext = await request("/workspaces/context/notes", { text: "  " });
+    expect(blankStep.status).toBe(400);
+    expect(blankContext.status).toBe(400);
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure })).toEqual([]);
+    expect((await application.concepts.ProcedureMaintaining._procedures({
+      space: hostConfig.clubWorkspaceId,
+    })).length).toBe(proceduresBefore.length + 1);
+  });
+
+  test("rejects an unavailable attachment target without creating an attachment", async () => {
+    const firstProcedure = await createProcedure("Attachment target A");
+    const secondProcedure = await createProcedure("Attachment target B");
+    const secondStepResponse = await request("/workspaces/procedures/steps/add", {
+      procedure: secondProcedure,
+      text: "Belongs only to B",
+    });
+    const contextResponse = await request("/workspaces/context/notes", { text: "Scoped target note" });
+    const context = requireString(contextResponse.body.context, "ContextNote");
+    const secondStep = requireString(secondStepResponse.body.step, "Step");
+
+    const mismatch = await request("/workspaces/context/step-attachments", {
+      context,
+      procedure: firstProcedure,
+      step: secondStep,
+    });
+    expect(mismatch.status).toBe(404);
+    expect(mismatch.body.error).toBe("NOT_FOUND");
+    expect(await application.concepts.ContextTracking._attachments({ context })).toEqual([]);
   });
 
   test("runs the shared-context workflow, builds both Reviews, and confirms one", async () => {

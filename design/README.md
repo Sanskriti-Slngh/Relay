@@ -38,4 +38,7 @@ The four low-fidelity UI sketches are shown below:
 
 ## User journey
 
-See the [User journey](./user-journey.md) for Tiya's path from inheriting a playbook, to recording changed shared context, to reviewing the procedure that depends on it.
+See the [P1 user journey](./user-journey.md) for the broader product direction
+and the [P2 MVP user journey](./p2-mvp-user-journey.md) for the narrower
+implemented recording walkthrough. The P2 policy example is explicitly
+fictional demonstration content.

@@ -1,55 +1,15 @@
-export interface Step {
-  step: string;
-  text: string;
-  position: number;
-}
+import type { RelayP2MVPWire } from "../generated/wire.ts";
 
-export interface Procedure {
-  procedure: string;
-  title: string;
-  status: string;
-  steps: Step[];
-}
+type Output<Path extends keyof RelayP2MVPWire> = RelayP2MVPWire[Path]["output"];
 
-export interface Attachment {
-  subject: string;
-  anchor: string | null;
-}
-
-export interface ChangeRecord {
-  change: string;
-  before: string;
-  after: string;
-}
-
-export interface ContextNote {
-  context: string;
-  text: string;
-  attachments: Attachment[];
-  changes: ChangeRecord[];
-}
-
-export interface ReviewCause extends ChangeRecord {
-  cause: string;
-}
-
-export interface PendingReview {
-  review: string;
-  procedure: string;
-  title: string;
-  status: string;
-  causes: ReviewCause[];
-}
-
-export interface ProcedureReviewHistory {
-  procedure: string;
-  title: string;
-  reviews: {
-    review: string;
-    status: string;
-    causes: ReviewCause[];
-  }[];
-}
+export type Procedure = Output<"/workspaces/procedures">["procedures"][number];
+export type Step = Procedure["steps"][number];
+export type ContextNote = Output<"/workspaces/context">["contexts"][number];
+export type Attachment = ContextNote["attachments"][number];
+export type ChangeRecord = ContextNote["changes"][number];
+export type PendingReview = Output<"/workspaces/reviews/pending">["reviews"][number];
+export type ReviewCause = PendingReview["causes"][number];
+export type ProcedureReviewHistory = Output<"/workspaces/reviews">["procedures"][number];
 
 export interface SessionState {
   authenticated: boolean;
@@ -75,7 +35,11 @@ function messageFor(code: string): string {
     CONFLICT: "Relay could not apply this because the current state conflicts with the request.",
     INVALID_INPUT: "Check the request and try again.",
     INVALID_REQUEST: "The requested change is not valid for the current record.",
-    CSRF_REJECTED: "The request could not be verified. Refresh the page and try again.",
+    ATTACHMENT_ALREADY_EXISTS: "That context note is already attached to the selected target.",
+    CHANGE_NOT_DIFFERENT: "A meaningful change must differ from the current note.",
+    REVIEW_NOT_PENDING_FOR_CONFIRMATION: "That review is no longer pending and cannot be confirmed again.",
+    REVIEW_NOT_AVAILABLE: "That review is no longer pending or available in this workspace.",
+    CSRF_REJECTED: "Your session verification failed. Sign in again.",
   };
   return messages[code] ?? "Relay could not complete the request. Please try again.";
 }
@@ -83,7 +47,7 @@ function messageFor(code: string): string {
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export function createRelayApi(fetcher: FetchLike = fetch) {
-  async function readResponse<T>(response: Response): Promise<T> {
+  async function readResponse<T>(response: Response, path = ""): Promise<T> {
     let body: unknown;
     try {
       body = await response.json();
@@ -91,10 +55,19 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
       throw new RelayApiError(response.status, "INVALID_INPUT");
     }
     if (!response.ok) {
-      const code =
+      let code =
         body !== null && typeof body === "object" && "error" in body && typeof body.error === "string"
           ? body.error
           : "INTERNAL_ERROR";
+      if (code === "CONFLICT" && path.includes("/context/") && path.includes("attachments")) {
+        code = "ATTACHMENT_ALREADY_EXISTS";
+      } else if (code === "INVALID_REQUEST" && path === "/workspaces/context/change") {
+        code = "CHANGE_NOT_DIFFERENT";
+      } else if (code === "CONFLICT" && path === "/workspaces/reviews/confirm") {
+        code = "REVIEW_NOT_PENDING_FOR_CONFIRMATION";
+      } else if (code === "NOT_FOUND" && path === "/workspaces/reviews/confirm") {
+        code = "REVIEW_NOT_AVAILABLE";
+      }
       throw new RelayApiError(response.status, code);
     }
     return body as T;
@@ -114,7 +87,7 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
       },
       body: JSON.stringify(body),
     });
-    return readResponse<T>(response);
+    return readResponse<T>(response, path);
   }
 
   return {

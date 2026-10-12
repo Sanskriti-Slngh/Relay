@@ -2,7 +2,7 @@ import { assembleApplication } from "./src/assembly.ts";
 
 export default {
   assemble: assembleApplication,
-  title: "Relay Four-Concept Incremental Assembly",
+  title: "Relay P2 MVP",
   design: {
     version: 1,
     documents: [

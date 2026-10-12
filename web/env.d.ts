@@ -6,3 +6,8 @@ declare module "*.vue" {
   const component: DefineComponent;
   export default component;
 }
+
+declare module "*.md" {
+  const text: string;
+  export default text;
+}
