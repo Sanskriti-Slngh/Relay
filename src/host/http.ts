@@ -167,7 +167,7 @@ export function createRelayHttpHandler(
 
     if (pathname === "/session") {
       if (request.method === "GET") {
-        if (!requestHasAllowedOrigin(request, true)) return jsonError(403, "FORBIDDEN");
+        if (!requestHasAllowedOrigin(request, true)) return jsonError(403, "ORIGIN_REJECTED");
         const id = sessionIdFromCookie(request);
         const session = id === null ? undefined : sessions.get(id);
         if (!session || session.expiresAt <= Date.now()) {
@@ -184,7 +184,7 @@ export function createRelayHttpHandler(
       if (request.method !== "POST") {
         return jsonResponse(405, { error: "METHOD_NOT_ALLOWED" }, { Allow: "GET, POST" });
       }
-      if (!requestHasAllowedOrigin(request)) return jsonError(403, "FORBIDDEN");
+      if (!requestHasAllowedOrigin(request)) return jsonError(403, "ORIGIN_REJECTED");
 
       const body = await readJsonObject(request);
       if (body instanceof Response) return body;
@@ -215,7 +215,7 @@ export function createRelayHttpHandler(
       if (request.method !== "POST") {
         return jsonResponse(405, { error: "METHOD_NOT_ALLOWED" }, { Allow: "POST" });
       }
-      if (!requestHasAllowedOrigin(request)) return jsonError(403, "FORBIDDEN");
+      if (!requestHasAllowedOrigin(request)) return jsonError(403, "ORIGIN_REJECTED");
       if (request.body !== null) {
         await request.body.cancel();
         return jsonError(400, "INVALID_INPUT");
@@ -238,7 +238,7 @@ export function createRelayHttpHandler(
     if (request.method !== "POST") {
       return jsonResponse(405, { error: "METHOD_NOT_ALLOWED" }, { Allow: "POST" });
     }
-    if (!requestHasAllowedOrigin(request)) return jsonError(403, "FORBIDDEN");
+    if (!requestHasAllowedOrigin(request)) return jsonError(403, "ORIGIN_REJECTED");
 
     const id = sessionIdFromCookie(request);
     const session = id === null ? undefined : sessions.get(id);

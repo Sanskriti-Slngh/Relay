@@ -75,6 +75,19 @@ describe("Relay browser API client", () => {
     });
   });
 
+  test("distinguishes an invalid browser origin from an Officer permission denial", async () => {
+    const api = createRelayApi(async () => Response.json(
+      { error: "ORIGIN_REJECTED" },
+      { status: 403 },
+    ));
+
+    await expect(api.login("local-credential")).rejects.toMatchObject({
+      status: 403,
+      code: "ORIGIN_REJECTED",
+      message: "Open Relay at http://127.0.0.1:5173 and try again.",
+    });
+  });
+
   test("surfaces actionable messages for guarded failure paths", async () => {
     const conflictApi = createRelayApi(async () =>
       Response.json({ error: "CONFLICT" }, { status: 409 }),
