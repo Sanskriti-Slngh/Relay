@@ -16,15 +16,31 @@ to review every affected active Playbook.
 The room-renewal policy used in the demo is fictional. It illustrates the
 workflow; it is not a statement about current MIT policy.
 
+## Initial implementation plan
+
+The implementation was divided into assessable increments. First, translate
+and format-check the four concept specifications. Second, implement and test
+each concept independently against an isolated MongoDB database. Third, connect
+meaningful Context changes to Reviews through composition reactions and test
+the cross-concept invariants, including concurrency. Fourth, add the trusted
+local identity boundary, private Officer provisioning, and authorized HTTP
+endpoints. Fifth, build the smallest Vue interface that completes the journey
+without reloads. Finally, run the journey through the real browser, test its
+failure paths and narrow layout, and reconcile the code, specifications,
+generated contracts, and design record. Each increment had to pass its focused
+tests and static checks before the next depended on it.
+
 ## The implemented journey
 
-A newly elected student-club officer inherits two Playbooks:
+A newly elected student-club officer starts with a clean, host-provisioned
+workspace and records two inherited procedures as Playbooks:
 
 - **Plan the Annual Club Showcase**
 - **Renew Club Room Access**
 
 Both depend on one Context Note saying that room access is renewed annually.
-The officer attaches that note to the relevant Step in each Playbook. Fixing a
+The officer creates their ordered Steps and attaches the note to the relevant
+Step in each Playbook. Fixing a
 typo with **Correct wording** changes the text but creates no Review. Changing
 the policy from annual to semester renewal with **Meaningful change** preserves
 the exact old and new text and creates two Reviews. The officer verifies one
@@ -313,7 +329,7 @@ environment filtering, Vue escaping, and generated-contract usage.
 
 The final reviewed revision produced these results:
 
-- `bun run test`: **107 passed, 0 failed**, 547 assertions across 9 files.
+- `bun run test`: **108 passed, 0 failed**, 549 assertions across 9 files.
 - `bun run typecheck`: passed.
 - `bun run build`: passed; 21 modules transformed.
 - `bunx sync-engine check-design design/concepts/*.md design/types.md design/compositions/*.md`:
@@ -328,6 +344,28 @@ analyzer cannot prove the complementary guards or the uniqueness of the stable
 arrangement keys. No overlapping catch-all response was added merely to silence
 the diagnostic.
 
+### October 13 — Submission alignment
+
+The formal concept and composition specifications were restored to `design/`,
+the location required by the assignment and referenced by
+`generated.config.ts`. Submission links now point from `design/` and the root
+README to the journey under `mvp/`.
+
+A live sign-in failure revealed that the host returned the same public error
+for an invalid browser Origin and an Officer permission denial. The behavior
+was secure but the explanation was wrong: opening `localhost:5173` produced
+“not authorized for the configured officer,” even though authorization had not
+run. The host now returns `ORIGIN_REJECTED`, and the browser tells the operator
+to use `http://127.0.0.1:5173`. Backend and frontend regression tests preserve
+that distinction.
+
+The assignment source was also checked against the saved recording. The file
+is a valid 4-minute, 38-second MP4, but P2 permits at most two minutes. It starts
+with populated Playbooks and ends after both Reviews are confirmed, while the
+submitted clean-workspace journey leaves one Review pending. This limitation is
+recorded rather than hidden; a new narrated recording is required before
+submission.
+
 ## Remaining risks and P3 work
 
 - Browser sessions are in memory and expire on restart.
@@ -340,8 +378,8 @@ the diagnostic.
 - Two existing published commits are both named `delete`. Rewriting published
   history was intentionally avoided; a descriptive final commit and this
   notebook should carry the final hardening evidence.
-- The latest recording should be inspected manually to confirm that its visible
-  actions, narration, and Git revision match this validation record.
+- The current recording exceeds the two-minute limit and does not match the
+  clean-workspace journey's final state; it must be replaced before submission.
 
 ## Reflection prompts for the author
 

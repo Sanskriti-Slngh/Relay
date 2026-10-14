@@ -2,7 +2,7 @@
 
 > This is the broader P1 product-direction journey. It includes member-facing
 > questions and fuller Review resolution that are deferred beyond the P2 MVP.
-> See [P2 MVP User Journey](./p2-mvp-user-journey.md) for the implemented
+> See [P2 MVP User Journey](../mvp/p2-mvp-user-journey.md) for the implemented
 > screen-recording path. Policy statements below are hypothetical design
 > examples, not assertions about current MIT rules.
 

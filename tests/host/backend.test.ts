@@ -147,6 +147,7 @@ describe("Relay trusted HTTP backend", () => {
     expect(await missing.json()).toEqual({ error: "UNAUTHORIZED" });
     expect(invalid.status).toBe(401);
     expect(crossSiteLogin.status).toBe(403);
+    expect(await crossSiteLogin.json()).toEqual({ error: "ORIGIN_REJECTED" });
     expect(bearerOnly.status).toBe(401);
 
     const oversized = await request("/workspaces/procedures/create", {
@@ -179,7 +180,7 @@ describe("Relay trusted HTTP backend", () => {
     expect(noCsrf.status).toBe(403);
     expect(await noCsrf.json()).toEqual({ error: "CSRF_REJECTED" });
     expect(crossSite.status).toBe(403);
-    expect(await crossSite.json()).toEqual({ error: "FORBIDDEN" });
+    expect(await crossSite.json()).toEqual({ error: "ORIGIN_REJECTED" });
   });
 
   test("returns only session state and revokes a logged-out browser session", async () => {

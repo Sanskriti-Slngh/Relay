@@ -31,6 +31,7 @@ function messageFor(code: string): string {
   const messages: Record<string, string> = {
     UNAUTHORIZED: "Your local session has expired. Sign in again.",
     FORBIDDEN: "This action is not authorized for the configured officer.",
+    ORIGIN_REJECTED: "Open Relay at http://127.0.0.1:5173 and try again.",
     NOT_FOUND: "That record is no longer available in this workspace.",
     CONFLICT: "Relay could not apply this because the current state conflicts with the request.",
     INVALID_INPUT: "Check the request and try again.",

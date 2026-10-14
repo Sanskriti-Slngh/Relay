@@ -6,7 +6,7 @@ creates a pending Review for each attached active Procedure; a wording
 correction does not.
 
 The implemented P2 walkthrough is documented in
-[design/p2-mvp-user-journey.md](design/p2-mvp-user-journey.md). Its room-renewal
+[mvp/p2-mvp-user-journey.md](mvp/p2-mvp-user-journey.md). Its room-renewal
 policy is fictional demo content, not a statement of current MIT policy. The
 broader P1 journey remains design direction for later work.
 
