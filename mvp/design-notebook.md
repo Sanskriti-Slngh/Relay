@@ -1,11 +1,6 @@
 # Relay — P2 Design Notebook
 
-## What this document is for
-
-This notebook is an engineering record for the 6.1040 P2 evaluation. It is
-written for a reader who knows concept design and sync-engine but has not seen
-Relay before. It explains the implemented MVP, the decisions that shaped it,
-the failures that changed the design, and the evidence behind its claims.
+## What this document
 
 Relay addresses a specific handoff problem: a procedure can remain polished
 and plausible after the information behind it has changed. The MVP connects
@@ -381,16 +376,26 @@ submission.
 - The current recording exceeds the two-minute limit and does not match the
   clean-workspace journey's final state; it must be replaced before submission.
 
-## Reflection prompts for the author
+## Final Reflection
 
-These questions identify the judgments worth discussing without inventing a
-personal reflection:
+**1. Why is a meaningful change modeled separately from a wording correction?**
 
-- Why is a meaningful change modeled separately from a wording correction?
-- Why does Reviewing, rather than a reaction guard, enforce unfinished-Review
-  uniqueness?
-- What did the missing concurrent Cause reveal that isolated concept tests could
-  not reveal?
-- Why must the host replace browser-supplied User and workspace identities?
-- Which current limitation should become the first P3 increment, and which
-  concept or reaction would own it?
+I wanted Relay to distinguish between changing how information is written and changing what the information actually means. Fixing a typo shouldn't force officers to review every Playbook that references the note. However, changing a policy from annual to semester renewals could affect multiple procedures. By separating `correct` from `change` in ContextTracking, I can preserve this distinction without asking Relay to guess whether two versions of a note mean the same thing.
+
+**2. Why does Reviewing, rather than a reaction guard, enforce unfinished-Review uniqueness?**
+
+Initially, I thought checking whether a Review already existed before creating one would be enough. But that check isn't reliable when multiple changes happen concurrently. Two reactions can both see that no Review exists and attempt to create one. I realized the rule that only one unfinished Review can exist for an item belongs inside Reviewing itself, where it can be enforced atomically through MongoDB. The reactions decide when to request a Review, while Reviewing guarantees that its own state remains valid.
+
+**3. What did the missing concurrent Cause reveal that isolated concept tests could not reveal?**
+
+The most interesting bug I encountered was that four concurrent Context Changes sometimes resulted in a Review containing only three Causes. The individual concepts passed their tests, but the problem appeared when multiple reactions interacted and completed in different orders. This taught me that testing concepts independently isn't enough to establish that their composition behaves correctly. I added a regression test for concurrent changes and a separate test for the refusal-recovery path so that losing a Cause would be detected again.
+
+**4. Why must the host replace browser-supplied User and workspace identities?**
+
+I realized that frontend checks alone don't provide real authorization because a client can construct requests independently of the interface. If Relay trusted a User or workspace ID supplied in a request, someone could potentially claim another identity or access another club's data. Instead, the host establishes the configured Officer and workspace and supplies those trusted identities to the composition. RoleBasedAccessing then authorizes operations against them. This keeps authentication separate from the concepts while ensuring authorization is enforced in the backend.
+
+**5. Which current limitation should become the first P3 increment, and which concept or reaction would own it?**
+
+I would prioritize allowing officers to update Playbook Steps after reviewing a meaningful Context Change. Currently, Relay can identify an outdated assumption and request a Review, but it doesn't yet support the complete workflow for revising the affected procedure. I would extend ProcedureMaintaining with authorized Step-editing operations and use the existing reviewing workflow to let an officer confirm the Review after making any necessary updates. The composition would coordinate these actions while keeping ProcedureMaintaining responsible for Steps and Reviewing responsible for Review state.
+
+I think this is the most important next increment because it completes the loop from identifying a potentially outdated procedure to actually updating it. It also builds directly on Relay's existing concepts rather than requiring an entirely new system.
