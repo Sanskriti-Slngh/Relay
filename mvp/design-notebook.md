@@ -476,6 +476,34 @@ one existing read path, and is sufficient for the class deployment scale.
 Background failures stay quiet unless authentication has expired, so polling
 does not erase action confirmations or create recurring error banners.
 
+## P3 Beta visual redesign — October 18
+
+The visual pass intentionally changed presentation and disclosure, not Relay's
+concept boundaries. The previous UI proved every workflow but gave most
+objects, forms, and actions the same bordered-card treatment. I replaced that
+with a warm document canvas, an Inter type hierarchy, subtle separators, and
+one semantic green accent. Playbooks now pair a compact index with one focused
+document; Context reads as a knowledge ledger; Questions and Reviews behave as
+inboxes; and the Overview begins with work that needs attention.
+
+The most consequential interaction choice was progressive disclosure. Creation
+and update forms, destructive actions, per-Step tools, histories, and inline
+Questions remain keyboard-accessible through labeled buttons or native
+disclosures, but no longer compete with reading. This applies the P1 feedback
+about surfacing unanswered questions without turning Relay into a notification
+system: open work and counts remain visible, while its detailed controls appear
+when an Officer opens the row. Context updates now force an explicit wording
+correction versus meaningful-change choice so the UI reflects the concept's
+Review-triggering distinction instead of hiding it in two adjacent forms.
+
+I used Linear for restraint, Notion for document-first editing, Kinfolk for
+editorial spacing, Primer for readable type and control conventions, Radix for
+semantic color, and Nielsen Norman Group for disclosure rules. Status never
+depends on color alone, essential actions are not hover-only, focus remains
+visible, and the navigation collapses for mobile. A Review's Edit action now
+opens its exact affected Playbook, closing a small but important usability gap
+without changing application behavior.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

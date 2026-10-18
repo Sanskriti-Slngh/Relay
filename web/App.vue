@@ -6,11 +6,13 @@ import OverviewView from "./components/OverviewView.vue";
 import PlaybooksView from "./components/PlaybooksView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import QuestionsView from "./components/QuestionsView.vue";
+import WorkspaceView from "./components/WorkspaceView.vue";
 
-type Section = "overview" | "procedures" | "context" | "reviews" | "questions";
+type Section = "overview" | "procedures" | "context" | "reviews" | "questions" | "workspace";
 
 const api = createRelayApi();
 const section = ref<Section>("overview");
+const focusedProcedure = ref("");
 const authenticated = ref(false);
 const sessionChecked = ref(false);
 const workspace = ref("");
@@ -26,7 +28,6 @@ const password = ref("");
 const displayName = ref("");
 const clubName = ref("");
 const invitationToken = ref("");
-const inviteEmail = ref("");
 const createdInvite = ref("");
 const loginBusy = ref(false);
 const refreshing = ref(false);
@@ -52,12 +53,13 @@ const canEditContext = computed(() => permissions.value.includes("EDIT_CONTEXT")
 const canReview = computed(() => permissions.value.includes("COMPLETE_REVIEW"));
 const canAnswer = computed(() => permissions.value.includes("ANSWER_QUESTION"));
 const hasWorkspace = computed(() => !!workspace.value);
-const navigation: { id: Section; label: string; short: string }[] = [
-  { id: "overview", label: "Overview", short: "01" },
-  { id: "procedures", label: "Playbooks", short: "02" },
-  { id: "context", label: "Shared context", short: "03" },
-  { id: "reviews", label: "Reviews", short: "04" },
-  { id: "questions", label: "Questions", short: "05" },
+const navigation: { id: Section; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "procedures", label: "Playbooks" },
+  { id: "context", label: "Shared context" },
+  { id: "reviews", label: "Reviews" },
+  { id: "questions", label: "Questions" },
+  { id: "workspace", label: "Workspace" },
 ];
 
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
@@ -178,11 +180,10 @@ async function acceptInvitation() {
   await runAction("accept-invitation", async () => { await acceptSession(await api.acceptInvitation(token, csrfToken.value)); invitationToken.value = ""; }, "Invitation accepted.");
 }
 
-async function inviteMember() {
-  const address = inviteEmail.value.trim(); if (!address) return;
+async function inviteMember({ email: address, onSuccess }: { email: string; onSuccess: () => void }) {
   await runAction("invite-member", async () => {
     const invite = await api.createInvitation(address, csrfToken.value);
-    createdInvite.value = invite.token; inviteEmail.value = "";
+    createdInvite.value = invite.token; onSuccess();
   }, "Invitation code created. Relay does not send email; share the code securely with the invited member.");
 }
 
@@ -263,8 +264,9 @@ async function cancelReview(review: PendingReview) {
   await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, csrfToken.value); }, "Review cancelled. Its causes remain in review history.");
 }
 
-function editReviewedPlaybook() {
+function editReviewedPlaybook(procedure: string) {
   clearMessages();
+  focusedProcedure.value = procedure;
   successMessage.value = "Edit the affected playbook below, then return to Reviews to resolve it.";
   section.value = "procedures";
 }
@@ -329,12 +331,12 @@ onUnmounted(() => {
     <section v-else-if="!authenticated" class="sign-in-layout">
       <div class="sign-in-story">
         <div class="brand-lockup"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></div>
-        <p class="eyebrow">CLUB OPERATIONS, IN CONTEXT</p><h1>Keep the knowledge behind every playbook.</h1>
+        <p class="auth-context">Club knowledge, kept with the work</p><h1>Keep the reasoning behind every playbook.</h1>
         <p class="story-copy">Preserve shared context, trace what changed, and make sure every affected procedure gets a thoughtful review.</p>
         <div class="story-foot"><span class="status-dot"></span>Private club workspaces · role-based access</div>
       </div>
       <form class="sign-in-card" @submit.prevent="signIn">
-        <div class="card-kicker">{{ authMode === 'signin' ? 'SIGN IN' : 'CREATE ACCOUNT' }}</div><h2>{{ authMode === 'signin' ? 'Welcome back' : 'Join Relay' }}</h2><p>{{ authMode === 'signin' ? 'Use your own Relay account.' : 'Create an account, then create a club or accept an invitation.' }}</p>
+        <div class="card-kicker">{{ authMode === 'signin' ? 'Sign in' : 'Create account' }}</div><h2>{{ authMode === 'signin' ? 'Welcome back' : 'Join Relay' }}</h2><p>{{ authMode === 'signin' ? 'Use your own Relay account.' : 'Create an account, then create a club or accept an invitation.' }}</p>
         <label v-if="authMode === 'register'" for="display-name">Name</label><input v-if="authMode === 'register'" id="display-name" v-model="displayName" autocomplete="name" required maxlength="100" :disabled="loginBusy">
         <label for="email">Email</label><input id="email" v-model="email" type="email" autocomplete="email" required maxlength="254" :disabled="loginBusy">
         <label for="password">Password</label><input id="password" v-model="password" type="password" :autocomplete="authMode === 'signin' ? 'current-password' : 'new-password'" required minlength="10" maxlength="128" :disabled="loginBusy">
@@ -354,15 +356,14 @@ onUnmounted(() => {
     <div v-else class="workspace-layout">
       <aside class="sidebar">
         <a class="brand-lockup sidebar-brand" href="#" @click.prevent="section = 'overview'"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></a>
-        <div class="workspace-chip"><span class="workspace-symbol" aria-hidden="true">⌂</span><span><small>CLUB WORKSPACE</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
+        <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
         <select v-if="workspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value)"><option v-for="club in workspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
-          <span class="nav-heading">WORKSPACE</span>
-          <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="section = item.id">
-            <span class="nav-number">{{ item.short }}</span><span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
+          <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="focusedProcedure = ''; section = item.id">
+            <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
           </button>
         </nav>
-        <div class="sidebar-bottom"><div class="secure-note"><span aria-hidden="true">◈</span> {{ currentUser?.name }}</div><button type="button" class="sign-out-button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out <span aria-hidden="true">↗</span></button></div>
+        <div class="sidebar-bottom"><div class="secure-note">{{ currentUser?.name }}</div><button type="button" class="sign-out-button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
       </aside>
       <section class="main-column">
         <header class="topbar">
@@ -372,12 +373,12 @@ onUnmounted(() => {
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
-          <form v-if="canEdit" class="invite-bar" @submit.prevent="inviteMember"><label for="invite-email">Member email (used to validate acceptance)</label><input id="invite-email" v-model="inviteEmail" type="email" required placeholder="member@example.org"><button class="button button-secondary" type="submit" :disabled="!!actionBusy">Create invite code</button><output v-if="createdInvite">Relay does not send email. Share this one-time code securely: <strong class="invite-code">{{ createdInvite }}</strong></output></form>
-          <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="section = $event" />
-          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @archive="archiveProcedure" />
+          <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="focusedProcedure = ''; section = $event" />
+          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :focus-procedure="focusedProcedure" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @archive="archiveProcedure" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="section = 'context'" />
-          <QuestionsView v-else :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
+          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @select="selectClub" />
         </div>
       </section>
     </div>

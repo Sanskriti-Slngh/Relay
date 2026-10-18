@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import type { ContextNote, Procedure, Step, StepQuestion } from "../api.ts";
 
-const props = defineProps<{
-  procedures: Procedure[];
-  contexts: ContextNote[];
-  stepQuestions: StepQuestion[];
-  actionBusy: string;
-  canEdit: boolean;
-}>();
-
+const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; focusProcedure?: string }>();
 const emit = defineEmits<{
   create: [payload: { title: string; onSuccess: () => void }];
   addStep: [payload: { procedure: Procedure; text: string; onSuccess: () => void }];
@@ -22,186 +15,122 @@ const emit = defineEmits<{
 }>();
 
 const procedureTitle = ref("");
+const selectedProcedureId = ref("");
+const showCreate = ref(false);
+const showAddStep = ref(false);
 const stepDraft = reactive<Record<string, string>>({});
 const titleDraft = reactive<Record<string, string>>({});
 const stepEditDraft = reactive<Record<string, string>>({});
 const questionDraft = reactive<Record<string, string>>({});
+const questionComposer = reactive<Record<string, boolean>>({});
 const editingTitle = ref("");
 const editingStep = ref("");
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
 const archivedProcedures = computed(() => props.procedures.filter(({ status }) => status === "RETIRED"));
+const selectedProcedure = computed(() => activeProcedures.value.find(({ procedure }) => procedure === selectedProcedureId.value));
 
-function notesForProcedure(procedureId: string) {
-  return props.contexts.filter((note) =>
-    note.attachments.some((attachment) => attachment.subject === procedureId),
-  );
+watch(activeProcedures, (procedures) => {
+  if (!procedures.some(({ procedure }) => procedure === selectedProcedureId.value)) selectedProcedureId.value = procedures[0]?.procedure ?? "";
+}, { immediate: true });
+
+watch(() => props.focusProcedure, (procedure) => {
+  if (procedure && activeProcedures.value.some(({ procedure: id }) => id === procedure)) selectedProcedureId.value = procedure;
+}, { immediate: true });
+
+function selectProcedure(procedure: Procedure) {
+  selectedProcedureId.value = procedure.procedure;
+  editingTitle.value = "";
+  editingStep.value = "";
+  showAddStep.value = false;
 }
-
+function notesForProcedure(procedureId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId)); }
+function questionsForStep(step: string) { return props.stepQuestions.filter((question) => question.step === step); }
 function createProcedure() {
-  const title = procedureTitle.value.trim();
-  if (!title) return;
-  emit("create", { title, onSuccess: () => { procedureTitle.value = ""; } });
+  const title = procedureTitle.value.trim(); if (!title) return;
+  emit("create", { title, onSuccess: () => { procedureTitle.value = ""; showCreate.value = false; } });
 }
-
 function addStep(procedure: Procedure) {
-  const text = (stepDraft[procedure.procedure] ?? "").trim();
-  if (!text) return;
-  emit("addStep", {
-    procedure,
-    text,
-    onSuccess: () => { stepDraft[procedure.procedure] = ""; },
-  });
+  const text = (stepDraft[procedure.procedure] ?? "").trim(); if (!text) return;
+  emit("addStep", { procedure, text, onSuccess: () => { stepDraft[procedure.procedure] = ""; showAddStep.value = false; } });
 }
-
-function beginRename(procedure: Procedure) {
-  titleDraft[procedure.procedure] = procedure.title;
-  editingTitle.value = procedure.procedure;
-}
-
+function beginRename(procedure: Procedure) { titleDraft[procedure.procedure] = procedure.title; editingTitle.value = procedure.procedure; }
 function renameProcedure(procedure: Procedure) {
-  const title = (titleDraft[procedure.procedure] ?? "").trim();
-  if (!title) return;
-  emit("rename", {
-    procedure,
-    title,
-    onSuccess: () => { editingTitle.value = ""; },
-  });
+  const title = (titleDraft[procedure.procedure] ?? "").trim(); if (!title) return;
+  emit("rename", { procedure, title, onSuccess: () => { editingTitle.value = ""; } });
 }
-
-function beginEditStep(step: Step) {
-  stepEditDraft[step.step] = step.text;
-  editingStep.value = step.step;
-}
-
+function beginEditStep(step: Step) { stepEditDraft[step.step] = step.text; editingStep.value = step.step; }
 function editStep(procedure: Procedure, step: Step) {
-  const text = (stepEditDraft[step.step] ?? "").trim();
-  if (!text) return;
-  emit("editStep", {
-    procedure,
-    step,
-    text,
-    onSuccess: () => { editingStep.value = ""; },
-  });
+  const text = (stepEditDraft[step.step] ?? "").trim(); if (!text) return;
+  emit("editStep", { procedure, step, text, onSuccess: () => { editingStep.value = ""; } });
 }
-
-function questionsForStep(step: string) {
-  return props.stepQuestions.filter((question) => question.step === step);
-}
-
 function askQuestion(procedure: Procedure, step: Step) {
-  const text = (questionDraft[step.step] ?? "").trim();
-  if (!text) return;
-  emit("askQuestion", {
-    procedure,
-    step,
-    text,
-    onSuccess: () => { questionDraft[step.step] = ""; },
-  });
+  const text = (questionDraft[step.step] ?? "").trim(); if (!text) return;
+  emit("askQuestion", { procedure, step, text, onSuccess: () => { questionDraft[step.step] = ""; questionComposer[step.step] = false; } });
 }
 </script>
 
 <template>
-  <div class="page-heading">
-    <p class="eyebrow">REPEATABLE WORK, MADE CLEAR</p>
-    <h1>Playbooks</h1>
-    <p class="page-intro">Document how your club gets things done, one ordered step at a time.</p>
-  </div>
-  <form v-if="canEdit" class="create-bar" @submit.prevent="createProcedure">
-    <label class="sr-only" for="procedure-title">New playbook title</label>
-    <input id="procedure-title" v-model="procedureTitle" placeholder="Name a playbook…" required maxlength="160">
-    <button class="button button-primary" type="submit" :disabled="!!actionBusy || !procedureTitle.trim()">
-      {{ actionBusy === "create-procedure" ? "Creating…" : "Create playbook" }}
-    </button>
+  <header class="page-heading heading-with-action">
+    <div><h1>Playbooks</h1><p class="page-intro">The official steps your club follows, with the context and answers that explain them.</p></div>
+    <button v-if="canEdit" class="button button-primary" type="button" @click="showCreate = !showCreate">{{ showCreate ? "Close" : "New playbook" }}</button>
+  </header>
+
+  <form v-if="canEdit && showCreate" class="disclosure-form create-disclosure" @submit.prevent="createProcedure">
+    <label for="procedure-title">Playbook name</label>
+    <div class="form-row"><input id="procedure-title" v-model="procedureTitle" placeholder="Event setup" required maxlength="160"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !procedureTitle.trim()">{{ actionBusy === "create-procedure" ? "Creating…" : "Create" }}</button></div>
   </form>
-  <div v-if="!activeProcedures.length" class="panel empty-page-state">
-    <span class="empty-icon">↗</span><h2>{{ archivedProcedures.length ? "No active playbooks" : "Your first playbook starts here" }}</h2>
-    <p>{{ archivedProcedures.length ? "There are no active playbooks. Archived ones remain available below." : "Give it a clear name above, then add the steps your team follows." }}</p>
+
+  <div v-if="!activeProcedures.length" class="empty-page-state">
+    <h2>{{ archivedProcedures.length ? "No active playbooks" : "Create the first playbook" }}</h2>
+    <p>{{ archivedProcedures.length ? "Archived playbooks remain available below." : "Start with one recurring process and write the steps in the order people perform them." }}</p>
   </div>
-  <div v-if="activeProcedures.length" class="procedure-list">
-    <article v-for="procedure in activeProcedures" :key="procedure.procedure" class="panel procedure-card">
-      <header class="procedure-card-heading">
-        <span class="procedure-glyph large-glyph">P</span>
-        <div class="procedure-title-group">
-          <span class="eyebrow">PLAYBOOK</span>
-          <form v-if="canEdit && editingTitle === procedure.procedure" class="title-edit-form" @submit.prevent="renameProcedure(procedure)">
-            <label class="sr-only" :for="`rename-${procedure.procedure}`">Rename {{ procedure.title }}</label>
-            <input :id="`rename-${procedure.procedure}`" v-model="titleDraft[procedure.procedure]" required maxlength="160">
-            <button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !titleDraft[procedure.procedure]?.trim()">{{ actionBusy === `rename-${procedure.procedure}` ? "Saving…" : "Save" }}</button>
-            <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="editingTitle = ''">Cancel</button>
+
+  <div v-else class="playbook-workspace">
+    <aside class="playbook-index" aria-label="Active playbooks">
+      <button v-for="procedure in activeProcedures" :key="procedure.procedure" class="playbook-index-row" :class="{ selected: procedure.procedure === selectedProcedureId }" type="button" :aria-pressed="procedure.procedure === selectedProcedureId" @click="selectProcedure(procedure)">
+        <span>{{ procedure.title }}</span><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small>
+      </button>
+    </aside>
+
+    <article v-if="selectedProcedure" class="playbook-document">
+      <header class="document-header">
+        <div class="document-title">
+          <form v-if="canEdit && editingTitle === selectedProcedure.procedure" class="title-edit-form" @submit.prevent="renameProcedure(selectedProcedure)">
+            <label class="sr-only" :for="`rename-${selectedProcedure.procedure}`">Rename {{ selectedProcedure.title }}</label><input :id="`rename-${selectedProcedure.procedure}`" v-model="titleDraft[selectedProcedure.procedure]" required maxlength="160"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !titleDraft[selectedProcedure.procedure]?.trim()">Save</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="editingTitle = ''">Cancel</button>
           </form>
-          <div v-else class="title-display"><h2>{{ procedure.title }}</h2><button v-if="canEdit" class="text-button" type="button" :disabled="!!actionBusy" @click="beginRename(procedure)">Rename</button></div>
+          <template v-else><p class="document-label">Playbook</p><h2>{{ selectedProcedure.title }}</h2><p>{{ selectedProcedure.steps.length }} ordered {{ selectedProcedure.steps.length === 1 ? "step" : "steps" }} · {{ notesForProcedure(selectedProcedure.procedure).length }} context {{ notesForProcedure(selectedProcedure.procedure).length === 1 ? "note" : "notes" }}</p></template>
         </div>
-        <span class="badge badge-active">Active</span>
+        <details v-if="canEdit" class="action-menu"><summary aria-label="Playbook actions">Actions</summary><div><button type="button" @click="beginRename(selectedProcedure)">Rename</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('archive', selectedProcedure)">Archive</button></div></details>
       </header>
-      <div class="steps-section">
-        <div class="section-rule"><span>ORDERED STEPS</span><span>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</span></div>
-        <ol v-if="procedure.steps.length" class="step-list">
-          <li v-for="step in procedure.steps" :key="step.step" class="editable-step">
-            <span class="step-index">{{ String(step.position).padStart(2, "0") }}</span>
-            <form v-if="canEdit && editingStep === step.step" class="step-edit-form" @submit.prevent="editStep(procedure, step)">
-              <label class="sr-only" :for="`edit-${step.step}`">Edit step {{ step.position }}</label>
-              <input :id="`edit-${step.step}`" v-model="stepEditDraft[step.step]" required maxlength="500">
-              <button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !stepEditDraft[step.step]?.trim()">{{ actionBusy === `edit-${step.step}` ? "Saving…" : "Save" }}</button>
-              <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="editingStep = ''">Cancel</button>
+
+      <ol v-if="selectedProcedure.steps.length" class="document-steps">
+        <li v-for="step in selectedProcedure.steps" :key="step.step" class="document-step">
+          <span class="step-index">{{ step.position }}</span>
+          <div class="step-body">
+            <form v-if="canEdit && editingStep === step.step" class="step-edit-form" @submit.prevent="editStep(selectedProcedure, step)">
+              <label class="sr-only" :for="`edit-${step.step}`">Edit step {{ step.position }}</label><textarea :id="`edit-${step.step}`" v-model="stepEditDraft[step.step]" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !stepEditDraft[step.step]?.trim()">{{ actionBusy === `edit-${step.step}` ? "Saving…" : "Save" }}</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="editingStep = ''">Cancel</button></div>
             </form>
             <template v-else>
-              <span class="step-text">{{ step.text }}</span>
-              <div v-if="canEdit" class="step-actions">
-                <button class="step-action" type="button" :disabled="!!actionBusy || step.position === 1" :aria-label="`Move step ${step.position} up`" @click="emit('moveStep', { procedure, step, position: step.position - 1 })">↑</button>
-                <button class="step-action" type="button" :disabled="!!actionBusy || step.position === procedure.steps.length" :aria-label="`Move step ${step.position} down`" @click="emit('moveStep', { procedure, step, position: step.position + 1 })">↓</button>
-                <button class="text-button" type="button" :disabled="!!actionBusy" @click="beginEditStep(step)">Edit</button>
-                <button class="text-button danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeStep', { procedure, step })">Remove</button>
-              </div>
+              <p class="step-text">{{ step.text }}</p>
+              <div class="step-tools"><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">Questions{{ questionsForStep(step.step).length ? ` (${questionsForStep(step.step).length})` : "" }}</button><details v-if="canEdit" class="action-menu step-menu"><summary :aria-label="`Actions for step ${step.position}`">Actions</summary><div><button type="button" :disabled="!!actionBusy || step.position === 1" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position - 1 })">Move up</button><button type="button" :disabled="!!actionBusy || step.position === selectedProcedure.steps.length" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position + 1 })">Move down</button><button type="button" :disabled="!!actionBusy" @click="beginEditStep(step)">Edit step</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeStep', { procedure: selectedProcedure, step })">Remove step</button></div></details></div>
             </template>
-            <div class="step-question-area">
-              <div v-if="questionsForStep(step.step).length" class="subject-question-list">
-                <article v-for="question in questionsForStep(step.step)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }">
-                  <strong>{{ question.status === "OPEN" ? "Awaiting officer answer" : "Answered" }}</strong>
-                  <p>{{ question.text }}</p>
-                  <p v-if="question.answer" class="question-answer"><span>Answer:</span> {{ question.answer }}</p>
-                </article>
-              </div>
-              <form class="inline-form question-form" @submit.prevent="askQuestion(procedure, step)">
-                <label class="sr-only" :for="`question-${step.step}`">Ask a question about step {{ step.position }}</label>
-                <input :id="`question-${step.step}`" v-model="questionDraft[step.step]" placeholder="Ask about this step…" required maxlength="1000">
-                <button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(questionDraft[step.step] ?? '').trim()">{{ actionBusy === `ask-step-${step.step}` ? "Sending…" : "Ask question" }}</button>
-              </form>
-            </div>
-          </li>
-        </ol>
-        <p v-else class="subtle-empty">No steps added yet. Add the first one below.</p>
-        <form v-if="canEdit" class="inline-form add-step-form" @submit.prevent="addStep(procedure)">
-          <label class="sr-only" :for="`step-${procedure.procedure}`">New step for {{ procedure.title }}</label>
-          <input :id="`step-${procedure.procedure}`" v-model="stepDraft[procedure.procedure]" placeholder="Describe the next step…" required maxlength="500">
-          <button class="button button-secondary" type="submit" :disabled="!!actionBusy || !(stepDraft[procedure.procedure] ?? '').trim()">
-            {{ actionBusy === `step-${procedure.procedure}` ? "Adding…" : "Add step" }}
-          </button>
-        </form>
+            <section v-if="questionComposer[step.step]" class="inline-disclosure" :aria-label="`Questions about step ${step.position}`">
+              <div v-if="questionsForStep(step.step).length" class="subject-question-list"><article v-for="question in questionsForStep(step.step)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>
+              <form class="question-form" @submit.prevent="askQuestion(selectedProcedure, step)"><label :for="`question-${step.step}`">Ask about this step</label><div class="form-row"><input :id="`question-${step.step}`" v-model="questionDraft[step.step]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(questionDraft[step.step] ?? '').trim()">{{ actionBusy === `ask-step-${step.step}` ? "Sending…" : "Ask" }}</button></div></form>
+            </section>
+          </div>
+        </li>
+      </ol>
+      <p v-else class="document-empty">No steps yet. Add the first instruction to make this playbook useful.</p>
+
+      <div v-if="canEdit" class="add-step-control">
+        <button v-if="!showAddStep" class="text-button" type="button" @click="showAddStep = true">Add a step</button>
+        <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div></form>
       </div>
-      <div class="associated-notes">
-        <div class="section-rule"><span>CONNECTED CONTEXT</span><span>{{ notesForProcedure(procedure.procedure).length }}</span></div>
-        <div v-if="notesForProcedure(procedure.procedure).length" class="associated-note-list">
-          <p v-for="note in notesForProcedure(procedure.procedure)" :key="note.context"><span>“</span>{{ note.text }}</p>
-        </div>
-        <p v-else class="subtle-empty">Shared notes attached to this playbook will appear here.</p>
-      </div>
-      <footer v-if="canEdit" class="procedure-card-footer">
-        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="emit('archive', procedure)">
-          {{ actionBusy === `archive-${procedure.procedure}` ? "Archiving…" : "Archive playbook" }}
-        </button>
-      </footer>
+
+      <section class="document-context"><h3>Attached context</h3><div v-if="notesForProcedure(selectedProcedure.procedure).length" class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure.procedure)" :key="note.context">{{ note.text }}</blockquote></div><p v-else>No context notes are attached yet. The playbook can still stand on its own.</p></section>
     </article>
   </div>
-  <details v-if="archivedProcedures.length" class="panel archived-playbooks">
-    <summary>Archived playbooks <span class="badge badge-archived">{{ archivedProcedures.length }}</span></summary>
-    <p class="archived-description">Archived playbooks are excluded from active lists. Their Steps, Context attachments, and Reviews are retained.</p>
-    <article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook">
-      <div class="archived-playbook-heading"><strong>{{ procedure.title }}</strong><span class="badge badge-archived">Archived</span></div>
-      <ol v-if="procedure.steps.length" class="step-list">
-        <li v-for="step in procedure.steps" :key="step.step"><span class="step-index">{{ String(step.position).padStart(2, "0") }}</span><span>{{ step.text }}</span></li>
-      </ol>
-      <p v-else class="subtle-empty">This Playbook has no Steps.</p>
-      <p class="archived-context-count">{{ notesForProcedure(procedure.procedure).length }} connected Context Notes · Review history remains available in Reviews.</p>
-    </article>
-  </details>
+
+  <details v-if="archivedProcedures.length" class="quiet-history archived-playbooks"><summary>Archived playbooks <span>{{ archivedProcedures.length }}</span></summary><article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook"><header><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} steps</small></header><ol><li v-for="step in procedure.steps" :key="step.step"><span>{{ step.position }}</span>{{ step.text }}</li></ol><p>{{ notesForProcedure(procedure.procedure).length }} attached context notes. Review history remains available.</p></article></details>
 </template>
