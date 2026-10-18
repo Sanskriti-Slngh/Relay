@@ -396,3 +396,4 @@ a { color: inherit; }
 .invite-bar { display: flex; gap: .6rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: .8rem; background: #fff; }
 .invite-bar label { font-weight: 700; }
 .invite-bar output { flex-basis: 100%; overflow-wrap: anywhere; }
+.invite-code { user-select: all; }

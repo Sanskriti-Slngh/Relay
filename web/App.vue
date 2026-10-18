@@ -175,7 +175,7 @@ async function inviteMember() {
   await runAction("invite-member", async () => {
     const invite = await api.createInvitation(address, csrfToken.value);
     createdInvite.value = invite.token; inviteEmail.value = "";
-  }, "Invitation created. Share the one-time code securely with the invited member.");
+  }, "Invitation code created. Relay does not send email; share the code securely with the invited member.");
 }
 
 async function signOut() {
@@ -343,7 +343,7 @@ onMounted(async () => {
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
-          <form v-if="canEdit" class="invite-bar" @submit.prevent="inviteMember"><label for="invite-email">Invite a member</label><input id="invite-email" v-model="inviteEmail" type="email" required placeholder="member@example.org"><button class="button button-secondary" type="submit" :disabled="!!actionBusy">Invite</button><output v-if="createdInvite">One-time code: <strong>{{ createdInvite }}</strong></output></form>
+          <form v-if="canEdit" class="invite-bar" @submit.prevent="inviteMember"><label for="invite-email">Member email (used to validate acceptance)</label><input id="invite-email" v-model="inviteEmail" type="email" required placeholder="member@example.org"><button class="button button-secondary" type="submit" :disabled="!!actionBusy">Create invite code</button><output v-if="createdInvite">Relay does not send email. Share this one-time code securely: <strong class="invite-code">{{ createdInvite }}</strong></output></form>
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="section = $event" />
           <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @archive="archiveProcedure" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />

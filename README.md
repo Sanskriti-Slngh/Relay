@@ -17,6 +17,10 @@ club workspaces, and invitation-based Member onboarding. RoleBasedAccessing
 authorizes every composition operation using the User and selected workspace
 loaded from the server-side session.
 
+Invitations are email-bound but are not delivered by email. An Officer creates
+a one-time code in Relay and shares it securely with the invited address's
+owner, who must register with that same normalized email before accepting it.
+
 1. Install Bun 1.4.0 and Podman with Compose. Install dependencies:
 
    ```sh
