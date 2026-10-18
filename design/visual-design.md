@@ -45,13 +45,20 @@ compact header and the navigation remains reachable without hover.
 
 Workspace management follows the club's state rather than presenting a generic
 settings form: club identity and the viewer's Role lead, followed by joined
-Members, Officer-only pending invitations, the invitation form, and other club
+Members, Owner/Officer-only pending invitations, the invitation form, and other club
 memberships. Joined users and pending invitations remain separate. Member
 rows expose names and Roles to the club; email and invitation administration
-appear only to Officers. A newly issued code is a temporary success surface
+appear only to Owners and Officers. A newly issued code is a temporary success surface
 with Copy and expiry information. Reissue clearly states that the replacement
 invalidates the previous code, and the plaintext value is never persisted in
 the browser.
+
+Role management stays compact within Member rows. Officers see only Member
+promotion/removal actions; Owners can additionally demote Officers and open a
+separate, explicit ownership-transfer form. The transfer form states the sole-
+Owner consequence, lets the current Owner choose their resulting role, and
+requires confirmation. Legacy workspaces show one setup action instead of an
+automatically guessed owner.
 
 Playbooks use a master-detail layout: a scannable title index and one focused,
 document-like procedure. Steps retain stable identity and order but read as a

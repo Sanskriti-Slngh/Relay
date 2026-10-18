@@ -41,10 +41,10 @@ Defined in [ContextTracking](../design/concepts/ContextTracking.md), line 1.
 
 #### Instances
 
-- `ContextTracking` — instance of `ContextTracking` — [Relay MVP Application Types](../design/types.md), line 40.
-  - `Anchor` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 43.
-  - `Scope` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 41.
-  - `Subject` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 42.
+- `ContextTracking` — instance of `ContextTracking` — [Relay MVP Application Types](../design/types.md), line 42.
+  - `Anchor` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 45.
+  - `Scope` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 43.
+  - `Subject` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 44.
 
 ### ProcedureMaintaining
 
@@ -88,8 +88,8 @@ Defined in [ProcedureMaintaining](../design/concepts/ProcedureMaintaining.md), l
 
 #### Instances
 
-- `ProcedureMaintaining` — instance of `ProcedureMaintaining` — [Relay MVP Application Types](../design/types.md), line 37.
-  - `Space` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 38.
+- `ProcedureMaintaining` — instance of `ProcedureMaintaining` — [Relay MVP Application Types](../design/types.md), line 39.
+  - `Space` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 40.
 
 ### Questioning
 
@@ -114,12 +114,12 @@ Defined in [Questioning](../design/concepts/Questioning.md), line 1.
 
 #### Instances
 
-- `ContextQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 49.
-  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 51.
-  - `Subject` is `ContextTracking.ContextNote` — [Relay MVP Application Types](../design/types.md), line 50.
-- `StepQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 45.
-  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 47.
-  - `Subject` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 46.
+- `ContextQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 51.
+  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 53.
+  - `Subject` is `ContextTracking.ContextNote` — [Relay MVP Application Types](../design/types.md), line 52.
+- `StepQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 47.
+  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 49.
+  - `Subject` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 48.
 
 ### Reviewing
 
@@ -155,9 +155,9 @@ Defined in [Reviewing](../design/concepts/Reviewing.md), line 1.
 
 #### Instances
 
-- `Reviewing` — instance of `Reviewing` — [Relay MVP Application Types](../design/types.md), line 53.
-  - `Cause` is `ContextTracking.Change` — [Relay MVP Application Types](../design/types.md), line 55.
-  - `Item` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 54.
+- `Reviewing` — instance of `Reviewing` — [Relay MVP Application Types](../design/types.md), line 55.
+  - `Cause` is `ContextTracking.Change` — [Relay MVP Application Types](../design/types.md), line 57.
+  - `Item` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 56.
 
 ### RoleBasedAccessing
 
@@ -194,11 +194,11 @@ Defined in [RoleBasedAccessing](../design/concepts/RoleBasedAccessing.md), line 
 
 #### Instances
 
-- `RoleBasedAccessing` — instance of `RoleBasedAccessing` — [Relay MVP Application Types](../design/types.md), line 57.
-  - `Command` is `Command` — [Relay MVP Application Types](../design/types.md), line 61.
-  - `Permission` is `Permission` — [Relay MVP Application Types](../design/types.md), line 60.
-  - `Resource` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 59.
-  - `User` is `User` — [Relay MVP Application Types](../design/types.md), line 58.
+- `RoleBasedAccessing` — instance of `RoleBasedAccessing` — [Relay MVP Application Types](../design/types.md), line 59.
+  - `Command` is `Command` — [Relay MVP Application Types](../design/types.md), line 63.
+  - `Permission` is `Permission` — [Relay MVP Application Types](../design/types.md), line 62.
+  - `Resource` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 61.
+  - `User` is `User` — [Relay MVP Application Types](../design/types.md), line 60.
 
 ## Application types
 
@@ -217,7 +217,7 @@ _the authored explanation; this section records the generated shape._
 ### Relay.Reads.PendingReviews
 
 Authored path: `Relay.Reads.PendingReviews`.
-- Covered by [Relay](../design/compositions/Relay.md), line 169.
+- Covered by [Relay](../design/compositions/Relay.md), line 165.
 
 ```former
 Former "Relay.Reads.PendingReviews" — inputs (workspace); bindings (review, procedure, status, title, cause, before, after); promises exactly one record — forms:
@@ -241,7 +241,7 @@ Former "Relay.Reads.PendingReviews" — inputs (workspace); bindings (review, pr
 ### Relay.Reads.WorkspaceContextHistory
 
 Authored path: `Relay.Reads.WorkspaceContextHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 164.
+- Covered by [Relay](../design/compositions/Relay.md), line 160.
 
 ```former
 Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (context, text, attachment, subject, anchor, change, before, after); promises exactly one record — forms:
@@ -268,7 +268,7 @@ Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (c
 ### Relay.Reads.WorkspaceContextQuestions
 
 Authored path: `Relay.Reads.WorkspaceContextQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 266.
+- Covered by [Relay](../design/compositions/Relay.md), line 262.
 
 ```former
 Former "Relay.Reads.WorkspaceContextQuestions" — inputs (workspace); bindings (question, context, questionText, questionStatus, answer, answerer, contextText); promises exactly one record — forms:
@@ -290,7 +290,7 @@ Former "Relay.Reads.WorkspaceContextQuestions" — inputs (workspace); bindings 
 ### Relay.Reads.WorkspaceProcedures
 
 Authored path: `Relay.Reads.WorkspaceProcedures`.
-- Covered by [Relay](../design/compositions/Relay.md), line 71.
+- Covered by [Relay](../design/compositions/Relay.md), line 67.
 
 ```former
 Former "Relay.Reads.WorkspaceProcedures" — inputs (workspace); bindings (procedure, title, status, step, text, position); promises exactly one record — forms:
@@ -311,7 +311,7 @@ Former "Relay.Reads.WorkspaceProcedures" — inputs (workspace); bindings (proce
 ### Relay.Reads.WorkspaceReviewHistory
 
 Authored path: `Relay.Reads.WorkspaceReviewHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 175.
+- Covered by [Relay](../design/compositions/Relay.md), line 171.
 
 ```former
 Former "Relay.Reads.WorkspaceReviewHistory" — inputs (workspace); bindings (procedure, title, review, status, cause, before, after); promises exactly one record — forms:
@@ -337,7 +337,7 @@ Former "Relay.Reads.WorkspaceReviewHistory" — inputs (workspace); bindings (pr
 ### Relay.Reads.WorkspaceStepQuestions
 
 Authored path: `Relay.Reads.WorkspaceStepQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 265.
+- Covered by [Relay](../design/compositions/Relay.md), line 261.
 
 ```former
 Former "Relay.Reads.WorkspaceStepQuestions" — inputs (workspace); bindings (question, step, questionText, questionStatus, answer, answerer, procedure, title, stepText, stepStatus); promises exactly one record — forms:
@@ -385,7 +385,7 @@ then
 ### Relay.ContextChanges.AddCauseAfterConcurrentRequestRefusal
 
 Authored path: `Relay.ContextChanges.AddCauseAfterConcurrentRequestRefusal`.
-- Covered by [Relay](../design/compositions/Relay.md), line 136.
+- Covered by [Relay](../design/compositions/Relay.md), line 132.
 
 ```reaction
 when refused Reviewing.request (cause, item, error: "REQUEST_ALREADY_UNFINISHED")
@@ -398,7 +398,7 @@ then
 ### Relay.ContextChanges.AddChangeCause
 
 Authored path: `Relay.ContextChanges.AddChangeCause`.
-- Covered by [Relay](../design/compositions/Relay.md), line 131.
+- Covered by [Relay](../design/compositions/Relay.md), line 127.
 
 ```reaction
 when ContextTracking.change (change)
@@ -416,7 +416,7 @@ then
 ### Relay.ContextChanges.RequestReview
 
 Authored path: `Relay.ContextChanges.RequestReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 129.
+- Covered by [Relay](../design/compositions/Relay.md), line 125.
 
 ```reaction
 when ContextTracking.change (change)
@@ -432,8 +432,8 @@ then
 ### Relay.ContextOperations.AttachContextNote
 
 Authored path: `Relay.ContextOperations.AttachContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 112.
-- Covered by [Relay](../design/compositions/Relay.md), line 182.
+- Covered by [Relay](../design/compositions/Relay.md), line 108.
+- Covered by [Relay](../design/compositions/Relay.md), line 178.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/context/attachments", procedure, requestId, user, workspace)
@@ -444,8 +444,8 @@ then
 ### Relay.ContextOperations.AttachContextNote:context-and-procedure-available#2
 
 Authored path: `Relay.ContextOperations.AttachContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 112.
-- Covered by [Relay](../design/compositions/Relay.md), line 182.
+- Covered by [Relay](../design/compositions/Relay.md), line 108.
+- Covered by [Relay](../design/compositions/Relay.md), line 178.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNote
@@ -460,8 +460,8 @@ then
 ### Relay.ContextOperations.AttachContextNote:context-and-procedure-available#3
 
 Authored path: `Relay.ContextOperations.AttachContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 112.
-- Covered by [Relay](../design/compositions/Relay.md), line 182.
+- Covered by [Relay](../design/compositions/Relay.md), line 108.
+- Covered by [Relay](../design/compositions/Relay.md), line 178.
 
 ```reaction
 when ContextTracking.attach (context, subject: procedure, attachment), asked by Relay.ContextOperations.AttachContextNote:context-and-procedure-available#2
@@ -474,8 +474,8 @@ then
 ### Relay.ContextOperations.AttachContextNote:context-unavailable#2
 
 Authored path: `Relay.ContextOperations.AttachContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 112.
-- Covered by [Relay](../design/compositions/Relay.md), line 182.
+- Covered by [Relay](../design/compositions/Relay.md), line 108.
+- Covered by [Relay](../design/compositions/Relay.md), line 178.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNote
@@ -489,8 +489,8 @@ then
 ### Relay.ContextOperations.AttachContextNote:procedure-unavailable#2
 
 Authored path: `Relay.ContextOperations.AttachContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 112.
-- Covered by [Relay](../design/compositions/Relay.md), line 182.
+- Covered by [Relay](../design/compositions/Relay.md), line 108.
+- Covered by [Relay](../design/compositions/Relay.md), line 178.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNote
@@ -505,8 +505,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/context/step-attachments", procedure, requestId, step, user, workspace)
@@ -517,8 +517,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep:context-procedure-and-step-available#2
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE_AT_STEP", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNoteAtStep
@@ -534,8 +534,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep:context-procedure-and-step-available#3
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when ContextTracking.attachAt (anchor: step, context, subject: procedure, attachment), asked by Relay.ContextOperations.AttachContextNoteAtStep:context-procedure-and-step-available#2
@@ -548,8 +548,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep:context-unavailable#2
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE_AT_STEP", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNoteAtStep
@@ -563,8 +563,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep:procedure-unavailable#2
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE_AT_STEP", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNoteAtStep
@@ -579,8 +579,8 @@ then
 ### Relay.ContextOperations.AttachContextNoteAtStep:step-unavailable#2
 
 Authored path: `Relay.ContextOperations.AttachContextNoteAtStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 114.
-- Covered by [Relay](../design/compositions/Relay.md), line 183.
+- Covered by [Relay](../design/compositions/Relay.md), line 110.
+- Covered by [Relay](../design/compositions/Relay.md), line 179.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ATTACH_CONTEXT_NOTE_AT_STEP", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.AttachContextNoteAtStep
@@ -596,8 +596,8 @@ then
 ### Relay.ContextOperations.ChangeContextNote
 
 Authored path: `Relay.ContextOperations.ChangeContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 125.
-- Covered by [Relay](../design/compositions/Relay.md), line 185.
+- Covered by [Relay](../design/compositions/Relay.md), line 121.
+- Covered by [Relay](../design/compositions/Relay.md), line 181.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/context/change", requestId, text, user, workspace)
@@ -608,8 +608,8 @@ then
 ### Relay.ContextOperations.ChangeContextNote:context-available#2
 
 Authored path: `Relay.ContextOperations.ChangeContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 125.
-- Covered by [Relay](../design/compositions/Relay.md), line 185.
+- Covered by [Relay](../design/compositions/Relay.md), line 121.
+- Covered by [Relay](../design/compositions/Relay.md), line 181.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CHANGE_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.ChangeContextNote
@@ -623,8 +623,8 @@ then
 ### Relay.ContextOperations.ChangeContextNote:context-available#3
 
 Authored path: `Relay.ContextOperations.ChangeContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 125.
-- Covered by [Relay](../design/compositions/Relay.md), line 185.
+- Covered by [Relay](../design/compositions/Relay.md), line 121.
+- Covered by [Relay](../design/compositions/Relay.md), line 181.
 
 ```reaction
 when ContextTracking.change (context, text, change), asked by Relay.ContextOperations.ChangeContextNote:context-available#2
@@ -637,8 +637,8 @@ then
 ### Relay.ContextOperations.ChangeContextNote:context-unavailable#2
 
 Authored path: `Relay.ContextOperations.ChangeContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 125.
-- Covered by [Relay](../design/compositions/Relay.md), line 185.
+- Covered by [Relay](../design/compositions/Relay.md), line 121.
+- Covered by [Relay](../design/compositions/Relay.md), line 181.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CHANGE_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.ChangeContextNote
@@ -652,8 +652,8 @@ then
 ### Relay.ContextOperations.CorrectContextNote
 
 Authored path: `Relay.ContextOperations.CorrectContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 123.
-- Covered by [Relay](../design/compositions/Relay.md), line 184.
+- Covered by [Relay](../design/compositions/Relay.md), line 119.
+- Covered by [Relay](../design/compositions/Relay.md), line 180.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/context/correct", requestId, text, user, workspace)
@@ -664,8 +664,8 @@ then
 ### Relay.ContextOperations.CorrectContextNote:context-available#2
 
 Authored path: `Relay.ContextOperations.CorrectContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 123.
-- Covered by [Relay](../design/compositions/Relay.md), line 184.
+- Covered by [Relay](../design/compositions/Relay.md), line 119.
+- Covered by [Relay](../design/compositions/Relay.md), line 180.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CORRECT_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.CorrectContextNote
@@ -679,8 +679,8 @@ then
 ### Relay.ContextOperations.CorrectContextNote:context-available#3
 
 Authored path: `Relay.ContextOperations.CorrectContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 123.
-- Covered by [Relay](../design/compositions/Relay.md), line 184.
+- Covered by [Relay](../design/compositions/Relay.md), line 119.
+- Covered by [Relay](../design/compositions/Relay.md), line 180.
 
 ```reaction
 when ContextTracking.correct (context, text), asked by Relay.ContextOperations.CorrectContextNote:context-available#2
@@ -693,8 +693,8 @@ then
 ### Relay.ContextOperations.CorrectContextNote:context-unavailable#2
 
 Authored path: `Relay.ContextOperations.CorrectContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 123.
-- Covered by [Relay](../design/compositions/Relay.md), line 184.
+- Covered by [Relay](../design/compositions/Relay.md), line 119.
+- Covered by [Relay](../design/compositions/Relay.md), line 180.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CORRECT_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.CorrectContextNote
@@ -708,8 +708,8 @@ then
 ### Relay.ContextOperations.RecordContextNote
 
 Authored path: `Relay.ContextOperations.RecordContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 111.
-- Covered by [Relay](../design/compositions/Relay.md), line 181.
+- Covered by [Relay](../design/compositions/Relay.md), line 107.
+- Covered by [Relay](../design/compositions/Relay.md), line 177.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/context/notes", requestId, text, user, workspace)
@@ -720,8 +720,8 @@ then
 ### Relay.ContextOperations.RecordContextNote#2
 
 Authored path: `Relay.ContextOperations.RecordContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 111.
-- Covered by [Relay](../design/compositions/Relay.md), line 181.
+- Covered by [Relay](../design/compositions/Relay.md), line 107.
+- Covered by [Relay](../design/compositions/Relay.md), line 177.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RECORD_CONTEXT_NOTE", permission: "EDIT_CONTEXT", resource: workspace, user), asked by Relay.ContextOperations.RecordContextNote
@@ -734,8 +734,8 @@ then
 ### Relay.ContextOperations.RecordContextNote#3
 
 Authored path: `Relay.ContextOperations.RecordContextNote`.
-- Covered by [Relay](../design/compositions/Relay.md), line 111.
-- Covered by [Relay](../design/compositions/Relay.md), line 181.
+- Covered by [Relay](../design/compositions/Relay.md), line 107.
+- Covered by [Relay](../design/compositions/Relay.md), line 177.
 
 ```reaction
 when ContextTracking.record (scope: workspace, text, context), asked by Relay.ContextOperations.RecordContextNote#2
@@ -748,8 +748,8 @@ then
 ### Relay.ProcedureOperations.AddStep
 
 Authored path: `Relay.ProcedureOperations.AddStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 68.
-- Covered by [Relay](../design/compositions/Relay.md), line 100.
+- Covered by [Relay](../design/compositions/Relay.md), line 64.
+- Covered by [Relay](../design/compositions/Relay.md), line 96.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/steps/add", procedure, requestId, text, user, workspace)
@@ -760,8 +760,8 @@ then
 ### Relay.ProcedureOperations.AddStep:procedure-available#2
 
 Authored path: `Relay.ProcedureOperations.AddStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 68.
-- Covered by [Relay](../design/compositions/Relay.md), line 100.
+- Covered by [Relay](../design/compositions/Relay.md), line 64.
+- Covered by [Relay](../design/compositions/Relay.md), line 96.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ADD_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.AddStep
@@ -775,8 +775,8 @@ then
 ### Relay.ProcedureOperations.AddStep:procedure-available#3
 
 Authored path: `Relay.ProcedureOperations.AddStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 68.
-- Covered by [Relay](../design/compositions/Relay.md), line 100.
+- Covered by [Relay](../design/compositions/Relay.md), line 64.
+- Covered by [Relay](../design/compositions/Relay.md), line 96.
 
 ```reaction
 when ProcedureMaintaining.addStep (procedure, text, step), asked by Relay.ProcedureOperations.AddStep:procedure-available#2
@@ -789,8 +789,8 @@ then
 ### Relay.ProcedureOperations.AddStep:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.AddStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 68.
-- Covered by [Relay](../design/compositions/Relay.md), line 100.
+- Covered by [Relay](../design/compositions/Relay.md), line 64.
+- Covered by [Relay](../design/compositions/Relay.md), line 96.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ADD_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.AddStep
@@ -804,8 +804,8 @@ then
 ### Relay.ProcedureOperations.ArchiveProcedure
 
 Authored path: `Relay.ProcedureOperations.ArchiveProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 89.
-- Covered by [Relay](../design/compositions/Relay.md), line 105.
+- Covered by [Relay](../design/compositions/Relay.md), line 85.
+- Covered by [Relay](../design/compositions/Relay.md), line 101.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/archive", procedure, requestId, user, workspace)
@@ -816,8 +816,8 @@ then
 ### Relay.ProcedureOperations.ArchiveProcedure:procedure-available#2
 
 Authored path: `Relay.ProcedureOperations.ArchiveProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 89.
-- Covered by [Relay](../design/compositions/Relay.md), line 105.
+- Covered by [Relay](../design/compositions/Relay.md), line 85.
+- Covered by [Relay](../design/compositions/Relay.md), line 101.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ARCHIVE_PROCEDURE", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.ArchiveProcedure
@@ -831,8 +831,8 @@ then
 ### Relay.ProcedureOperations.ArchiveProcedure:procedure-available#3
 
 Authored path: `Relay.ProcedureOperations.ArchiveProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 89.
-- Covered by [Relay](../design/compositions/Relay.md), line 105.
+- Covered by [Relay](../design/compositions/Relay.md), line 85.
+- Covered by [Relay](../design/compositions/Relay.md), line 101.
 
 ```reaction
 when ProcedureMaintaining.retire (procedure), asked by Relay.ProcedureOperations.ArchiveProcedure:procedure-available#2
@@ -845,8 +845,8 @@ then
 ### Relay.ProcedureOperations.ArchiveProcedure:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.ArchiveProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 89.
-- Covered by [Relay](../design/compositions/Relay.md), line 105.
+- Covered by [Relay](../design/compositions/Relay.md), line 85.
+- Covered by [Relay](../design/compositions/Relay.md), line 101.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ARCHIVE_PROCEDURE", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.ArchiveProcedure
@@ -860,8 +860,8 @@ then
 ### Relay.ProcedureOperations.CreateProcedure
 
 Authored path: `Relay.ProcedureOperations.CreateProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 67.
-- Covered by [Relay](../design/compositions/Relay.md), line 99.
+- Covered by [Relay](../design/compositions/Relay.md), line 63.
+- Covered by [Relay](../design/compositions/Relay.md), line 95.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/create", requestId, title, user, workspace)
@@ -872,8 +872,8 @@ then
 ### Relay.ProcedureOperations.CreateProcedure#2
 
 Authored path: `Relay.ProcedureOperations.CreateProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 67.
-- Covered by [Relay](../design/compositions/Relay.md), line 99.
+- Covered by [Relay](../design/compositions/Relay.md), line 63.
+- Covered by [Relay](../design/compositions/Relay.md), line 95.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CREATE_PROCEDURE", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.CreateProcedure
@@ -886,8 +886,8 @@ then
 ### Relay.ProcedureOperations.CreateProcedure#3
 
 Authored path: `Relay.ProcedureOperations.CreateProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 67.
-- Covered by [Relay](../design/compositions/Relay.md), line 99.
+- Covered by [Relay](../design/compositions/Relay.md), line 63.
+- Covered by [Relay](../design/compositions/Relay.md), line 95.
 
 ```reaction
 when ProcedureMaintaining.create (space: workspace, title, procedure), asked by Relay.ProcedureOperations.CreateProcedure#2
@@ -900,8 +900,8 @@ then
 ### Relay.ProcedureOperations.EditStep
 
 Authored path: `Relay.ProcedureOperations.EditStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 76.
-- Covered by [Relay](../design/compositions/Relay.md), line 102.
+- Covered by [Relay](../design/compositions/Relay.md), line 72.
+- Covered by [Relay](../design/compositions/Relay.md), line 98.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/steps/edit", procedure, requestId, step, text, user, workspace)
@@ -912,8 +912,8 @@ then
 ### Relay.ProcedureOperations.EditStep:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.EditStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 76.
-- Covered by [Relay](../design/compositions/Relay.md), line 102.
+- Covered by [Relay](../design/compositions/Relay.md), line 72.
+- Covered by [Relay](../design/compositions/Relay.md), line 98.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "EDIT_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.EditStep
@@ -927,8 +927,8 @@ then
 ### Relay.ProcedureOperations.EditStep:step-available#2
 
 Authored path: `Relay.ProcedureOperations.EditStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 76.
-- Covered by [Relay](../design/compositions/Relay.md), line 102.
+- Covered by [Relay](../design/compositions/Relay.md), line 72.
+- Covered by [Relay](../design/compositions/Relay.md), line 98.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "EDIT_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.EditStep
@@ -943,8 +943,8 @@ then
 ### Relay.ProcedureOperations.EditStep:step-available#3
 
 Authored path: `Relay.ProcedureOperations.EditStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 76.
-- Covered by [Relay](../design/compositions/Relay.md), line 102.
+- Covered by [Relay](../design/compositions/Relay.md), line 72.
+- Covered by [Relay](../design/compositions/Relay.md), line 98.
 
 ```reaction
 when ProcedureMaintaining.editStep (step, text), asked by Relay.ProcedureOperations.EditStep:step-available#2
@@ -957,8 +957,8 @@ then
 ### Relay.ProcedureOperations.EditStep:step-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.EditStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 76.
-- Covered by [Relay](../design/compositions/Relay.md), line 102.
+- Covered by [Relay](../design/compositions/Relay.md), line 72.
+- Covered by [Relay](../design/compositions/Relay.md), line 98.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "EDIT_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.EditStep
@@ -973,8 +973,8 @@ then
 ### Relay.ProcedureOperations.MoveStep
 
 Authored path: `Relay.ProcedureOperations.MoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 77.
-- Covered by [Relay](../design/compositions/Relay.md), line 103.
+- Covered by [Relay](../design/compositions/Relay.md), line 73.
+- Covered by [Relay](../design/compositions/Relay.md), line 99.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/steps/move", position, procedure, requestId, step, user, workspace)
@@ -985,8 +985,8 @@ then
 ### Relay.ProcedureOperations.MoveStep:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.MoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 77.
-- Covered by [Relay](../design/compositions/Relay.md), line 103.
+- Covered by [Relay](../design/compositions/Relay.md), line 73.
+- Covered by [Relay](../design/compositions/Relay.md), line 99.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "MOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.MoveStep
@@ -1000,8 +1000,8 @@ then
 ### Relay.ProcedureOperations.MoveStep:step-available#2
 
 Authored path: `Relay.ProcedureOperations.MoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 77.
-- Covered by [Relay](../design/compositions/Relay.md), line 103.
+- Covered by [Relay](../design/compositions/Relay.md), line 73.
+- Covered by [Relay](../design/compositions/Relay.md), line 99.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "MOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.MoveStep
@@ -1016,8 +1016,8 @@ then
 ### Relay.ProcedureOperations.MoveStep:step-available#3
 
 Authored path: `Relay.ProcedureOperations.MoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 77.
-- Covered by [Relay](../design/compositions/Relay.md), line 103.
+- Covered by [Relay](../design/compositions/Relay.md), line 73.
+- Covered by [Relay](../design/compositions/Relay.md), line 99.
 
 ```reaction
 when ProcedureMaintaining.moveStep (position, step), asked by Relay.ProcedureOperations.MoveStep:step-available#2
@@ -1030,8 +1030,8 @@ then
 ### Relay.ProcedureOperations.MoveStep:step-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.MoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 77.
-- Covered by [Relay](../design/compositions/Relay.md), line 103.
+- Covered by [Relay](../design/compositions/Relay.md), line 73.
+- Covered by [Relay](../design/compositions/Relay.md), line 99.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "MOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.MoveStep
@@ -1046,8 +1046,8 @@ then
 ### Relay.ProcedureOperations.RemoveStep
 
 Authored path: `Relay.ProcedureOperations.RemoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 78.
-- Covered by [Relay](../design/compositions/Relay.md), line 104.
+- Covered by [Relay](../design/compositions/Relay.md), line 74.
+- Covered by [Relay](../design/compositions/Relay.md), line 100.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/steps/remove", procedure, requestId, step, user, workspace)
@@ -1058,8 +1058,8 @@ then
 ### Relay.ProcedureOperations.RemoveStep:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.RemoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 78.
-- Covered by [Relay](../design/compositions/Relay.md), line 104.
+- Covered by [Relay](../design/compositions/Relay.md), line 74.
+- Covered by [Relay](../design/compositions/Relay.md), line 100.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REMOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.RemoveStep
@@ -1073,8 +1073,8 @@ then
 ### Relay.ProcedureOperations.RemoveStep:step-available#2
 
 Authored path: `Relay.ProcedureOperations.RemoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 78.
-- Covered by [Relay](../design/compositions/Relay.md), line 104.
+- Covered by [Relay](../design/compositions/Relay.md), line 74.
+- Covered by [Relay](../design/compositions/Relay.md), line 100.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REMOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.RemoveStep
@@ -1089,8 +1089,8 @@ then
 ### Relay.ProcedureOperations.RemoveStep:step-available#3
 
 Authored path: `Relay.ProcedureOperations.RemoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 78.
-- Covered by [Relay](../design/compositions/Relay.md), line 104.
+- Covered by [Relay](../design/compositions/Relay.md), line 74.
+- Covered by [Relay](../design/compositions/Relay.md), line 100.
 
 ```reaction
 when ProcedureMaintaining.removeStep (step), asked by Relay.ProcedureOperations.RemoveStep:step-available#2
@@ -1103,8 +1103,8 @@ then
 ### Relay.ProcedureOperations.RemoveStep:step-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.RemoveStep`.
-- Covered by [Relay](../design/compositions/Relay.md), line 78.
-- Covered by [Relay](../design/compositions/Relay.md), line 104.
+- Covered by [Relay](../design/compositions/Relay.md), line 74.
+- Covered by [Relay](../design/compositions/Relay.md), line 100.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REMOVE_STEP", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.RemoveStep
@@ -1119,8 +1119,8 @@ then
 ### Relay.ProcedureOperations.RenameProcedure
 
 Authored path: `Relay.ProcedureOperations.RenameProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 75.
-- Covered by [Relay](../design/compositions/Relay.md), line 101.
+- Covered by [Relay](../design/compositions/Relay.md), line 71.
+- Covered by [Relay](../design/compositions/Relay.md), line 97.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures/rename", procedure, requestId, title, user, workspace)
@@ -1131,8 +1131,8 @@ then
 ### Relay.ProcedureOperations.RenameProcedure:procedure-available#2
 
 Authored path: `Relay.ProcedureOperations.RenameProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 75.
-- Covered by [Relay](../design/compositions/Relay.md), line 101.
+- Covered by [Relay](../design/compositions/Relay.md), line 71.
+- Covered by [Relay](../design/compositions/Relay.md), line 97.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RENAME_PROCEDURE", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.RenameProcedure
@@ -1146,8 +1146,8 @@ then
 ### Relay.ProcedureOperations.RenameProcedure:procedure-available#3
 
 Authored path: `Relay.ProcedureOperations.RenameProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 75.
-- Covered by [Relay](../design/compositions/Relay.md), line 101.
+- Covered by [Relay](../design/compositions/Relay.md), line 71.
+- Covered by [Relay](../design/compositions/Relay.md), line 97.
 
 ```reaction
 when ProcedureMaintaining.rename (procedure, title), asked by Relay.ProcedureOperations.RenameProcedure:procedure-available#2
@@ -1160,8 +1160,8 @@ then
 ### Relay.ProcedureOperations.RenameProcedure:procedure-unavailable#2
 
 Authored path: `Relay.ProcedureOperations.RenameProcedure`.
-- Covered by [Relay](../design/compositions/Relay.md), line 75.
-- Covered by [Relay](../design/compositions/Relay.md), line 101.
+- Covered by [Relay](../design/compositions/Relay.md), line 71.
+- Covered by [Relay](../design/compositions/Relay.md), line 97.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RENAME_PROCEDURE", permission: "EDIT_PROCEDURE", resource: workspace, user), asked by Relay.ProcedureOperations.RenameProcedure
@@ -1175,8 +1175,8 @@ then
 ### Relay.QuestionOperations.AnswerContextQuestion
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 248.
-- Covered by [Relay](../design/compositions/Relay.md), line 277.
+- Covered by [Relay](../design/compositions/Relay.md), line 244.
+- Covered by [Relay](../design/compositions/Relay.md), line 273.
 
 ```reaction
 when RequestBoundary.request (answer, path: "/workspaces/questions/context/answer", question, requestId, user, workspace)
@@ -1187,8 +1187,8 @@ then
 ### Relay.QuestionOperations.AnswerContextQuestion:question-in-workspace#2
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 248.
-- Covered by [Relay](../design/compositions/Relay.md), line 277.
+- Covered by [Relay](../design/compositions/Relay.md), line 244.
+- Covered by [Relay](../design/compositions/Relay.md), line 273.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1203,8 +1203,8 @@ then
 ### Relay.QuestionOperations.AnswerContextQuestion:question-in-workspace#3
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 248.
-- Covered by [Relay](../design/compositions/Relay.md), line 277.
+- Covered by [Relay](../design/compositions/Relay.md), line 244.
+- Covered by [Relay](../design/compositions/Relay.md), line 273.
 
 ```reaction
 when ContextQuestioning.answer (answer, answerer: user, question), asked by Relay.QuestionOperations.AnswerContextQuestion:question-in-workspace#2
@@ -1217,8 +1217,8 @@ then
 ### Relay.QuestionOperations.AnswerContextQuestion:question-outside-workspace#2
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 248.
-- Covered by [Relay](../design/compositions/Relay.md), line 277.
+- Covered by [Relay](../design/compositions/Relay.md), line 244.
+- Covered by [Relay](../design/compositions/Relay.md), line 273.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1233,8 +1233,8 @@ then
 ### Relay.QuestionOperations.AnswerContextQuestion:question-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 248.
-- Covered by [Relay](../design/compositions/Relay.md), line 277.
+- Covered by [Relay](../design/compositions/Relay.md), line 244.
+- Covered by [Relay](../design/compositions/Relay.md), line 273.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1248,8 +1248,8 @@ then
 ### Relay.QuestionOperations.AnswerStepQuestion
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 247.
-- Covered by [Relay](../design/compositions/Relay.md), line 276.
+- Covered by [Relay](../design/compositions/Relay.md), line 243.
+- Covered by [Relay](../design/compositions/Relay.md), line 272.
 
 ```reaction
 when RequestBoundary.request (answer, path: "/workspaces/questions/steps/answer", question, requestId, user, workspace)
@@ -1260,8 +1260,8 @@ then
 ### Relay.QuestionOperations.AnswerStepQuestion:question-in-workspace#2
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 247.
-- Covered by [Relay](../design/compositions/Relay.md), line 276.
+- Covered by [Relay](../design/compositions/Relay.md), line 243.
+- Covered by [Relay](../design/compositions/Relay.md), line 272.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1277,8 +1277,8 @@ then
 ### Relay.QuestionOperations.AnswerStepQuestion:question-in-workspace#3
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 247.
-- Covered by [Relay](../design/compositions/Relay.md), line 276.
+- Covered by [Relay](../design/compositions/Relay.md), line 243.
+- Covered by [Relay](../design/compositions/Relay.md), line 272.
 
 ```reaction
 when StepQuestioning.answer (answer, answerer: user, question), asked by Relay.QuestionOperations.AnswerStepQuestion:question-in-workspace#2
@@ -1291,8 +1291,8 @@ then
 ### Relay.QuestionOperations.AnswerStepQuestion:question-outside-workspace#2
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 247.
-- Covered by [Relay](../design/compositions/Relay.md), line 276.
+- Covered by [Relay](../design/compositions/Relay.md), line 243.
+- Covered by [Relay](../design/compositions/Relay.md), line 272.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1308,8 +1308,8 @@ then
 ### Relay.QuestionOperations.AnswerStepQuestion:question-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 247.
-- Covered by [Relay](../design/compositions/Relay.md), line 276.
+- Covered by [Relay](../design/compositions/Relay.md), line 243.
+- Covered by [Relay](../design/compositions/Relay.md), line 272.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1323,8 +1323,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/questions/context/ask", procedure, requestId, text, user, workspace)
@@ -1335,8 +1335,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion:attachment-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1351,8 +1351,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion:context-available#2
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1368,8 +1368,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion:context-available#3
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when ContextQuestioning.ask (subject: context, text, question), asked by Relay.QuestionOperations.AskContextQuestion:context-available#2
@@ -1382,8 +1382,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion:context-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1397,8 +1397,8 @@ then
 ### Relay.QuestionOperations.AskContextQuestion:procedure-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 242.
-- Covered by [Relay](../design/compositions/Relay.md), line 275.
+- Covered by [Relay](../design/compositions/Relay.md), line 238.
+- Covered by [Relay](../design/compositions/Relay.md), line 271.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1414,8 +1414,8 @@ then
 ### Relay.QuestionOperations.AskStepQuestion
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 240.
-- Covered by [Relay](../design/compositions/Relay.md), line 274.
+- Covered by [Relay](../design/compositions/Relay.md), line 236.
+- Covered by [Relay](../design/compositions/Relay.md), line 270.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/questions/steps/ask", procedure, requestId, step, text, user, workspace)
@@ -1426,8 +1426,8 @@ then
 ### Relay.QuestionOperations.AskStepQuestion:procedure-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 240.
-- Covered by [Relay](../design/compositions/Relay.md), line 274.
+- Covered by [Relay](../design/compositions/Relay.md), line 236.
+- Covered by [Relay](../design/compositions/Relay.md), line 270.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1441,8 +1441,8 @@ then
 ### Relay.QuestionOperations.AskStepQuestion:step-available#2
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 240.
-- Covered by [Relay](../design/compositions/Relay.md), line 274.
+- Covered by [Relay](../design/compositions/Relay.md), line 236.
+- Covered by [Relay](../design/compositions/Relay.md), line 270.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1457,8 +1457,8 @@ then
 ### Relay.QuestionOperations.AskStepQuestion:step-available#3
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 240.
-- Covered by [Relay](../design/compositions/Relay.md), line 274.
+- Covered by [Relay](../design/compositions/Relay.md), line 236.
+- Covered by [Relay](../design/compositions/Relay.md), line 270.
 
 ```reaction
 when StepQuestioning.ask (subject: step, text, question), asked by Relay.QuestionOperations.AskStepQuestion:step-available#2
@@ -1471,8 +1471,8 @@ then
 ### Relay.QuestionOperations.AskStepQuestion:step-unavailable#2
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
-- Covered by [Relay](../design/compositions/Relay.md), line 240.
-- Covered by [Relay](../design/compositions/Relay.md), line 274.
+- Covered by [Relay](../design/compositions/Relay.md), line 236.
+- Covered by [Relay](../design/compositions/Relay.md), line 270.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1487,8 +1487,8 @@ then
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 252.
+- Covered by [Relay](../design/compositions/Relay.md), line 275.
 
 ```reaction
 when RequestBoundary.request (answer, path: "/workspaces/questions/context/revise", question, requestId, user, workspace)
@@ -1499,8 +1499,8 @@ then
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer:answered-question-in-workspace#2
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 252.
+- Covered by [Relay](../design/compositions/Relay.md), line 275.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1515,8 +1515,8 @@ then
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer:answered-question-in-workspace#3
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 252.
+- Covered by [Relay](../design/compositions/Relay.md), line 275.
 
 ```reaction
 when ContextQuestioning.reviseAnswer (answer, answerer: user, question), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer:answered-question-in-workspace#2
@@ -1529,8 +1529,8 @@ then
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer:question-outside-workspace#2
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 252.
+- Covered by [Relay](../design/compositions/Relay.md), line 275.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1545,8 +1545,8 @@ then
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer:question-unavailable#2
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 252.
+- Covered by [Relay](../design/compositions/Relay.md), line 275.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1560,8 +1560,8 @@ then
 ### Relay.QuestionOperations.ReviseStepQuestionAnswer
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 255.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 251.
+- Covered by [Relay](../design/compositions/Relay.md), line 274.
 
 ```reaction
 when RequestBoundary.request (answer, path: "/workspaces/questions/steps/revise", question, requestId, user, workspace)
@@ -1572,8 +1572,8 @@ then
 ### Relay.QuestionOperations.ReviseStepQuestionAnswer:answered-question-in-workspace#2
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 255.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 251.
+- Covered by [Relay](../design/compositions/Relay.md), line 274.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1589,8 +1589,8 @@ then
 ### Relay.QuestionOperations.ReviseStepQuestionAnswer:answered-question-in-workspace#3
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 255.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 251.
+- Covered by [Relay](../design/compositions/Relay.md), line 274.
 
 ```reaction
 when StepQuestioning.reviseAnswer (answer, answerer: user, question), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer:answered-question-in-workspace#2
@@ -1603,8 +1603,8 @@ then
 ### Relay.QuestionOperations.ReviseStepQuestionAnswer:question-outside-workspace#2
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 255.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 251.
+- Covered by [Relay](../design/compositions/Relay.md), line 274.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1620,8 +1620,8 @@ then
 ### Relay.QuestionOperations.ReviseStepQuestionAnswer:question-unavailable#2
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
-- Covered by [Relay](../design/compositions/Relay.md), line 255.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 251.
+- Covered by [Relay](../design/compositions/Relay.md), line 274.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1635,8 +1635,8 @@ then
 ### Relay.ReadOperations.GetContextHistory
 
 Authored path: `Relay.ReadOperations.GetContextHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 163.
-- Covered by [Relay](../design/compositions/Relay.md), line 186.
+- Covered by [Relay](../design/compositions/Relay.md), line 159.
+- Covered by [Relay](../design/compositions/Relay.md), line 182.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/context", requestId, user, workspace)
@@ -1647,8 +1647,8 @@ then
 ### Relay.ReadOperations.GetContextHistory#2
 
 Authored path: `Relay.ReadOperations.GetContextHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 163.
-- Covered by [Relay](../design/compositions/Relay.md), line 186.
+- Covered by [Relay](../design/compositions/Relay.md), line 159.
+- Covered by [Relay](../design/compositions/Relay.md), line 182.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "GET_CONTEXT_HISTORY", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.ReadOperations.GetContextHistory
@@ -1661,8 +1661,8 @@ then
 ### Relay.ReadOperations.GetPendingReviews
 
 Authored path: `Relay.ReadOperations.GetPendingReviews`.
-- Covered by [Relay](../design/compositions/Relay.md), line 168.
-- Covered by [Relay](../design/compositions/Relay.md), line 187.
+- Covered by [Relay](../design/compositions/Relay.md), line 164.
+- Covered by [Relay](../design/compositions/Relay.md), line 183.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews/pending", requestId, user, workspace)
@@ -1673,8 +1673,8 @@ then
 ### Relay.ReadOperations.GetPendingReviews#2
 
 Authored path: `Relay.ReadOperations.GetPendingReviews`.
-- Covered by [Relay](../design/compositions/Relay.md), line 168.
-- Covered by [Relay](../design/compositions/Relay.md), line 187.
+- Covered by [Relay](../design/compositions/Relay.md), line 164.
+- Covered by [Relay](../design/compositions/Relay.md), line 183.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "GET_PENDING_REVIEWS", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReadOperations.GetPendingReviews
@@ -1687,8 +1687,8 @@ then
 ### Relay.ReadOperations.GetQuestions
 
 Authored path: `Relay.ReadOperations.GetQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 264.
-- Covered by [Relay](../design/compositions/Relay.md), line 280.
+- Covered by [Relay](../design/compositions/Relay.md), line 260.
+- Covered by [Relay](../design/compositions/Relay.md), line 276.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/questions", requestId, user, workspace)
@@ -1699,8 +1699,8 @@ then
 ### Relay.ReadOperations.GetQuestions#2
 
 Authored path: `Relay.ReadOperations.GetQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 264.
-- Covered by [Relay](../design/compositions/Relay.md), line 280.
+- Covered by [Relay](../design/compositions/Relay.md), line 260.
+- Covered by [Relay](../design/compositions/Relay.md), line 276.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "GET_QUESTIONS", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.ReadOperations.GetQuestions
@@ -1713,8 +1713,8 @@ then
 ### Relay.ReadOperations.GetReviewHistory
 
 Authored path: `Relay.ReadOperations.GetReviewHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 174.
-- Covered by [Relay](../design/compositions/Relay.md), line 188.
+- Covered by [Relay](../design/compositions/Relay.md), line 170.
+- Covered by [Relay](../design/compositions/Relay.md), line 184.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews", requestId, user, workspace)
@@ -1725,8 +1725,8 @@ then
 ### Relay.ReadOperations.GetReviewHistory#2
 
 Authored path: `Relay.ReadOperations.GetReviewHistory`.
-- Covered by [Relay](../design/compositions/Relay.md), line 174.
-- Covered by [Relay](../design/compositions/Relay.md), line 188.
+- Covered by [Relay](../design/compositions/Relay.md), line 170.
+- Covered by [Relay](../design/compositions/Relay.md), line 184.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "GET_REVIEW_HISTORY", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReadOperations.GetReviewHistory
@@ -1739,8 +1739,8 @@ then
 ### Relay.ReadOperations.ListProcedures
 
 Authored path: `Relay.ReadOperations.ListProcedures`.
-- Covered by [Relay](../design/compositions/Relay.md), line 70.
-- Covered by [Relay](../design/compositions/Relay.md), line 106.
+- Covered by [Relay](../design/compositions/Relay.md), line 66.
+- Covered by [Relay](../design/compositions/Relay.md), line 102.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/procedures", requestId, user, workspace)
@@ -1751,8 +1751,8 @@ then
 ### Relay.ReadOperations.ListProcedures#2
 
 Authored path: `Relay.ReadOperations.ListProcedures`.
-- Covered by [Relay](../design/compositions/Relay.md), line 70.
-- Covered by [Relay](../design/compositions/Relay.md), line 106.
+- Covered by [Relay](../design/compositions/Relay.md), line 66.
+- Covered by [Relay](../design/compositions/Relay.md), line 102.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "LIST_PROCEDURES", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.ReadOperations.ListProcedures
@@ -1765,8 +1765,8 @@ then
 ### Relay.ReviewOperations.CancelReview
 
 Authored path: `Relay.ReviewOperations.CancelReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 218.
-- Covered by [Relay](../design/compositions/Relay.md), line 229.
+- Covered by [Relay](../design/compositions/Relay.md), line 214.
+- Covered by [Relay](../design/compositions/Relay.md), line 225.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews/cancel", procedure, requestId, review, user, workspace)
@@ -1777,8 +1777,8 @@ then
 ### Relay.ReviewOperations.CancelReview:procedure-outside-workspace#2
 
 Authored path: `Relay.ReviewOperations.CancelReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 218.
-- Covered by [Relay](../design/compositions/Relay.md), line 229.
+- Covered by [Relay](../design/compositions/Relay.md), line 214.
+- Covered by [Relay](../design/compositions/Relay.md), line 225.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CANCEL_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.CancelReview
@@ -1793,8 +1793,8 @@ then
 ### Relay.ReviewOperations.CancelReview:review-in-workspace#2
 
 Authored path: `Relay.ReviewOperations.CancelReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 218.
-- Covered by [Relay](../design/compositions/Relay.md), line 229.
+- Covered by [Relay](../design/compositions/Relay.md), line 214.
+- Covered by [Relay](../design/compositions/Relay.md), line 225.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CANCEL_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.CancelReview
@@ -1808,8 +1808,8 @@ then
 ### Relay.ReviewOperations.CancelReview:review-in-workspace#3
 
 Authored path: `Relay.ReviewOperations.CancelReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 218.
-- Covered by [Relay](../design/compositions/Relay.md), line 229.
+- Covered by [Relay](../design/compositions/Relay.md), line 214.
+- Covered by [Relay](../design/compositions/Relay.md), line 225.
 
 ```reaction
 when Reviewing.cancel (review), asked by Relay.ReviewOperations.CancelReview:review-in-workspace#2
@@ -1822,8 +1822,8 @@ then
 ### Relay.ReviewOperations.CancelReview:review-unavailable#2
 
 Authored path: `Relay.ReviewOperations.CancelReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 218.
-- Covered by [Relay](../design/compositions/Relay.md), line 229.
+- Covered by [Relay](../design/compositions/Relay.md), line 214.
+- Covered by [Relay](../design/compositions/Relay.md), line 225.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CANCEL_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.CancelReview
@@ -1837,8 +1837,8 @@ then
 ### Relay.ReviewOperations.ConfirmReview
 
 Authored path: `Relay.ReviewOperations.ConfirmReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 193.
-- Covered by [Relay](../design/compositions/Relay.md), line 203.
+- Covered by [Relay](../design/compositions/Relay.md), line 189.
+- Covered by [Relay](../design/compositions/Relay.md), line 199.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews/confirm", procedure, requestId, review, user, workspace)
@@ -1849,8 +1849,8 @@ then
 ### Relay.ReviewOperations.ConfirmReview:procedure-outside-workspace#2
 
 Authored path: `Relay.ReviewOperations.ConfirmReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 193.
-- Covered by [Relay](../design/compositions/Relay.md), line 203.
+- Covered by [Relay](../design/compositions/Relay.md), line 189.
+- Covered by [Relay](../design/compositions/Relay.md), line 199.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CONFIRM_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ConfirmReview
@@ -1865,8 +1865,8 @@ then
 ### Relay.ReviewOperations.ConfirmReview:review-in-workspace#2
 
 Authored path: `Relay.ReviewOperations.ConfirmReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 193.
-- Covered by [Relay](../design/compositions/Relay.md), line 203.
+- Covered by [Relay](../design/compositions/Relay.md), line 189.
+- Covered by [Relay](../design/compositions/Relay.md), line 199.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CONFIRM_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ConfirmReview
@@ -1881,8 +1881,8 @@ then
 ### Relay.ReviewOperations.ConfirmReview:review-in-workspace#3
 
 Authored path: `Relay.ReviewOperations.ConfirmReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 193.
-- Covered by [Relay](../design/compositions/Relay.md), line 203.
+- Covered by [Relay](../design/compositions/Relay.md), line 189.
+- Covered by [Relay](../design/compositions/Relay.md), line 199.
 
 ```reaction
 when Reviewing.confirm (review), asked by Relay.ReviewOperations.ConfirmReview:review-in-workspace#2
@@ -1895,8 +1895,8 @@ then
 ### Relay.ReviewOperations.ConfirmReview:review-unavailable#2
 
 Authored path: `Relay.ReviewOperations.ConfirmReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 193.
-- Covered by [Relay](../design/compositions/Relay.md), line 203.
+- Covered by [Relay](../design/compositions/Relay.md), line 189.
+- Covered by [Relay](../design/compositions/Relay.md), line 199.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "CONFIRM_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ConfirmReview
@@ -1910,8 +1910,8 @@ then
 ### Relay.ReviewOperations.RequireReviewChanges
 
 Authored path: `Relay.ReviewOperations.RequireReviewChanges`.
-- Covered by [Relay](../design/compositions/Relay.md), line 208.
-- Covered by [Relay](../design/compositions/Relay.md), line 227.
+- Covered by [Relay](../design/compositions/Relay.md), line 204.
+- Covered by [Relay](../design/compositions/Relay.md), line 223.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews/require-changes", procedure, requestId, review, user, workspace)
@@ -1922,8 +1922,8 @@ then
 ### Relay.ReviewOperations.RequireReviewChanges:procedure-unavailable#2
 
 Authored path: `Relay.ReviewOperations.RequireReviewChanges`.
-- Covered by [Relay](../design/compositions/Relay.md), line 208.
-- Covered by [Relay](../design/compositions/Relay.md), line 227.
+- Covered by [Relay](../design/compositions/Relay.md), line 204.
+- Covered by [Relay](../design/compositions/Relay.md), line 223.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REQUIRE_REVIEW_CHANGES", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.RequireReviewChanges
@@ -1938,8 +1938,8 @@ then
 ### Relay.ReviewOperations.RequireReviewChanges:review-in-workspace#2
 
 Authored path: `Relay.ReviewOperations.RequireReviewChanges`.
-- Covered by [Relay](../design/compositions/Relay.md), line 208.
-- Covered by [Relay](../design/compositions/Relay.md), line 227.
+- Covered by [Relay](../design/compositions/Relay.md), line 204.
+- Covered by [Relay](../design/compositions/Relay.md), line 223.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REQUIRE_REVIEW_CHANGES", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.RequireReviewChanges
@@ -1954,8 +1954,8 @@ then
 ### Relay.ReviewOperations.RequireReviewChanges:review-in-workspace#3
 
 Authored path: `Relay.ReviewOperations.RequireReviewChanges`.
-- Covered by [Relay](../design/compositions/Relay.md), line 208.
-- Covered by [Relay](../design/compositions/Relay.md), line 227.
+- Covered by [Relay](../design/compositions/Relay.md), line 204.
+- Covered by [Relay](../design/compositions/Relay.md), line 223.
 
 ```reaction
 when Reviewing.requireChanges (review), asked by Relay.ReviewOperations.RequireReviewChanges:review-in-workspace#2
@@ -1968,8 +1968,8 @@ then
 ### Relay.ReviewOperations.RequireReviewChanges:review-unavailable#2
 
 Authored path: `Relay.ReviewOperations.RequireReviewChanges`.
-- Covered by [Relay](../design/compositions/Relay.md), line 208.
-- Covered by [Relay](../design/compositions/Relay.md), line 227.
+- Covered by [Relay](../design/compositions/Relay.md), line 204.
+- Covered by [Relay](../design/compositions/Relay.md), line 223.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REQUIRE_REVIEW_CHANGES", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.RequireReviewChanges
@@ -1983,8 +1983,8 @@ then
 ### Relay.ReviewOperations.ResolveReview
 
 Authored path: `Relay.ReviewOperations.ResolveReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 215.
-- Covered by [Relay](../design/compositions/Relay.md), line 228.
+- Covered by [Relay](../design/compositions/Relay.md), line 211.
+- Covered by [Relay](../design/compositions/Relay.md), line 224.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/reviews/resolve", procedure, requestId, review, user, workspace)
@@ -1995,8 +1995,8 @@ then
 ### Relay.ReviewOperations.ResolveReview:procedure-unavailable#2
 
 Authored path: `Relay.ReviewOperations.ResolveReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 215.
-- Covered by [Relay](../design/compositions/Relay.md), line 228.
+- Covered by [Relay](../design/compositions/Relay.md), line 211.
+- Covered by [Relay](../design/compositions/Relay.md), line 224.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RESOLVE_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ResolveReview
@@ -2011,8 +2011,8 @@ then
 ### Relay.ReviewOperations.ResolveReview:review-in-workspace#2
 
 Authored path: `Relay.ReviewOperations.ResolveReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 215.
-- Covered by [Relay](../design/compositions/Relay.md), line 228.
+- Covered by [Relay](../design/compositions/Relay.md), line 211.
+- Covered by [Relay](../design/compositions/Relay.md), line 224.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RESOLVE_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ResolveReview
@@ -2027,8 +2027,8 @@ then
 ### Relay.ReviewOperations.ResolveReview:review-in-workspace#3
 
 Authored path: `Relay.ReviewOperations.ResolveReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 215.
-- Covered by [Relay](../design/compositions/Relay.md), line 228.
+- Covered by [Relay](../design/compositions/Relay.md), line 211.
+- Covered by [Relay](../design/compositions/Relay.md), line 224.
 
 ```reaction
 when Reviewing.resolve (review), asked by Relay.ReviewOperations.ResolveReview:review-in-workspace#2
@@ -2041,8 +2041,8 @@ then
 ### Relay.ReviewOperations.ResolveReview:review-unavailable#2
 
 Authored path: `Relay.ReviewOperations.ResolveReview`.
-- Covered by [Relay](../design/compositions/Relay.md), line 215.
-- Covered by [Relay](../design/compositions/Relay.md), line 228.
+- Covered by [Relay](../design/compositions/Relay.md), line 211.
+- Covered by [Relay](../design/compositions/Relay.md), line 224.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "RESOLVE_REVIEW", permission: "COMPLETE_REVIEW", resource: workspace, user), asked by Relay.ReviewOperations.ResolveReview
@@ -2056,7 +2056,7 @@ then
 ### Relay.StepRemoval.DetachRemovedStepContext
 
 Authored path: `Relay.StepRemoval.DetachRemovedStepContext`.
-- Covered by [Relay](../design/compositions/Relay.md), line 85.
+- Covered by [Relay](../design/compositions/Relay.md), line 81.
 
 ```reaction
 when ProcedureMaintaining.removeStep (step)

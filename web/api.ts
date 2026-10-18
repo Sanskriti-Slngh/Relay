@@ -29,6 +29,7 @@ export interface WorkspaceMembership {
   name: string;
   role: string;
   permissions: string[];
+  ownershipConfigured: boolean;
 }
 
 export interface WorkspaceMember {
@@ -61,7 +62,9 @@ export interface ActivityEvent {
     | "PLAYBOOK_CREATED" | "PLAYBOOK_RENAMED" | "PLAYBOOK_ARCHIVED"
     | "STEP_ADDED" | "STEP_EDITED" | "STEP_REMOVED"
     | "CONTEXT_CREATED" | "CONTEXT_ATTACHED" | "CONTEXT_CHANGED"
-    | "REVIEW_CONFIRMED" | "REVIEW_RESOLVED" | "QUESTION_ANSWERED";
+    | "REVIEW_CONFIRMED" | "REVIEW_RESOLVED" | "QUESTION_ANSWERED"
+    | "MEMBER_PROMOTED" | "OFFICER_DEMOTED" | "MEMBER_REMOVED"
+    | "OWNERSHIP_CLAIMED" | "OWNERSHIP_TRANSFERRED";
   occurredAt: string;
   procedure?: string;
   step?: string;
@@ -71,6 +74,9 @@ export interface ActivityEvent {
   question?: string;
   procedureTitle?: string;
   stepPosition?: number;
+  targetUser?: string;
+  targetName?: string;
+  targetRole?: "Owner" | "Officer" | "Member";
 }
 
 export class RelayApiError extends Error {
@@ -110,6 +116,8 @@ function messageFor(code: string): string {
     QUESTION_NOT_OPEN: "That question has already been answered.",
     QUESTION_ANSWER_NOT_EDITABLE: "Only the Officer who originally answered can revise this answer.",
     CSRF_REJECTED: "Your session verification failed. Sign in again.",
+    MEMBERSHIP_CONFLICT: "That membership changed or the requested role change is not allowed.",
+    OWNERSHIP_REQUIRED: "Set the workspace Owner before managing roles.",
   };
   return messages[code] ?? "Relay could not complete the request. Please try again.";
 }
@@ -213,6 +221,18 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     workspaceMembers(csrfToken: string) {
       return hostPost<{ members: WorkspaceMember[] }>("/workspaces/members", {}, csrfToken);
     },
+    claimOwnership(csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/ownership/claim", {}, csrfToken);
+    },
+    changeMemberRole(targetUser: string, role: "Officer" | "Member", csrfToken: string) {
+      return hostPost<{ changed: boolean }>("/workspaces/members/role", { targetUser, role }, csrfToken);
+    },
+    removeMember(targetUser: string, csrfToken: string) {
+      return hostPost<{ removed: boolean }>("/workspaces/members/remove", { targetUser }, csrfToken);
+    },
+    transferOwnership(targetUser: string, formerOwnerRole: "Officer" | "Member", csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/ownership/transfer", { targetUser, formerOwnerRole }, csrfToken);
+    },
     recentActivity(csrfToken: string) {
       return hostPost<{ events: ActivityEvent[] }>("/workspaces/activity", {}, csrfToken);
     },
@@ -233,7 +253,8 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         await fetcher("/session/logout", {
           method: "POST",
           credentials: "same-origin",
-          headers: { "X-Relay-CSRF": csrfToken },
+          headers: { "Content-Type": "application/json", "X-Relay-CSRF": csrfToken },
+          body: "{}",
         }),
       );
     },

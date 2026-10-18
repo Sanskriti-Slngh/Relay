@@ -65,7 +65,7 @@ describe("multi-user Relay host", () => {
     const forgedRosterRead = await call("/workspaces/members", { workspace: firstWorkspace }, outsider);
     expect(forgedRosterRead.status).toBe(200);
     expect(forgedRosterRead.body.members).toEqual([
-      expect.objectContaining({ name: "outsider", role: "Officer", email: "outsider@example.org" }),
+      expect.objectContaining({ name: "outsider", role: "Owner", email: "outsider@example.org" }),
     ]);
     expect(forgedRosterRead.body.members).not.toContainEqual(expect.objectContaining({ name: "officer" }));
     expect((await call("/invitations/pending", { workspace: firstWorkspace }, outsider)).body.invitations).toEqual([]);
@@ -91,7 +91,7 @@ describe("multi-user Relay host", () => {
     expect(storedInvitation?.tokenHash).not.toBe(invitation.body.token);
     expect(storedInvitation).not.toHaveProperty("token");
     expect((await call("/workspaces/members", {}, officer)).body.members).toEqual([
-      expect.objectContaining({ name: "leader", role: "Officer", email: "leader@example.org" }),
+      expect.objectContaining({ name: "leader", role: "Owner", email: "leader@example.org" }),
     ]);
     expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([
       expect.objectContaining({ invitation: invitation.body.invitation, email: "member@example.org", status: "PENDING" }),
@@ -106,13 +106,13 @@ describe("multi-user Relay host", () => {
     expect(reused.status).toBe(404);
     expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([]);
     expect((await call("/workspaces/members", {}, officer)).body.members).toEqual([
-      expect.objectContaining({ name: "leader", role: "Officer", email: "leader@example.org" }),
+      expect.objectContaining({ name: "leader", role: "Owner", email: "leader@example.org" }),
       expect.objectContaining({ name: "member", role: "Member", email: "member@example.org" }),
     ]);
     const memberRoster = await call("/workspaces/members", {}, member);
     expect(memberRoster.status).toBe(200);
     expect(memberRoster.body.members).toEqual([
-      expect.objectContaining({ name: "leader", role: "Officer" }),
+      expect.objectContaining({ name: "leader", role: "Owner" }),
       expect.objectContaining({ name: "member", role: "Member" }),
     ]);
     expect(memberRoster.body.members.every((entry: Record<string, unknown>) => !("email" in entry))).toBe(true);
@@ -149,6 +149,120 @@ describe("multi-user Relay host", () => {
     expect((await call("/invitations/accept", { token: original.body.token }, replacementMember)).status).toBe(404);
     expect((await call("/invitations/accept", { token: replacement.body.token }, replacementMember)).status).toBe(200);
     expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([]);
+  });
+
+  test("enforces Owner, Officer, and Member transitions with revocation and safe legacy migration", async () => {
+    const owner = await register("roles-owner@example.org");
+    const club = await call("/workspaces/create", { name: "Roles Club" }, owner);
+    expect(club.body.role).toBe("Owner");
+    expect(club.body.workspaces[0].ownershipConfigured).toBe(true);
+    const ownerId = club.body.user.id as string;
+
+    const officerBrowser = await register("roles-officer@example.org");
+    const officerId = (await call("/session", undefined, officerBrowser)).body.user.id as string;
+    const memberBrowser = await register("roles-member@example.org");
+    const memberId = (await call("/session", undefined, memberBrowser)).body.user.id as string;
+    for (const [email, browser] of [["roles-officer@example.org", officerBrowser], ["roles-member@example.org", memberBrowser]] as const) {
+      const invitation = await call("/invitations/create", { email }, owner);
+      expect((await call("/invitations/accept", { token: invitation.body.token }, browser)).status).toBe(200);
+    }
+
+    expect((await call("/workspaces/members/role", { targetUser: officerId, role: "Officer", actor: memberId }, memberBrowser)).status).toBe(403);
+    expect((await call("/workspaces/members/role", { targetUser: officerId, role: "Officer" }, owner)).status).toBe(200);
+    expect((await call("/workspaces/members/role", { targetUser: memberId, role: "Officer" }, officerBrowser)).status).toBe(200);
+    const applicationRoles = await provisionApplicationRoles(roleAccess);
+    const duplicate = await roleAccess.assign({ user: memberId, resource: club.body.workspace, role: applicationRoles.memberRole });
+    expect((await call("/api/workspaces/procedures", {}, memberBrowser)).status).toBe(403);
+    await roleAccess.unassign({ assignment: duplicate.assignment });
+    expect((await call("/workspaces/members/role", { targetUser: memberId, role: "Member" }, officerBrowser)).status).toBe(403);
+    expect((await call("/workspaces/members/remove", { targetUser: ownerId }, officerBrowser)).status).toBe(403);
+    expect((await call("/workspaces/members/remove", { targetUser: ownerId }, owner)).status).toBe(409);
+
+    expect((await call("/workspaces/members/role", { targetUser: officerId, role: "Member" }, owner)).status).toBe(200);
+    const restorationInvite = await call("/invitations/create", { email: "roles-officer@example.org" }, owner);
+    expect((await call("/workspaces/members/remove", { targetUser: officerId }, owner)).status).toBe(200);
+    expect((await call("/api/workspaces/procedures", {}, officerBrowser)).status).toBe(409);
+    expect((await call("/session", undefined, officerBrowser)).body.workspace).toBeUndefined();
+    expect((await call("/invitations/accept", { token: restorationInvite.body.token }, officerBrowser)).status).toBe(404);
+
+    expect((await call("/workspaces/ownership/transfer", { targetUser: memberId, formerOwnerRole: "Member" }, officerBrowser)).status).toBe(409);
+    const transferred = await call("/workspaces/ownership/transfer", { targetUser: memberId, formerOwnerRole: "Member", actor: memberId }, owner);
+    expect(transferred.status).toBe(200);
+    expect(transferred.body.role).toBe("Member");
+    expect((await call("/api/workspaces/procedures/create", { title: "Former owner edit" }, owner)).status).toBe(403);
+    const memberSession = await call("/session", undefined, memberBrowser);
+    expect(memberSession.body.role).toBe("Owner");
+    expect((await call("/workspaces/members/remove", { targetUser: ownerId }, memberBrowser)).status).toBe(200);
+    expect((await call("/api/workspaces/procedures", {}, owner)).status).toBe(409);
+    expect((await call("/session", undefined, owner)).body.workspace).toBeUndefined();
+
+    const roleEvents = await call("/workspaces/activity", {}, memberBrowser);
+    expect(roleEvents.body.events.map((event: Record<string, unknown>) => event.type)).toEqual(expect.arrayContaining([
+      "OWNERSHIP_TRANSFERRED", "MEMBER_REMOVED", "OFFICER_DEMOTED", "MEMBER_PROMOTED",
+    ]));
+    expect(JSON.stringify(roleEvents.body.events)).not.toContain("roles-officer@example.org");
+
+    const legacyA = await register("legacy-a@example.org");
+    const legacyB = await register("legacy-b@example.org");
+    const legacyAId = (await call("/session", undefined, legacyA)).body.user.id as string;
+    const legacyBId = (await call("/session", undefined, legacyB)).body.user.id as string;
+    const legacyWorkspace = crypto.randomUUID();
+    const roles = applicationRoles;
+    const workspaceDocuments = database.collection<{ _id: string; name: string; createdAt: Date; owner?: string }>("host_workspaces");
+    await workspaceDocuments.insertOne({ _id: legacyWorkspace, name: "Legacy Club", createdAt: new Date() });
+    await roleAccess.assign({ user: legacyAId, resource: legacyWorkspace, role: roles.officerRole });
+    await roleAccess.assign({ user: legacyBId, resource: legacyWorkspace, role: roles.officerRole });
+    await call("/workspaces/select", { workspace: legacyWorkspace }, legacyA);
+    await call("/workspaces/select", { workspace: legacyWorkspace }, legacyB);
+    expect((await call("/session", undefined, legacyA)).body.workspaces.find((entry: Record<string, unknown>) => entry.workspace === legacyWorkspace).ownershipConfigured).toBe(false);
+    const claims = await Promise.all([
+      call("/workspaces/ownership/claim", {}, legacyA),
+      call("/workspaces/ownership/claim", {}, legacyB),
+    ]);
+    expect(claims.map(({ status }) => status).toSorted()).toEqual([200, 409]);
+    const storedLegacy = await workspaceDocuments.findOne({ _id: legacyWorkspace });
+    expect(storedLegacy?.owner).toBeDefined();
+    expect([legacyAId, legacyBId]).toContain(storedLegacy!.owner!);
+    const legacyMembers = await call("/workspaces/members", {}, claims[0].status === 200 ? legacyA : legacyB);
+    expect(legacyMembers.body.members.filter((entry: Record<string, unknown>) => entry.role === "Owner")).toHaveLength(1);
+  });
+
+  test("serializes concurrent ownership transfers and limits Officer management to Members", async () => {
+    const owner = await register("concurrent-owner@example.org");
+    const club = await call("/workspaces/create", { name: "Concurrent Roles" }, owner);
+    const browsers = {
+      officer: await register("concurrent-officer@example.org"),
+      first: await register("concurrent-first@example.org"),
+      second: await register("concurrent-second@example.org"),
+      removable: await register("concurrent-removable@example.org"),
+    };
+    const ids: Record<string, string> = {};
+    for (const [key, browser] of Object.entries(browsers)) {
+      const session = await call("/session", undefined, browser);
+      ids[key] = session.body.user.id;
+      const invitation = await call("/invitations/create", { email: session.body.user.email }, owner);
+      expect((await call("/invitations/accept", { token: invitation.body.token }, browser)).status).toBe(200);
+    }
+    expect((await call("/workspaces/members/role", { targetUser: ids.officer, role: "Officer" }, owner)).status).toBe(200);
+    expect((await call("/invitations/create", { email: "officer-invited@example.org" }, browsers.officer)).status).toBe(200);
+    expect((await call("/workspaces/members/remove", { targetUser: ids.removable }, browsers.officer)).status).toBe(200);
+    expect((await call("/workspaces/members/role", { targetUser: ids.first, role: "Officer" }, browsers.officer)).status).toBe(200);
+    expect((await call("/workspaces/members/remove", { targetUser: ids.first }, browsers.officer)).status).toBe(403);
+
+    const outsider = await register("concurrent-outsider@example.org");
+    const outsiderClub = await call("/workspaces/create", { name: "Foreign Roles" }, outsider);
+    expect((await call("/workspaces/members/role", { targetUser: outsiderClub.body.user.id, role: "Officer" }, owner)).status).toBe(404);
+
+    const transfers = await Promise.all([
+      call("/workspaces/ownership/transfer", { targetUser: ids.first, formerOwnerRole: "Officer" }, owner),
+      call("/workspaces/ownership/transfer", { targetUser: ids.second, formerOwnerRole: "Officer" }, owner),
+    ]);
+    expect(transfers.map(({ status }) => status).toSorted()).toEqual([200, 403]);
+    const stored = await database.collection("host_workspaces").findOne({ _id: club.body.workspace });
+    expect([ids.first, ids.second]).toContain(stored?.owner);
+    const winner = stored?.owner === ids.first ? browsers.first : browsers.second;
+    const roster = await call("/workspaces/members", {}, winner);
+    expect(roster.body.members.filter((entry: Record<string, unknown>) => entry.role === "Owner")).toHaveLength(1);
   });
 
   test("persists the five newest successful activities with Officer-only workspace isolation", async () => {
@@ -392,6 +506,12 @@ describe("multi-user Relay host", () => {
     handler = freshHandler;
     expect((await call("/session", undefined, browser)).body.authenticated).toBe(true);
     now = new Date(now.getTime() + 8 * 60 * 60 * 1_000 + 1);
+    expect((await call("/session", undefined, browser)).body).toEqual({ authenticated: false });
+  });
+
+  test("logs out without interpreting proxy-added or caller-supplied request bodies", async () => {
+    const browser = await register("logout-contract@example.org");
+    expect((await call("/session/logout", { ignored: "proxy-shape" }, browser)).status).toBe(200);
     expect((await call("/session", undefined, browser)).body).toEqual({ authenticated: false });
   });
 

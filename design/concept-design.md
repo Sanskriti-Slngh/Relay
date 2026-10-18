@@ -559,15 +559,17 @@ actions
 
 Relay configures the familiar roles this way:
 
-| Permission | Member | Officer |
-| --- | :---: | :---: |
-| `ASK_QUESTION` | ✓ | ✓ |
-| `EDIT_PROCEDURE` | — | ✓ |
-| `EDIT_CONTEXT` | — | ✓ |
-| `ANSWER_QUESTION` | — | ✓ |
-| `COMPLETE_REVIEW` | — | ✓ |
+| Permission | Member | Officer | Owner |
+| --- | :---: | :---: | :---: |
+| `ASK_QUESTION` | ✓ | ✓ | ✓ |
+| `EDIT_PROCEDURE` | — | ✓ | ✓ |
+| `EDIT_CONTEXT` | — | ✓ | ✓ |
+| `ANSWER_QUESTION` | — | ✓ | ✓ |
+| `COMPLETE_REVIEW` | — | ✓ | ✓ |
 
-An officer is still a club member, so officers can ask questions too. Their role adds the ability to maintain and authoritatively answer the club's official knowledge.
+An officer is still a club member, so officers can ask questions too. Owner has
+the same domain permissions as Officer; its additional membership powers come
+from the host's authoritative one-owner workspace policy, not a new concept.
 
 ---
 

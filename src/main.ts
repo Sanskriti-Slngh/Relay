@@ -2,6 +2,12 @@ import { validateDeploymentHostConfig } from "./host/config.ts";
 
 const distributionDirectory = `${import.meta.dir}/../dist`;
 
+export function isHostRoute(pathname: string): boolean {
+  return pathname === "/session" || pathname.startsWith("/session/") ||
+    pathname.startsWith("/auth/") || pathname === "/workspaces" || pathname.startsWith("/workspaces/") ||
+    pathname.startsWith("/invitations/") || pathname.startsWith("/api/");
+}
+
 if (import.meta.main) {
   let client: import("mongodb").MongoClient | undefined;
   let startupStage = "configuration validation";
@@ -55,7 +61,7 @@ if (import.meta.main) {
             });
           }
         }
-        if (pathname === "/session" || pathname.startsWith("/auth/") || pathname.startsWith("/workspaces") || pathname.startsWith("/invitations/") || pathname.startsWith("/api/")) {
+        if (isHostRoute(pathname)) {
           return handler(request);
         }
         if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed", { status: 405 });

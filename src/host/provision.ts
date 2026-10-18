@@ -7,6 +7,7 @@ import {
 import type { HostConfig } from "./config.ts";
 
 const OFFICER_ROLE_NAME = "Officer";
+const OWNER_ROLE_NAME = "Owner";
 const OFFICER_PERMISSIONS = [
   "ASK_QUESTION",
   "ANSWER_QUESTION",
@@ -17,9 +18,17 @@ const OFFICER_PERMISSIONS = [
 
 export async function provisionApplicationRoles(
   roleAccess: RoleBasedAccessingConcept,
-): Promise<{ officerRole: string; memberRole: string }> {
+): Promise<{ ownerRole: string; officerRole: string; memberRole: string }> {
   const officerRole = await ensureOfficerRole(roleAccess);
   await ensureOfficerPermissions(roleAccess, officerRole);
+  let owners = (await roleAccess._roles()).filter(({ name }) => name === OWNER_ROLE_NAME);
+  if (owners.length === 0) {
+    try { await roleAccess.createRole({ name: OWNER_ROLE_NAME }); } catch { /* concurrent startup */ }
+    owners = (await roleAccess._roles()).filter(({ name }) => name === OWNER_ROLE_NAME);
+  }
+  if (owners.length !== 1) throw new OfficerProvisioningConflict("Owner Role provisioning failed.");
+  const ownerRole = owners[0].role;
+  await ensureOfficerPermissions(roleAccess, ownerRole);
   let members = (await roleAccess._roles()).filter(({ name }) => name === "Member");
   if (members.length === 0) {
     try { await roleAccess.createRole({ name: "Member" }); } catch { /* concurrent startup */ }
@@ -34,7 +43,7 @@ export async function provisionApplicationRoles(
     try { await roleAccess.permit({ role: memberRole, permission: "ASK_QUESTION" }); }
     catch (error) { if (!(error instanceof PermissionAlreadyGranted)) throw error; }
   }
-  return { officerRole, memberRole };
+  return { ownerRole, officerRole, memberRole };
 }
 
 export class OfficerProvisioningConflict extends Error {}

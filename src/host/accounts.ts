@@ -2,10 +2,11 @@ import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } fr
 import { promisify } from "node:util";
 import { ObjectId, type Collection, type Db, type Document } from "mongodb";
 import {
-  AssignmentAlreadyExists,
   NotAuthorized,
   RoleBasedAccessingConcept,
+  hostAssignmentMutation,
 } from "../concepts/RoleBasedAccessing.ts";
+import type { OptionalMongoSession } from "../mongoAtomic.ts";
 
 const scrypt = promisify(scryptCallback);
 const SESSION_LIFETIME_MS = 8 * 60 * 60 * 1_000;
@@ -19,7 +20,7 @@ type UserDocument = Document & {
   password: string;
   createdAt: Date;
 };
-type WorkspaceDocument = Document & { _id: string; name: string; createdAt: Date };
+type WorkspaceDocument = Document & { _id: string; name: string; createdAt: Date; owner?: string };
 type SessionDocument = Document & {
   _id: string;
   user: string;
@@ -33,7 +34,7 @@ type InvitationDocument = Document & {
   workspace: string;
   email: string;
   invitedBy: string;
-  status: "OPEN" | "ACCEPTED";
+  status: "OPEN" | "ACCEPTED" | "REVOKED";
   expiresAt: Date;
   acceptedBy?: string;
 };
@@ -49,7 +50,12 @@ export type ActivityEventType =
   | "CONTEXT_CHANGED"
   | "REVIEW_CONFIRMED"
   | "REVIEW_RESOLVED"
-  | "QUESTION_ANSWERED";
+  | "QUESTION_ANSWERED"
+  | "MEMBER_PROMOTED"
+  | "OFFICER_DEMOTED"
+  | "MEMBER_REMOVED"
+  | "OWNERSHIP_CLAIMED"
+  | "OWNERSHIP_TRANSFERRED";
 type ActivityDocument = Document & {
   _id: ObjectId;
   workspace: string;
@@ -65,6 +71,9 @@ type ActivityDocument = Document & {
   question?: string;
   procedureTitle?: string;
   stepPosition?: number;
+  targetUser?: string;
+  targetName?: string;
+  targetRole?: "Owner" | "Officer" | "Member";
 };
 export interface WorkspaceMember {
   readonly user: string;
@@ -72,6 +81,12 @@ export interface WorkspaceMember {
   readonly role: string;
   readonly email?: string;
 }
+
+export type ApplicationRoles = {
+  readonly ownerRole: string;
+  readonly officerRole: string;
+  readonly memberRole: string;
+};
 
 export interface PendingInvitation {
   readonly invitation: string;
@@ -94,6 +109,9 @@ export interface ActivityEvent {
   readonly question?: string;
   readonly procedureTitle?: string;
   readonly stepPosition?: number;
+  readonly targetUser?: string;
+  readonly targetName?: string;
+  readonly targetRole?: "Owner" | "Officer" | "Member";
 }
 
 export interface AuthenticatedSession {
@@ -111,6 +129,8 @@ export class AccountConflict extends Error {}
 export class InvalidCredentials extends Error {}
 export class InvitationUnavailable extends Error {}
 export class WorkspaceUnavailable extends Error {}
+export class MembershipConflict extends Error {}
+export class OwnershipRequired extends Error {}
 
 function normalizeEmail(value: string): string {
   const email = value.trim().toLowerCase();
@@ -156,7 +176,7 @@ export class AccountStore {
   private indexesReady?: Promise<void>;
 
   constructor(
-    database: Db,
+    private readonly database: Db,
     private readonly roleAccess: RoleBasedAccessingConcept,
     private readonly now: () => Date = () => new Date(),
   ) {
@@ -245,27 +265,28 @@ export class AccountStore {
 
   async logout(idHash: string): Promise<void> { await this.sessions.deleteOne({ _id: idHash }); }
 
-  async createWorkspace(user: string, nameValue: string, officerRole: string): Promise<{ workspace: string }> {
+  async createWorkspace(user: string, nameValue: string, roles: ApplicationRoles): Promise<{ workspace: string }> {
     await this.ready();
     const name = requireText(nameValue, "Club name", 120);
     const workspace = crypto.randomUUID();
-    await this.workspaces.insertOne({ _id: workspace, name, createdAt: this.now() });
-    try { await this.roleAccess.assign({ user, resource: workspace, role: officerRole }); }
-    catch (error) { await this.workspaces.deleteOne({ _id: workspace }); throw error; }
+    await this.roleAccess[hostAssignmentMutation](async ({ session, replaceAssignment }) => {
+      await this.workspaces.insertOne({ _id: workspace, name, createdAt: this.now(), owner: user }, { session });
+      await replaceAssignment(user, workspace, roles.ownerRole);
+    });
     return { workspace };
   }
 
-  async memberships(user: string): Promise<{ workspace: string; name: string; role: string; permissions: string[] }[]> {
+  async memberships(user: string): Promise<{ workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean }[]> {
     await this.ready();
-    const result: { workspace: string; name: string; role: string; permissions: string[] }[] = [];
+    const result: { workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean }[] = [];
     for (const workspace of await this.workspaces.find({}).sort({ name: 1, _id: 1 }).toArray()) {
       const assignments = await this.roleAccess._assignmentsFor({ user, resource: workspace._id });
-      for (const assignment of assignments) {
-        const [role] = await this.roleAccess._getRole({ role: assignment.role });
-        if (!role) continue;
-        const permissions = (await this.roleAccess._permissions({ role: assignment.role })).map(({ permission }) => permission);
-        result.push({ workspace: workspace._id, name: workspace.name, role: role.name, permissions });
-      }
+      if (assignments.length !== 1) continue;
+      const assignment = assignments[0];
+      const [role] = await this.roleAccess._getRole({ role: assignment.role });
+      if (!role) continue;
+      const permissions = (await this.roleAccess._permissions({ role: assignment.role })).map(({ permission }) => permission);
+      result.push({ workspace: workspace._id, name: workspace.name, role: role.name, permissions, ownershipConfigured: !!workspace.owner });
     }
     return result;
   }
@@ -279,7 +300,7 @@ export class AccountStore {
   async workspaceMembers(user: string, workspace: string): Promise<WorkspaceMember[]> {
     await this.ready();
     const ownAssignments = await this.roleAccess._assignmentsFor({ user, resource: workspace });
-    if (!ownAssignments.length) throw new WorkspaceUnavailable();
+    if (ownAssignments.length !== 1) throw new WorkspaceUnavailable();
 
     let includeEmails = true;
     try {
@@ -292,7 +313,8 @@ export class AccountStore {
     const roles = new Map((await this.roleAccess._roles()).map((role) => [role.role, role.name]));
     const members: WorkspaceMember[] = [];
     for (const account of await this.users.find({}).sort({ name: 1, _id: 1 }).toArray()) {
-      const assignment = (await this.roleAccess._assignmentsFor({ user: account._id, resource: workspace }))[0];
+      const assignments = await this.roleAccess._assignmentsFor({ user: account._id, resource: workspace });
+      const assignment = assignments.length === 1 ? assignments[0] : undefined;
       const role = assignment ? roles.get(assignment.role) : undefined;
       if (!role) continue;
       members.push({
@@ -303,13 +325,116 @@ export class AccountStore {
       });
     }
     return members.sort((left, right) =>
+      Number(right.role === "Owner") - Number(left.role === "Owner") ||
       Number(right.role === "Officer") - Number(left.role === "Officer") ||
       left.name.localeCompare(right.name) || left.user.localeCompare(right.user));
   }
 
+  private async roleName(role: string): Promise<string | undefined> {
+    return (await this.roleAccess._getRole({ role }))[0]?.name;
+  }
+
+  private async exactRole(user: string, workspace: string): Promise<{ assignment: string; role: string; name: string }> {
+    const assignments = await this.roleAccess._assignmentsFor({ user, resource: workspace });
+    if (assignments.length !== 1) throw new WorkspaceUnavailable();
+    const name = await this.roleName(assignments[0].role);
+    if (!name) throw new WorkspaceUnavailable();
+    return { ...assignments[0], name };
+  }
+
+  async claimLegacyOwnership(user: string, workspace: string, roles: ApplicationRoles): Promise<void> {
+    await this.ready();
+    const actor = await this.users.findOne({ _id: user });
+    if (!actor) throw new WorkspaceUnavailable();
+    await this.roleAccess[hostAssignmentMutation](async ({ session, assignmentsFor, replaceAssignment }) => {
+      const club = await this.workspaces.findOne({ _id: workspace }, { session });
+      if (!club || club.owner) throw new MembershipConflict("Ownership is already configured.");
+      const assignments = await assignmentsFor(user, workspace);
+      if (assignments.length !== 1 || await this.roleName(assignments[0].role) !== "Officer") throw new NotAuthorized();
+      const claimed = await this.workspaces.updateOne({ _id: workspace, owner: { $exists: false } }, { $set: { owner: user } }, { session });
+      if (claimed.modifiedCount !== 1) throw new MembershipConflict("Ownership was claimed concurrently.");
+      await replaceAssignment(user, workspace, roles.ownerRole);
+      await this.insertMembershipActivity({ workspace, actor: user, actorName: actor.name, type: "OWNERSHIP_CLAIMED", targetUser: user, targetName: actor.name, targetRole: "Owner" }, session);
+    });
+  }
+
+  async changeMemberRole(actorId: string, workspace: string, targetUser: string, targetRole: "Officer" | "Member", roles: ApplicationRoles): Promise<void> {
+    await this.ready();
+    await this.roleAccess[hostAssignmentMutation](async ({ session, assignmentsFor, replaceAssignment }) => {
+      const club = await this.workspaces.findOne({ _id: workspace }, { session });
+      if (!club?.owner) throw new OwnershipRequired();
+      const [actorAssignments, targetAssignments, actor, target] = await Promise.all([
+        assignmentsFor(actorId, workspace), assignmentsFor(targetUser, workspace),
+        this.users.findOne({ _id: actorId }, { session }), this.users.findOne({ _id: targetUser }, { session }),
+      ]);
+      if (!actor || !target || actorAssignments.length !== 1 || targetAssignments.length !== 1) throw new WorkspaceUnavailable();
+      const actorRole = await this.roleName(actorAssignments[0].role);
+      const currentTargetRole = await this.roleName(targetAssignments[0].role);
+      if (!actorRole || !currentTargetRole) throw new WorkspaceUnavailable();
+      if (targetUser === club.owner) {
+        if (actorId !== club.owner) throw new NotAuthorized();
+        throw new MembershipConflict();
+      }
+      if (targetUser === actorId || currentTargetRole === targetRole) throw new MembershipConflict();
+      const actorIsOwner = club.owner === actorId && actorRole === "Owner";
+      const officerPromotion = actorRole === "Officer" && currentTargetRole === "Member" && targetRole === "Officer";
+      if (!actorIsOwner && !officerPromotion) throw new NotAuthorized();
+      if (currentTargetRole === "Owner") throw new MembershipConflict();
+      await replaceAssignment(targetUser, workspace, targetRole === "Officer" ? roles.officerRole : roles.memberRole);
+      await this.insertMembershipActivity({ workspace, actor: actorId, actorName: actor.name, type: targetRole === "Officer" ? "MEMBER_PROMOTED" : "OFFICER_DEMOTED", targetUser, targetName: target.name, targetRole }, session);
+    });
+  }
+
+  async removeMember(actorId: string, workspace: string, targetUser: string): Promise<void> {
+    await this.ready();
+    await this.roleAccess[hostAssignmentMutation](async ({ session, assignmentsFor, removeAssignments }) => {
+      const club = await this.workspaces.findOne({ _id: workspace }, { session });
+      if (!club?.owner) throw new OwnershipRequired();
+      const [actorAssignments, targetAssignments, actor, target] = await Promise.all([
+        assignmentsFor(actorId, workspace), assignmentsFor(targetUser, workspace),
+        this.users.findOne({ _id: actorId }, { session }), this.users.findOne({ _id: targetUser }, { session }),
+      ]);
+      if (!actor || !target || actorAssignments.length !== 1 || targetAssignments.length !== 1) throw new WorkspaceUnavailable();
+      const actorRole = await this.roleName(actorAssignments[0].role);
+      const targetRole = await this.roleName(targetAssignments[0].role);
+      if (!actorRole || !targetRole) throw new WorkspaceUnavailable();
+      if (targetUser === club.owner) {
+        if (actorId !== club.owner) throw new NotAuthorized();
+        throw new MembershipConflict();
+      }
+      if (targetUser === actorId) throw new MembershipConflict();
+      const allowed = club.owner === actorId || (actorRole === "Officer" && targetRole === "Member");
+      if (!allowed || (actorRole === "Officer" && targetRole !== "Member")) throw new NotAuthorized();
+      await removeAssignments(targetUser, workspace);
+      await this.sessions.updateMany({ user: targetUser, workspace }, { $unset: { workspace: "" } }, { session });
+      await this.invitations.updateMany({ workspace, email: target.email, status: "OPEN" }, { $set: { status: "REVOKED" } }, { session });
+      await this.insertMembershipActivity({ workspace, actor: actorId, actorName: actor.name, type: "MEMBER_REMOVED", targetUser, targetName: target.name, targetRole: targetRole as "Officer" | "Member" }, session);
+    });
+  }
+
+  async transferOwnership(actorId: string, workspace: string, targetUser: string, formerOwnerRole: "Officer" | "Member", roles: ApplicationRoles): Promise<void> {
+    await this.ready();
+    await this.roleAccess[hostAssignmentMutation](async ({ session, assignmentsFor, replaceAssignment }) => {
+      const club = await this.workspaces.findOne({ _id: workspace }, { session });
+      if (!club || club.owner !== actorId || targetUser === actorId) throw new NotAuthorized();
+      const [actorAssignments, targetAssignments, actor, target] = await Promise.all([
+        assignmentsFor(actorId, workspace), assignmentsFor(targetUser, workspace),
+        this.users.findOne({ _id: actorId }, { session }), this.users.findOne({ _id: targetUser }, { session }),
+      ]);
+      if (!actor || !target || actorAssignments.length !== 1 || targetAssignments.length !== 1) throw new WorkspaceUnavailable();
+      if (await this.roleName(actorAssignments[0].role) !== "Owner" || await this.roleName(targetAssignments[0].role) === "Owner") throw new MembershipConflict();
+      const changed = await this.workspaces.updateOne({ _id: workspace, owner: actorId }, { $set: { owner: targetUser } }, { session });
+      if (changed.modifiedCount !== 1) throw new MembershipConflict("Ownership changed concurrently.");
+      await replaceAssignment(targetUser, workspace, roles.ownerRole);
+      await replaceAssignment(actorId, workspace, formerOwnerRole === "Officer" ? roles.officerRole : roles.memberRole);
+      await this.insertMembershipActivity({ workspace, actor: actorId, actorName: actor.name, type: "OWNERSHIP_TRANSFERRED", targetUser, targetName: target.name, targetRole: "Owner" }, session);
+    });
+  }
+
   async pendingInvitations(user: string, workspace: string): Promise<PendingInvitation[]> {
     await this.ready();
-    await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "READ_INVITATIONS" });
+    const membership = await this.exactRole(user, workspace);
+    if (membership.name !== "Owner" && membership.name !== "Officer") throw new NotAuthorized();
     const invitations = await this.invitations.find({ workspace, status: "OPEN", expiresAt: { $gt: this.now() } })
       .sort({ expiresAt: 1, email: 1, _id: 1 }).toArray();
     return invitations.map((invitation) => ({
@@ -322,7 +447,8 @@ export class AccountStore {
 
   async createInvitation(user: string, workspace: string, emailValue: string): Promise<{ invitation: string; email: string; token: string; expiresAt: Date }> {
     await this.ready();
-    await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "INVITE_MEMBER" });
+    const membership = await this.exactRole(user, workspace);
+    if (membership.name !== "Owner" && membership.name !== "Officer") throw new NotAuthorized();
     const email = normalizeEmail(emailValue);
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(this.now().getTime() + INVITATION_LIFETIME_MS);
@@ -333,7 +459,8 @@ export class AccountStore {
 
   async reissueInvitation(user: string, workspace: string, invitation: string): Promise<{ invitation: string; email: string; token: string; expiresAt: Date }> {
     await this.ready();
-    await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "REISSUE_INVITATION" });
+    const membership = await this.exactRole(user, workspace);
+    if (membership.name !== "Owner" && membership.name !== "Officer") throw new NotAuthorized();
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(this.now().getTime() + INVITATION_LIFETIME_MS);
     const replaced = await this.invitations.findOneAndUpdate(
@@ -350,15 +477,16 @@ export class AccountStore {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new InvitationUnavailable();
     const account = await this.users.findOne({ _id: user });
     if (!account) throw new InvitationUnavailable();
-    const invite = await this.invitations.findOneAndUpdate(
-      { tokenHash: digest(token), email: account.email, status: "OPEN", expiresAt: { $gt: this.now() } },
-      { $set: { status: "ACCEPTED", acceptedBy: user } },
-      { returnDocument: "after" },
-    );
-    if (!invite) throw new InvitationUnavailable();
-    try { await this.roleAccess.assign({ user, resource: invite.workspace, role: memberRole }); }
-    catch (error) { if (!(error instanceof AssignmentAlreadyExists)) throw error; }
-    return { workspace: invite.workspace };
+    return this.roleAccess[hostAssignmentMutation](async ({ session, assignmentsFor, replaceAssignment }) => {
+      const invite = await this.invitations.findOne(
+        { tokenHash: digest(token), email: account.email, status: "OPEN", expiresAt: { $gt: this.now() } }, { session },
+      );
+      if (!invite || (await assignmentsFor(user, invite.workspace)).length !== 0) throw new InvitationUnavailable();
+      const accepted = await this.invitations.updateOne({ _id: invite._id, status: "OPEN" }, { $set: { status: "ACCEPTED", acceptedBy: user } }, { session });
+      if (accepted.modifiedCount !== 1) throw new InvitationUnavailable();
+      await replaceAssignment(user, invite.workspace, memberRole);
+      return { workspace: invite.workspace };
+    });
   }
 
   async recordActivity(input: {
@@ -374,6 +502,9 @@ export class AccountStore {
     question?: string;
     procedureTitle?: string;
     stepPosition?: number;
+    targetUser?: string;
+    targetName?: string;
+    targetRole?: "Owner" | "Officer" | "Member";
   }): Promise<void> {
     await this.ready();
     const occurredAt = this.now();
@@ -392,7 +523,35 @@ export class AccountStore {
       ...(input.question ? { question: input.question } : {}),
       ...(input.procedureTitle ? { procedureTitle: input.procedureTitle.slice(0, 200) } : {}),
       ...(input.stepPosition !== undefined ? { stepPosition: input.stepPosition } : {}),
+      ...(input.targetUser ? { targetUser: input.targetUser } : {}),
+      ...(input.targetName ? { targetName: input.targetName.slice(0, 100) } : {}),
+      ...(input.targetRole ? { targetRole: input.targetRole } : {}),
     });
+  }
+
+  private async insertMembershipActivity(
+    input: {
+      workspace: string;
+      actor: string;
+      actorName: string;
+      type: "MEMBER_PROMOTED" | "OFFICER_DEMOTED" | "MEMBER_REMOVED" | "OWNERSHIP_CLAIMED" | "OWNERSHIP_TRANSFERRED";
+      targetUser: string;
+      targetName: string;
+      targetRole: "Owner" | "Officer" | "Member";
+    },
+    session: OptionalMongoSession,
+  ): Promise<void> {
+    await this.activity.insertOne({
+      _id: new ObjectId(),
+      workspace: input.workspace,
+      actor: input.actor,
+      actorName: input.actorName,
+      type: input.type,
+      occurredAt: this.now(),
+      targetUser: input.targetUser,
+      targetName: input.targetName.slice(0, 100),
+      targetRole: input.targetRole,
+    }, { session });
   }
 
   async recordContextAttachment(input: {
@@ -439,12 +598,8 @@ export class AccountStore {
 
   async recentActivity(user: string, workspace: string): Promise<ActivityEvent[]> {
     await this.ready();
-    await this.roleAccess.authorize({
-      user,
-      resource: workspace,
-      permission: "EDIT_PROCEDURE",
-      command: "READ_RECENT_ACTIVITY",
-    });
+    const membership = await this.exactRole(user, workspace);
+    if (membership.name !== "Owner" && membership.name !== "Officer") throw new NotAuthorized();
     return (await this.activity.find({ workspace }).sort({ occurredAt: -1, _id: -1 }).limit(5).toArray())
       .map((event) => ({
         event: event._id.toHexString(),
@@ -460,6 +615,9 @@ export class AccountStore {
         ...(event.question ? { question: event.question } : {}),
         ...(event.procedureTitle ? { procedureTitle: event.procedureTitle } : {}),
         ...(event.stepPosition !== undefined ? { stepPosition: event.stepPosition } : {}),
+        ...(event.targetUser ? { targetUser: event.targetUser } : {}),
+        ...(event.targetName ? { targetName: event.targetName } : {}),
+        ...(event.targetRole ? { targetRole: event.targetRole } : {}),
       }));
   }
 }
