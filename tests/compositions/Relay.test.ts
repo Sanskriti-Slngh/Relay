@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import { db } from "../../src/db.ts";
 import { ContextTrackingConcept } from "../../src/concepts/ContextTracking.ts";
 import { ProcedureMaintainingConcept } from "../../src/concepts/ProcedureMaintaining.ts";
+import { QuestioningConcept } from "../../src/concepts/Questioning.ts";
 import { ReviewingConcept } from "../../src/concepts/Reviewing.ts";
 import { RoleBasedAccessingConcept } from "../../src/concepts/RoleBasedAccessing.ts";
 import { applicationConceptSet } from "../../src/concepts.ts";
@@ -78,6 +79,8 @@ describe("Relay internal composition reactions", () => {
       instances: {
         ContextTracking: new ContextTrackingConcept(testDb, testClient),
         ProcedureMaintaining: new ProcedureMaintainingConcept(testDb, testClient),
+        StepQuestioning: new QuestioningConcept(testDb, testClient, "stepQuestioning"),
+        ContextQuestioning: new QuestioningConcept(testDb, testClient, "contextQuestioning"),
         Reviewing: new ReviewingConcept(testDb, testClient),
         RoleBasedAccessing: new RoleBasedAccessingConcept(testDb, testClient),
       },

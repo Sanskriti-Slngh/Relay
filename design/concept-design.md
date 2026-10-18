@@ -812,6 +812,7 @@ Each protected operation occurs only after `RoleBasedAccessing.authorize` succee
 | Confirm a Review | `COMPLETE_REVIEW` | `Reviewing.confirm` |
 | Mark a Review as requiring changes | `COMPLETE_REVIEW` | `Reviewing.requireChanges` |
 | Resolve a Review after updating the Procedure | `COMPLETE_REVIEW` | `Reviewing.resolve` |
+| Cancel an unfinished Review that is no longer relevant | `COMPLETE_REVIEW` | `Reviewing.cancel` |
 
 For example, `ProcedureMaintaining.moveStep` still requires an active Step and Procedure and a valid position; authorization does not bypass those concept guards. Similarly, ContextNote attachments must connect objects in the same workspace, questions must target an active subject in that workspace, and review actions must target an active Procedure in the officer's workspace.
 

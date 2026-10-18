@@ -6,10 +6,14 @@ const props = defineProps<{
   procedures: Procedure[];
   contexts: ContextNote[];
   reviews: PendingReview[];
+  unansweredCount: number;
+  canEdit: boolean;
+  canReview: boolean;
+  canAnswer: boolean;
 }>();
 
 const emit = defineEmits<{
-  navigate: [section: "procedures" | "context" | "reviews"];
+  navigate: [section: "procedures" | "context" | "reviews" | "questions"];
 }>();
 
 const activeProcedures = computed(() =>
@@ -37,7 +41,7 @@ function playbookCountForNote(note: ContextNote) {
       <h1>Good to have you back.</h1>
       <p class="page-intro">A clear view of your club’s playbooks, shared context, and decisions to revisit.</p>
     </div>
-    <button class="button button-primary" type="button" @click="emit('navigate', 'procedures')">
+    <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', 'procedures')">
       <span aria-hidden="true">＋</span> New playbook
     </button>
   </div>
@@ -53,10 +57,15 @@ function playbookCountForNote(note: ContextNote) {
       <strong>{{ contexts.length }}</strong>
       <span class="metric-foot">notes kept with the work</span>
     </article>
-    <article class="metric-card" :class="{ 'metric-attention': reviews.length > 0 }">
+    <article v-if="canReview" class="metric-card" :class="{ 'metric-attention': reviews.length > 0 }">
       <div class="metric-label"><span class="metric-icon icon-amber">◷</span> PENDING REVIEWS</div>
       <strong>{{ reviews.length }}</strong>
       <span class="metric-foot">{{ reviews.length ? "ready for officer review" : "nothing waiting right now" }}</span>
+    </article>
+    <article v-if="canAnswer" class="metric-card" :class="{ 'metric-attention': unansweredCount > 0 }">
+      <div class="metric-label"><span class="metric-icon icon-amber">?</span> UNANSWERED QUESTIONS</div>
+      <strong>{{ unansweredCount }}</strong>
+      <button class="text-button metric-foot" type="button" @click="emit('navigate', 'questions')">{{ unansweredCount ? "open officer inbox" : "nothing waiting right now" }}</button>
     </article>
   </div>
 
@@ -84,7 +93,7 @@ function playbookCountForNote(note: ContextNote) {
       </div>
     </section>
 
-    <section class="panel">
+    <section v-if="canReview" class="panel">
       <div class="panel-heading">
         <div><p class="eyebrow">NEEDS A LOOK</p><h2>Reviews</h2></div>
         <button class="text-button" type="button" @click="emit('navigate', 'reviews')">Open inbox <span>→</span></button>

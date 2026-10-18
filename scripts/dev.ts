@@ -6,6 +6,7 @@ const commands = [
 const childEnvironment = Object.fromEntries(
   Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
 );
+childEnvironment.PUBLIC_ORIGIN ??= "http://127.0.0.1:5173";
 const demoDatabase = process.env.RELAY_DEMO_DATABASE?.trim();
 if (demoDatabase) {
   if (

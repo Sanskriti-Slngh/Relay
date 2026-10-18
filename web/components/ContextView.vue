@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import type { ContextNote, Procedure } from "../api.ts";
+import type { ContextNote, ContextQuestion, Procedure } from "../api.ts";
 
 const props = defineProps<{
   contexts: ContextNote[];
   procedures: Procedure[];
+  contextQuestions: ContextQuestion[];
   actionBusy: string;
+  canEdit: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -13,6 +15,7 @@ const emit = defineEmits<{
   attach: [payload: { note: ContextNote; procedure: string; step: string; onSuccess: () => void }];
   correct: [payload: { note: ContextNote; text: string; onSuccess: () => void }];
   change: [payload: { note: ContextNote; text: string; onSuccess: () => void }];
+  askQuestion: [payload: { note: ContextNote; procedure: string; text: string; onSuccess: () => void }];
   validationError: [message: string];
 }>();
 
@@ -21,6 +24,7 @@ const correctionDraft = reactive<Record<string, string>>({});
 const changeDraft = reactive<Record<string, string>>({});
 const attachmentProcedure = reactive<Record<string, string>>({});
 const attachmentStep = reactive<Record<string, string>>({});
+const questionDraft = reactive<Record<string, string>>({});
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
 
 watch(
@@ -92,6 +96,32 @@ function changeContext(note: ContextNote) {
     onSuccess: () => { changeDraft[note.context] = ""; },
   });
 }
+
+function questionsForContext(context: string) {
+  return props.contextQuestions.filter((question) => question.context === context);
+}
+
+function activeAttachedProcedure(note: ContextNote) {
+  return note.attachments
+    .map(({ subject }) => subject)
+    .find((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject));
+}
+
+function askQuestion(note: ContextNote) {
+  const text = (questionDraft[note.context] ?? "").trim();
+  const procedure = activeAttachedProcedure(note);
+  if (!text) return;
+  if (!procedure) {
+    emit("validationError", "Attach this Context Note to an active playbook before asking a question.");
+    return;
+  }
+  emit("askQuestion", {
+    note,
+    procedure,
+    text,
+    onSuccess: () => { questionDraft[note.context] = ""; },
+  });
+}
 </script>
 
 <template>
@@ -100,7 +130,7 @@ function changeContext(note: ContextNote) {
     <h1>Shared context</h1>
     <p class="page-intro">Keep useful knowledge connected to the playbooks it informs. Correct wording or record a change in meaning—Relay treats them differently.</p>
   </div>
-  <form class="record-context panel" @submit.prevent="recordContext">
+  <form v-if="canEdit" class="record-context panel" @submit.prevent="recordContext">
     <div class="form-heading"><span class="context-form-icon">“</span><div><h2>Record a context note</h2><p>Capture a decision, constraint, or piece of history your club may need again.</p></div></div>
     <label class="sr-only" for="new-context">Context note</label>
     <textarea id="new-context" v-model="contextDraft" placeholder="Add the background worth carrying forward…" required maxlength="4000" rows="3"></textarea>
@@ -117,6 +147,21 @@ function changeContext(note: ContextNote) {
         <span class="quote-mark" aria-hidden="true">“</span>
         <div class="context-card-content"><p class="context-current-text">{{ note.text }}</p><small>Context note <span>·</span> {{ note.changes.length }} {{ note.changes.length === 1 ? "recorded change" : "recorded changes" }}</small></div>
       </div>
+      <div class="context-question-section">
+        <div v-if="questionsForContext(note.context).length" class="subject-question-list">
+          <article v-for="question in questionsForContext(note.context)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }">
+            <strong>{{ question.status === "OPEN" ? "Awaiting officer answer" : "Answered" }}</strong>
+            <p>{{ question.text }}</p>
+            <p v-if="question.answer" class="question-answer"><span>Answer:</span> {{ question.answer }}</p>
+          </article>
+        </div>
+        <form class="inline-form question-form" @submit.prevent="askQuestion(note)">
+          <label class="sr-only" :for="`question-${note.context}`">Ask a question about this Context Note</label>
+          <input :id="`question-${note.context}`" v-model="questionDraft[note.context]" placeholder="Ask about this context…" required maxlength="1000">
+          <button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !activeAttachedProcedure(note) || !(questionDraft[note.context] ?? '').trim()">{{ actionBusy === `ask-context-${note.context}` ? "Sending…" : "Ask question" }}</button>
+        </form>
+        <p v-if="!activeAttachedProcedure(note)" class="subtle-empty">Attach this note to an active playbook to ask a question.</p>
+      </div>
       <div class="attachment-section">
         <div class="section-rule"><span>ATTACHED TO</span><span>{{ note.attachments.length }}</span></div>
         <div v-if="note.attachments.length" class="attachment-chips">
@@ -126,7 +171,7 @@ function changeContext(note: ContextNote) {
           </span>
         </div>
         <p v-else class="subtle-empty">Not connected to a playbook yet.</p>
-        <form v-if="activeProcedures.length" class="attach-form" @submit.prevent="attachContext(note)">
+        <form v-if="canEdit && activeProcedures.length" class="attach-form" @submit.prevent="attachContext(note)">
           <label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label>
           <select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''">
             <option value="" disabled>Choose a playbook…</option>
@@ -139,7 +184,7 @@ function changeContext(note: ContextNote) {
           </select>
           <button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button>
         </form>
-        <p v-else class="subtle-empty">Create an active playbook before attaching context.</p>
+        <p v-else-if="canEdit" class="subtle-empty">Create an active playbook before attaching context.</p>
       </div>
       <details v-if="note.changes.length" class="history-section">
         <summary><span class="history-icon" aria-hidden="true">↺</span> Change history <span class="history-count">{{ note.changes.length }}</span></summary>
@@ -149,7 +194,7 @@ function changeContext(note: ContextNote) {
           </li>
         </ol>
       </details>
-      <div class="note-actions">
+      <div v-if="canEdit" class="note-actions">
         <form class="note-action-form" @submit.prevent="correctContext(note)">
           <label :for="`correct-${note.context}`">Correct wording <span>· does not create a review</span></label>
           <div class="action-input-row"><input :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" placeholder="Revised wording…" required maxlength="4000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">Correct</button></div>

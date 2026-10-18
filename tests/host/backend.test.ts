@@ -68,6 +68,36 @@ async function request(
   };
 }
 
+async function authenticatedRequester(
+  targetHandler: ReturnType<typeof createRelayHttpHandler>,
+  credential: string,
+) {
+  const login = await targetHandler(new Request("http://127.0.0.1/session", {
+    method: "POST",
+    headers: { origin: frontendOrigin, "content-type": "application/json" },
+    body: JSON.stringify({ credential }),
+  }));
+  expect(login.status).toBe(200);
+  const cookie = login.headers.get("set-cookie")!.split(";")[0];
+  const token = (await login.json() as { csrfToken: string }).csrfToken;
+  return async (path: string, body: Record<string, unknown>) => {
+    const response = await targetHandler(new Request(`http://127.0.0.1/api${path}`, {
+      method: "POST",
+      headers: {
+        origin: frontendOrigin,
+        cookie,
+        "x-relay-csrf": token,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }));
+    return {
+      status: response.status,
+      body: await response.json() as Record<string, unknown>,
+    };
+  };
+}
+
 async function createProcedure(title: string): Promise<string> {
   const response = await request("/workspaces/procedures/create", { title });
   expect(response.status).toBe(200);
@@ -276,15 +306,33 @@ describe("Relay trusted HTTP backend", () => {
 
   test("denies mutations after permission removal and leaves procedure state unchanged", async () => {
     const procedure = await createProcedure("Archive permission check");
+    const stepResult = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Protected step",
+    });
+    const step = requireString(stepResult.body.step, "Protected Step");
     const officerRole = (await roleAccess._roles()).find(({ name }) => name === "Officer")!.role;
     await roleAccess.revokePermission({ role: officerRole, permission: "EDIT_PROCEDURE" });
     const response = await request("/workspaces/procedures/create", { title: "Denied create" });
     expect(response.status).toBe(403);
     expect(response.body.error).toBe("FORBIDDEN");
     const deniedRead = await request("/workspaces/procedures", {});
-    expect(deniedRead.status).toBe(403);
+    expect(deniedRead.status).toBe(200);
+    expect(deniedRead.body.procedures).toEqual(expect.arrayContaining([
+      expect.objectContaining({ procedure, title: "Archive permission check" }),
+    ]));
     const deniedArchive = await request("/workspaces/procedures/archive", { procedure });
     expect(deniedArchive.status).toBe(403);
+    for (const [path, body] of [
+      ["/workspaces/procedures/rename", { procedure, title: "Denied rename" }],
+      ["/workspaces/procedures/steps/edit", { procedure, step, text: "Denied edit" }],
+      ["/workspaces/procedures/steps/move", { procedure, step, position: 1 }],
+      ["/workspaces/procedures/steps/remove", { procedure, step }],
+    ] as const) {
+      const denied = await request(path, body);
+      expect(denied.status).toBe(403);
+      expect(denied.body.error).toBe("FORBIDDEN");
+    }
     expect(await application.concepts.ProcedureMaintaining._get({ procedure })).toEqual([
       {
         space: hostConfig.clubWorkspaceId,
@@ -292,11 +340,40 @@ describe("Relay trusted HTTP backend", () => {
         status: "ACTIVE",
       },
     ]);
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure })).toEqual([
+      { step, text: "Protected step", position: 1 },
+    ]);
+
+    const protectedReviewResult = await application.concepts.Reviewing.request({
+      item: procedure,
+      cause: "authorization-test-cause",
+    });
+    if ("error" in protectedReviewResult) {
+      throw new Error(`Could not create authorization test Review: ${protectedReviewResult.error}`);
+    }
+    const protectedReview = protectedReviewResult.review;
     await roleAccess.revokePermission({ role: officerRole, permission: "COMPLETE_REVIEW" });
     const deniedHistory = await request("/workspaces/reviews", {});
     expect(deniedHistory.status).toBe(403);
+    for (const path of [
+      "/workspaces/reviews/confirm",
+      "/workspaces/reviews/require-changes",
+      "/workspaces/reviews/resolve",
+      "/workspaces/reviews/cancel",
+    ]) {
+      const denied = await request(path, { review: protectedReview, procedure });
+      expect(denied.status).toBe(403);
+      expect(denied.body.error).toBe("FORBIDDEN");
+    }
+    expect(await application.concepts.Reviewing._get({ review: protectedReview })).toEqual([
+      { item: procedure, status: "PENDING" },
+    ]);
     await roleAccess.permit({ role: officerRole, permission: "COMPLETE_REVIEW" });
     await roleAccess.permit({ role: officerRole, permission: "EDIT_PROCEDURE" });
+    expect((await request("/workspaces/reviews/cancel", {
+      review: protectedReview,
+      procedure,
+    })).status).toBe(200);
 
     const listed = await application.concepts.ProcedureMaintaining._procedures({
       space: hostConfig.clubWorkspaceId,
@@ -401,6 +478,24 @@ describe("Relay trusted HTTP backend", () => {
       procedure: foreignProcedure,
     })).toEqual([]);
 
+    const foreignStepResult = await application.concepts.ProcedureMaintaining.addStep({
+      procedure: foreignProcedure,
+      text: "Foreign protected Step",
+    });
+    if ("error" in foreignStepResult) throw new Error(foreignStepResult.error);
+    for (const [path, body] of [
+      ["/workspaces/procedures/rename", { procedure: foreignProcedure, title: "Stolen title" }],
+      ["/workspaces/procedures/steps/edit", { procedure: foreignProcedure, step: foreignStepResult.step, text: "Stolen edit" }],
+      ["/workspaces/procedures/steps/move", { procedure: foreignProcedure, step: foreignStepResult.step, position: 1 }],
+      ["/workspaces/procedures/steps/remove", { procedure: foreignProcedure, step: foreignStepResult.step }],
+    ] as const) {
+      expect((await request(path, body)).status).toBe(404);
+    }
+    expect(await application.concepts.ProcedureMaintaining._get({ procedure: foreignProcedure }))
+      .toEqual([{ space: "foreign-workspace", title: "Foreign procedure", status: "ACTIVE" }]);
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure: foreignProcedure }))
+      .toEqual([{ step: foreignStepResult.step, text: "Foreign protected Step", position: 1 }]);
+
     const foreignContext = await application.concepts.ContextTracking.record({
       scope: "foreign-workspace",
       text: "Private foreign context",
@@ -414,6 +509,366 @@ describe("Relay trusted HTTP backend", () => {
     expect(await application.concepts.ContextTracking._attachments({
       context: foreignContextId,
     })).toEqual([]);
+  });
+
+  test("renames Playbooks and edits, reorders, and removes Steps through the application", async () => {
+    const procedure = await createProcedure("Procedure editing original");
+    const createdSteps: string[] = [];
+    for (const text of ["Alpha", "Bravo", "Charlie"]) {
+      const response = await request("/workspaces/procedures/steps/add", { procedure, text });
+      createdSteps.push(requireString(response.body.step, "Step"));
+    }
+    const contextResult = await request("/workspaces/context/notes", { text: "Editing context" });
+    const context = requireString(contextResult.body.context, "ContextNote");
+    expect((await request("/workspaces/context/attachments", { context, procedure })).status).toBe(200);
+    expect((await request("/workspaces/context/step-attachments", {
+      context,
+      procedure,
+      step: createdSteps[1],
+    })).status).toBe(200);
+
+    expect(await request("/workspaces/procedures/rename", {
+      procedure,
+      title: "Procedure editing complete",
+    })).toEqual({ status: 200, body: { procedure, title: "Procedure editing complete" } });
+    expect(await request("/workspaces/procedures/steps/edit", {
+      procedure,
+      step: createdSteps[1],
+      text: "Bravo updated",
+    })).toEqual({ status: 200, body: { step: createdSteps[1] } });
+    expect(await request("/workspaces/procedures/steps/move", {
+      procedure,
+      step: createdSteps[2],
+      position: 1,
+    })).toEqual({ status: 200, body: { step: createdSteps[2], position: 1 } });
+
+    const invalidMove = await request("/workspaces/procedures/steps/move", {
+      procedure,
+      step: createdSteps[0],
+      position: 0,
+    });
+    expect(invalidMove.status).toBe(400);
+    expect(invalidMove.body.error).toBe("INVALID_REQUEST");
+
+    expect(await request("/workspaces/procedures/steps/remove", {
+      procedure,
+      step: createdSteps[1],
+    })).toEqual({ status: 200, body: { step: createdSteps[1] } });
+    expect(await application.concepts.ProcedureMaintaining._steps({ procedure })).toEqual([
+      { step: createdSteps[2], text: "Charlie", position: 1 },
+      { step: createdSteps[0], text: "Alpha", position: 2 },
+    ]);
+    expect(await application.concepts.ProcedureMaintaining._getStep({ step: createdSteps[1] }))
+      .toEqual([{ procedure, text: "Bravo updated", status: "REMOVED" }]);
+    expect(await application.concepts.ContextTracking._attachments({ context })).toEqual([
+      expect.objectContaining({ subject: procedure }),
+    ]);
+    expect((await request("/workspaces/procedures/steps/edit", {
+      procedure,
+      step: createdSteps[1],
+      text: "Cannot edit removed Step",
+    })).status).toBe(404);
+
+    const listed = (await request("/workspaces/procedures", {})).body.procedures as {
+      procedure: string;
+      title: string;
+      status: string;
+      steps: { step: string; text: string; position: number }[];
+    }[];
+    expect(listed.find((entry) => entry.procedure === procedure)).toEqual({
+      procedure,
+      title: "Procedure editing complete",
+      status: "ACTIVE",
+      steps: [
+        { step: createdSteps[2], text: "Charlie", position: 1 },
+        { step: createdSteps[0], text: "Alpha", position: 2 },
+      ],
+    });
+  });
+
+  test("requires Playbook changes, resolves after editing, and preserves cancelled Review history", async () => {
+    const procedure = await createProcedure("Review resolution target");
+    const stepResult = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Follow the old guidance",
+    });
+    const step = requireString(stepResult.body.step, "Step");
+    const noteResult = await request("/workspaces/context/notes", { text: "Old guidance" });
+    const context = requireString(noteResult.body.context, "ContextNote");
+    await request("/workspaces/context/step-attachments", { context, procedure, step });
+    const changed = await request("/workspaces/context/change", { context, text: "New guidance" });
+    const firstCause = requireString(changed.body.change, "Change");
+    const firstPending = (await request("/workspaces/reviews/pending", {})).body.reviews as {
+      review: string;
+      procedure: string;
+    }[];
+    const firstReview = firstPending.find((entry) => entry.procedure === procedure)!.review;
+
+    expect((await request("/workspaces/reviews/resolve", { review: firstReview, procedure })).status)
+      .toBe(404);
+    expect(await request("/workspaces/reviews/require-changes", {
+      review: firstReview,
+      procedure,
+    })).toEqual({ status: 200, body: { review: firstReview, status: "CHANGES_REQUIRED" } });
+    expect((await request("/workspaces/reviews/confirm", { review: firstReview, procedure })).status)
+      .toBe(404);
+    expect((await request("/workspaces/reviews/require-changes", {
+      review: firstReview,
+      procedure,
+    })).status).toBe(404);
+
+    expect((await request("/workspaces/procedures/steps/edit", {
+      procedure,
+      step,
+      text: "Follow the new guidance",
+    })).status).toBe(200);
+    expect(await request("/workspaces/reviews/resolve", {
+      review: firstReview,
+      procedure,
+    })).toEqual({ status: 200, body: { review: firstReview, status: "COMPLETE" } });
+
+    const changedAgain = await request("/workspaces/context/change", {
+      context,
+      text: "Replacement guidance",
+    });
+    const secondCause = requireString(changedAgain.body.change, "Change");
+    const secondPending = (await request("/workspaces/reviews/pending", {})).body.reviews as {
+      review: string;
+      procedure: string;
+    }[];
+    const secondReview = secondPending.find((entry) => entry.procedure === procedure)!.review;
+    expect(secondReview).not.toBe(firstReview);
+    expect(await request("/workspaces/reviews/cancel", {
+      review: secondReview,
+      procedure,
+    })).toEqual({ status: 200, body: { review: secondReview, status: "CANCELLED" } });
+    expect((await request("/workspaces/reviews/cancel", { review: secondReview, procedure })).status)
+      .toBe(404);
+
+    const history = (await request("/workspaces/reviews", {})).body.procedures as {
+      procedure: string;
+      reviews: { review: string; status: string; causes: { cause: string }[] }[];
+    }[];
+    const targetHistory = history.find((entry) => entry.procedure === procedure)!.reviews;
+    expect(targetHistory).toContainEqual(expect.objectContaining({
+      review: firstReview,
+      status: "COMPLETE",
+      causes: [expect.objectContaining({ cause: firstCause })],
+    }));
+    expect(targetHistory).toContainEqual(expect.objectContaining({
+      review: secondReview,
+      status: "CANCELLED",
+      causes: [expect.objectContaining({ cause: secondCause })],
+    }));
+    expect((await request("/workspaces/reviews/pending", {})).body.reviews).not.toContainEqual(
+      expect.objectContaining({ procedure }),
+    );
+  });
+
+  test("asks and answers Step and Context Questions with stable subjects, history, and role boundaries", async () => {
+    const procedure = await createProcedure("Question workflow Playbook");
+    const firstStepResponse = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Upload the event plan",
+    });
+    const firstStep = requireString(firstStepResponse.body.step, "Step");
+    const secondStepResponse = await request("/workspaces/procedures/steps/add", {
+      procedure,
+      text: "Pay the venue deposit",
+    });
+    const secondStep = requireString(secondStepResponse.body.step, "Step");
+    const noteResponse = await request("/workspaces/context/notes", {
+      text: "The venue requires an approved event plan.",
+    });
+    const context = requireString(noteResponse.body.context, "ContextNote");
+    expect((await request("/workspaces/context/attachments", { context, procedure })).status).toBe(200);
+
+    const stepAsked = await request("/workspaces/questions/steps/ask", {
+      procedure,
+      step: firstStep,
+      text: "Does the plan need faculty approval?",
+    });
+    const stepQuestion = requireString(stepAsked.body.question, "Step Question");
+    const contextAsked = await request("/workspaces/questions/context/ask", {
+      procedure,
+      context,
+      text: "Where is this venue requirement documented?",
+    });
+    const contextQuestion = requireString(contextAsked.body.question, "Context Question");
+    expect(stepAsked.status).toBe(200);
+    expect(contextAsked.status).toBe(200);
+
+    const openQuestions = await request("/workspaces/questions", {});
+    expect(openQuestions.status).toBe(200);
+    expect(openQuestions.body.stepQuestions).toContainEqual(expect.objectContaining({
+      question: stepQuestion,
+      step: firstStep,
+      procedure,
+      subjectText: "Upload the event plan",
+      subjectStatus: "ACTIVE",
+      status: "OPEN",
+      answer: null,
+    }));
+    expect(openQuestions.body.contextQuestions).toContainEqual(expect.objectContaining({
+      question: contextQuestion,
+      context,
+      subjectText: "The venue requires an approved event plan.",
+      status: "OPEN",
+      answer: null,
+    }));
+
+    expect((await request("/workspaces/procedures/steps/move", {
+      procedure,
+      step: firstStep,
+      position: 2,
+    })).status).toBe(200);
+    expect((await request("/workspaces/procedures/steps/remove", {
+      procedure,
+      step: firstStep,
+    })).status).toBe(200);
+    const afterRemoval = await request("/workspaces/questions", {});
+    expect(afterRemoval.body.stepQuestions).toContainEqual(expect.objectContaining({
+      question: stepQuestion,
+      step: firstStep,
+      subjectText: "Upload the event plan",
+      subjectStatus: "REMOVED",
+      status: "OPEN",
+    }));
+
+    expect(await request("/workspaces/questions/steps/answer", {
+      question: stepQuestion,
+      answer: "Yes. The faculty advisor signs the final page.",
+    })).toEqual({ status: 200, body: { question: stepQuestion, status: "ANSWERED" } });
+    expect(await request("/workspaces/questions/context/answer", {
+      question: contextQuestion,
+      answer: "It is in section 4 of the venue agreement.",
+    })).toEqual({ status: 200, body: { question: contextQuestion, status: "ANSWERED" } });
+    expect((await request("/workspaces/questions/steps/answer", {
+      question: stepQuestion,
+      answer: "Replacement answer",
+    })).status).toBe(404);
+
+    const history = await request("/workspaces/questions", {});
+    expect(history.body.stepQuestions).toContainEqual(expect.objectContaining({
+      question: stepQuestion,
+      step: firstStep,
+      text: "Does the plan need faculty approval?",
+      status: "ANSWERED",
+      answer: "Yes. The faculty advisor signs the final page.",
+    }));
+    expect(history.body.contextQuestions).toContainEqual(expect.objectContaining({
+      question: contextQuestion,
+      text: "Where is this venue requirement documented?",
+      status: "ANSWERED",
+      answer: "It is in section 4 of the venue agreement.",
+    }));
+
+    expect((await request("/workspaces/questions/steps/ask", {
+      procedure,
+      step: secondStep,
+      text: "   ",
+    })).status).toBe(400);
+    expect((await request("/workspaces/questions/steps/ask", {
+      procedure,
+      step: "missing-step",
+      text: "Can I ask this?",
+    })).status).toBe(404);
+    expect((await request("/workspaces/questions/context/ask", {
+      procedure,
+      context: "missing-context",
+      text: "Can I ask this?",
+    })).status).toBe(404);
+    expect((await request("/workspaces/questions/context/answer", {
+      question: "missing-question",
+      answer: "No",
+    })).status).toBe(404);
+
+    const foreignProcedureResult = await application.concepts.ProcedureMaintaining.create({
+      space: "question-foreign-workspace",
+      title: "Foreign Question Playbook",
+    });
+    if ("error" in foreignProcedureResult) throw new Error(foreignProcedureResult.error);
+    const foreignStepResult = await application.concepts.ProcedureMaintaining.addStep({
+      procedure: foreignProcedureResult.procedure,
+      text: "Foreign Step",
+    });
+    if ("error" in foreignStepResult) throw new Error(foreignStepResult.error);
+    expect((await request("/workspaces/questions/steps/ask", {
+      procedure: foreignProcedureResult.procedure,
+      step: foreignStepResult.step,
+      text: "Private foreign question?",
+    })).status).toBe(404);
+    const foreignQuestionResult = await application.concepts.StepQuestioning.ask({
+      subject: foreignStepResult.step,
+      text: "Existing foreign Question",
+    });
+    if ("error" in foreignQuestionResult) throw new Error(foreignQuestionResult.error);
+    expect((await request("/workspaces/questions/steps/answer", {
+      question: foreignQuestionResult.question,
+      answer: "Must not answer",
+    })).status).toBe(404);
+
+    const officerRole = (await roleAccess._roles()).find(({ name }) => name === "Officer")!.role;
+    await roleAccess.revokePermission({ role: officerRole, permission: "ASK_QUESTION" });
+    expect((await request("/workspaces/questions/steps/ask", {
+      procedure,
+      step: secondStep,
+      text: "Denied ask",
+    })).status).toBe(403);
+    expect((await request("/workspaces/questions", {})).status).toBe(403);
+    await roleAccess.permit({ role: officerRole, permission: "ASK_QUESTION" });
+
+    const officerPending = await request("/workspaces/questions/steps/ask", {
+      procedure,
+      step: secondStep,
+      text: "Who confirms payment?",
+    });
+    const officerPendingQuestion = requireString(officerPending.body.question, "Question");
+    await roleAccess.revokePermission({ role: officerRole, permission: "ANSWER_QUESTION" });
+    expect((await request("/workspaces/questions/steps/answer", {
+      question: officerPendingQuestion,
+      answer: "Denied answer",
+    })).status).toBe(403);
+    expect(await application.concepts.StepQuestioning._get({ question: officerPendingQuestion }))
+      .toEqual([{ subject: secondStep, text: "Who confirms payment?", status: "OPEN" }]);
+    await roleAccess.permit({ role: officerRole, permission: "ANSWER_QUESTION" });
+
+    const memberUser = `relay-member-${crypto.randomUUID()}`;
+    const memberCredential = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
+    const memberRole = await roleAccess.createRole({ name: `Member-${crypto.randomUUID()}` });
+    await roleAccess.permit({ role: memberRole.role, permission: "ASK_QUESTION" });
+    await roleAccess.assign({
+      user: memberUser,
+      resource: hostConfig.clubWorkspaceId,
+      role: memberRole.role,
+    });
+    const memberConfig: HostConfig = {
+      ...hostConfig,
+      officerUserId: memberUser,
+      localAccessCredential: memberCredential,
+    };
+    const memberRequest = await authenticatedRequester(
+      createRelayHttpHandler(application, memberConfig),
+      memberCredential,
+    );
+    const memberAsked = await memberRequest("/workspaces/questions/steps/ask", {
+      procedure,
+      step: secondStep,
+      text: "Can a member ask this question?",
+      user: hostConfig.officerUserId,
+    });
+    expect(memberAsked.status).toBe(200);
+    const memberQuestion = requireString(memberAsked.body.question, "Member Question");
+    expect((await memberRequest("/workspaces/questions", {})).status).toBe(200);
+    expect((await memberRequest("/workspaces/questions/steps/answer", {
+      question: memberQuestion,
+      answer: "Members cannot answer",
+      user: hostConfig.officerUserId,
+    })).status).toBe(403);
+    expect((await request("/workspaces/questions/steps/answer", {
+      question: memberQuestion,
+      answer: "The treasurer confirms payment.",
+    })).status).toBe(200);
   });
 
   test("rejects object-shaped identities before they reach MongoDB queries", async () => {

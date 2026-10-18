@@ -8,10 +8,34 @@ import type { HostConfig } from "./config.ts";
 
 const OFFICER_ROLE_NAME = "Officer";
 const OFFICER_PERMISSIONS = [
+  "ASK_QUESTION",
+  "ANSWER_QUESTION",
   "EDIT_PROCEDURE",
   "EDIT_CONTEXT",
   "COMPLETE_REVIEW",
 ] as const;
+
+export async function provisionApplicationRoles(
+  roleAccess: RoleBasedAccessingConcept,
+): Promise<{ officerRole: string; memberRole: string }> {
+  const officerRole = await ensureOfficerRole(roleAccess);
+  await ensureOfficerPermissions(roleAccess, officerRole);
+  let members = (await roleAccess._roles()).filter(({ name }) => name === "Member");
+  if (members.length === 0) {
+    try { await roleAccess.createRole({ name: "Member" }); } catch { /* concurrent startup */ }
+    members = (await roleAccess._roles()).filter(({ name }) => name === "Member");
+  }
+  if (members.length !== 1) throw new OfficerProvisioningConflict("Member Role provisioning failed.");
+  const memberRole = members[0].role;
+  const permissions = await roleAccess._permissions({ role: memberRole });
+  const unexpected = permissions.filter(({ permission }) => permission !== "ASK_QUESTION");
+  if (unexpected.length) throw new OfficerProvisioningConflict("Member Role has unexpected permissions.");
+  if (!permissions.some(({ permission }) => permission === "ASK_QUESTION")) {
+    try { await roleAccess.permit({ role: memberRole, permission: "ASK_QUESTION" }); }
+    catch (error) { if (!(error instanceof PermissionAlreadyGranted)) throw error; }
+  }
+  return { officerRole, memberRole };
+}
 
 export class OfficerProvisioningConflict extends Error {}
 

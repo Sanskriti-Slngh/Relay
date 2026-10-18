@@ -10,15 +10,14 @@ The implemented P2 walkthrough is documented in
 policy is fictional demo content, not a statement of current MIT policy. The
 broader P1 journey remains design direction for later work.
 
-## Local P2 demo
+## Local development
 
-The local host is a **single-officer demo**, not production authentication. It
-binds to `127.0.0.1` and uses a configured shared access credential to create a
-short-lived, server-managed browser session. The session cookie is HttpOnly,
-SameSite=Strict, held in memory on the server, and protected by a same-origin
-check and CSRF token. Restarting the host expires all browser sessions.
+Relay supports distinct accounts, persistent server-side sessions, multiple
+club workspaces, and invitation-based Member onboarding. RoleBasedAccessing
+authorizes every composition operation using the User and selected workspace
+loaded from the server-side session.
 
-1. Install Bun 1.3.4 or later and Podman with Compose. Install dependencies:
+1. Install Bun 1.4.0 and Podman with Compose. Install dependencies:
 
    ```sh
    bun install
@@ -30,20 +29,16 @@ check and CSRF token. Restarting the host expires all browser sessions.
    bun run db:up
    ```
 
-3. Create a private `.env` from the example and set stable identities. The
-   example values are intentionally invalid. Generate a fresh 32-byte random
-   base64url credential in a local terminal:
+3. Create a private `.env` from the example. Set `MONGODB_URL` to a URI with an
+   explicit database name and set the exact browser origin:
 
    ```sh
    cp .env.example .env
-   bun -e 'process.stdout.write(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url") + "\n")'
+   PUBLIC_ORIGIN=http://127.0.0.1:5173
    ```
 
-   Put the generated value in `LOCAL_ACCESS_CREDENTIAL` in `.env`. Set
-   `CLUB_WORKSPACE_ID` and `OFFICER_USER_ID` to stable IDs and use a MongoDB URI
-   with an explicit database name. Keep `.env` private; do not use a `VITE_`
-   variable for the credential. Use a disposable local database name if you
-   want to reset demo data.
+   Keep MongoDB credentials private and do not expose them through a `VITE_`
+   variable. Use a disposable local database name if you want to reset data.
 
 4. Start the API and Vite development server together. For a clean first-run
    demo, choose a fresh isolated database name. This overrides only the URI's
@@ -55,11 +50,11 @@ check and CSRF token. Restarting the host expires all browser sessions.
 
    Choose a new name if that database already contains demo data. To use the
    configured URI database instead, run `bun run dev`. Startup validates
-   configuration, connects to MongoDB, and creates or
-   verifies the private Officer Role and workspace assignment before opening
-   the API listener. It also starts Vite on loopback. Open
-   [http://127.0.0.1:5173](http://127.0.0.1:5173), sign in with the local
-   credential, and follow the workflow below.
+   configuration, connects to MongoDB, and creates or verifies the private
+   Officer and Member Roles before opening the API listener. It also starts
+   Vite on loopback. Open
+   [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account and club,
+   and follow the workflow below.
 
 5. Demonstrate the MVP:
 
@@ -73,6 +68,15 @@ check and CSRF token. Restarting the host expires all browser sessions.
      settle before refreshing the dashboard.
    - Open **Reviews**, inspect each playbook's cause text, and confirm a Review.
      The other affected Review remains pending.
+   - Mark a pending Review as requiring changes, edit the affected Playbook,
+     and return to resolve it. A Review that is no longer relevant can be
+     cancelled instead; both outcomes retain the Review's causes in history.
+   - Rename Playbooks and edit, reorder, or remove their active Steps. Removing
+     a Step detaches Context links anchored specifically to that Step while
+     preserving the removed Step's identity.
+   - Ask a Question beside a Step or attached Context Note. The Questions
+     navigation count and officer inbox keep every unanswered item actionable;
+     answering preserves the original Question beside its resolution.
    - Archive a Playbook from the Playbooks page when it is no longer active.
      Archiving preserves its Steps, Context attachments, and Reviews; open
      **Archived playbooks** to inspect it later.
@@ -82,22 +86,21 @@ read formers. Role-management and bootstrap actions are not public. User and
 workspace identities are injected by the host; request-body identity fields
 cannot change them.
 
-P2 deliberately has one host-configured workspace and Officer and four
-implemented concepts. Member questions, multiple clubs, general registration,
-multi-user authentication, and complete editing/resolution workflows are P3
-work. Archive Playbook is implemented now and is not a deferred feature.
+All five P1 concepts are implemented. The P3 Beta host adds multi-user accounts,
+multiple isolated club workspaces, Member invitations, workspace selection,
+and permission-aware interfaces without adding a new domain concept.
 
-### Local security boundary
+### Security boundary
 
-The shared credential is entered by the user at sign-in and exchanged for an
-in-memory session; it is not embedded in the frontend bundle or returned by an
-endpoint. Any person or local process with the credential can act as the
-configured Officer. Do not expose the listener beyond loopback, share the
-credential, or treat this host as multi-user authentication. There is no TLS,
-identity provider, persistent session store, or production-grade rate limiting.
-The credential must be stored outside source control. The installed sync-engine
-HTTP package documents Node.js 24 support; this project continues to host it
-with Bun, which is outside that package's formal runtime support contract.
+Passwords are salted and hashed with scrypt. Random session tokens are stored
+only as SHA-256 digests in MongoDB; cookies are HttpOnly, SameSite=Strict,
+eight-hour limited, and Secure whenever `PUBLIC_ORIGIN` uses HTTPS. State-changing
+requests also require an exact Origin and CSRF token. Registration grants no
+workspace role, invitation codes are single-use and email-bound, and the host
+replaces any request-body User or workspace fields with verified session state.
+Production deployments must use HTTPS and a private MongoDB connection string.
+The installed sync-engine HTTP package documents Node.js 24 support; this
+project continues to host it with Bun, outside that formal runtime contract.
 
 ## Checks
 
@@ -121,3 +124,31 @@ bodies. After an intentional composition or contract change, run
 The MongoDB-backed tests require the configured test MongoDB replica set and
 create/drop uniquely named test databases. They do not use the configured Relay
 application database for fixtures.
+
+## Deploying to 6.1040 Apps
+
+Relay follows the Fall 2026 course deployment procedure. The platform must
+deploy a pushed commit; it does not use local files, Docker Compose, or `.env`.
+Use these application settings:
+
+- Runtime: Bun 1.4.0
+- Package directory: `.`
+- Build script: `build`
+- Start script: `start`
+- Port: `3000`
+- Health-check path: `/health`
+
+Add the platform MongoDB integration and expose its connection string to Relay
+as `MONGODB_URL` (map a generated `MONGODB_URI` value if necessary). Add
+`PUBLIC_ORIGIN=https://<app-name>.mit-sdg.dev` with no trailing slash. The
+platform supplies `HOST`, `PORT`, and `NODE_ENV`; Relay reads `HOST` and `PORT`
+and serves the built Vue application and API from the same origin. Never add a
+MongoDB URI, invitation token, session token, or password to source control or
+to a `VITE_` variable.
+
+For a private GitHub repository, install the read-only deploy key generated by
+6.1040 Apps and use **Check access** before deploying. Review the selected
+branch and exact commit on the deployment screen, then deploy. `/health`
+returns 200 only after the process has connected to MongoDB and a live ping
+succeeds. Locally, `bun run preview` builds and starts the same production
+host using the private `.env` configuration.

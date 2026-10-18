@@ -14,6 +14,9 @@ export default defineConfig({
     proxy: {
       "/api": { target: apiTarget, changeOrigin: false },
       "/session": { target: apiTarget, changeOrigin: false },
+      "/auth": { target: apiTarget, changeOrigin: false },
+      "/workspaces": { target: apiTarget, changeOrigin: false },
+      "/invitations": { target: apiTarget, changeOrigin: false },
     },
   },
   preview: {
@@ -23,6 +26,9 @@ export default defineConfig({
     proxy: {
       "/api": { target: apiTarget, changeOrigin: false },
       "/session": { target: apiTarget, changeOrigin: false },
+      "/auth": { target: apiTarget, changeOrigin: false },
+      "/workspaces": { target: apiTarget, changeOrigin: false },
+      "/invitations": { target: apiTarget, changeOrigin: false },
     },
   },
 });

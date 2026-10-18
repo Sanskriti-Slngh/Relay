@@ -1,25 +1,34 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { PendingReview, ProcedureReviewHistory } from "../api.ts";
+import type { PendingReview, Procedure, ProcedureReviewHistory } from "../api.ts";
 
 const props = defineProps<{
   reviews: PendingReview[];
   reviewHistory: ProcedureReviewHistory[];
+  procedures: Procedure[];
   actionBusy: string;
 }>();
 
 const emit = defineEmits<{
   confirm: [review: PendingReview];
+  requireChanges: [review: PendingReview];
+  resolve: [review: PendingReview];
+  cancel: [review: PendingReview];
+  editPlaybook: [procedure: string];
   browseContext: [];
 }>();
 
-const completedReviews = computed(() =>
+const finishedReviews = computed(() =>
   props.reviewHistory.flatMap((procedure) =>
     procedure.reviews
-      .filter((review) => review.status === "COMPLETE")
+      .filter((review) => review.status === "COMPLETE" || review.status === "CANCELLED")
       .map((review) => ({ ...review, procedure: procedure.procedure, title: procedure.title })),
   ),
 );
+
+function procedureIsActive(procedure: string) {
+  return props.procedures.some((entry) => entry.procedure === procedure && entry.status === "ACTIVE");
+}
 </script>
 
 <template>
@@ -44,13 +53,27 @@ const completedReviews = computed(() =>
         <div class="cause-diff"><div class="diff-before"><span>BEFORE</span><p>{{ cause.before }}</p></div><span class="diff-arrow" aria-hidden="true">→</span><div class="diff-after"><span>AFTER</span><p>{{ cause.after }}</p></div></div>
       </article>
       <div v-if="!review.causes.length" class="subtle-empty cause-empty">No cause text is available for this review.</div>
-      <footer class="review-card-footer"><span>{{ review.status === "PENDING" ? "Confirm after the playbook has been reconsidered." : "This Review needs the deferred resolution workflow." }}</span><button class="button button-primary" type="button" :disabled="review.status !== 'PENDING' || !!actionBusy" @click="emit('confirm', review)">{{ actionBusy === `review-${review.review}` ? "Confirming…" : "Confirm review" }} <span aria-hidden="true">✓</span></button></footer>
+      <footer class="review-card-footer">
+        <span v-if="review.status === 'PENDING'">Confirm it as current, or require edits before completion.</span>
+        <span v-else>Update the affected active playbook, then resolve this review.</span>
+        <div class="review-actions">
+          <template v-if="review.status === 'PENDING'">
+            <button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('requireChanges', review)">{{ actionBusy === `require-${review.review}` ? "Updating…" : "Require changes" }}</button>
+            <button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('confirm', review)">{{ actionBusy === `confirm-${review.review}` ? "Confirming…" : "Confirm correct" }} <span aria-hidden="true">✓</span></button>
+          </template>
+          <template v-else>
+            <button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('editPlaybook', review.procedure)">Edit playbook</button>
+            <button class="button button-primary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('resolve', review)">{{ actionBusy === `resolve-${review.review}` ? "Resolving…" : "Resolve review" }} <span aria-hidden="true">✓</span></button>
+          </template>
+          <button class="text-button danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">{{ actionBusy === `cancel-${review.review}` ? "Cancelling…" : "Cancel review" }}</button>
+        </div>
+      </footer>
     </article>
   </div>
-  <section v-if="completedReviews.length" class="panel completed-history">
-    <div class="panel-heading"><div><p class="eyebrow">CLOSED THE LOOP</p><h2>Completed reviews</h2></div><span class="badge badge-complete">{{ completedReviews.length }} complete</span></div>
-    <article v-for="review in completedReviews" :key="review.review" class="completed-review">
-      <div class="completed-review-heading"><div><strong>{{ review.title }}</strong><small>{{ review.causes.length }} {{ review.causes.length === 1 ? "cause reviewed" : "causes reviewed" }}</small></div><span class="badge badge-complete">Complete</span></div>
+  <section v-if="finishedReviews.length" class="panel completed-history">
+    <div class="panel-heading"><div><p class="eyebrow">PRESERVED HISTORY</p><h2>Finished reviews</h2></div><span class="badge badge-complete">{{ finishedReviews.length }} finished</span></div>
+    <article v-for="review in finishedReviews" :key="review.review" class="completed-review">
+      <div class="completed-review-heading"><div><strong>{{ review.title }}</strong><small>{{ review.causes.length }} {{ review.causes.length === 1 ? "cause preserved" : "causes preserved" }}</small></div><span class="badge" :class="review.status === 'COMPLETE' ? 'badge-complete' : 'badge-cancelled'">{{ review.status === "COMPLETE" ? "Complete" : "Cancelled" }}</span></div>
       <div v-for="cause in review.causes" :key="cause.cause" class="completed-cause"><span>{{ cause.before }}</span><span aria-hidden="true">→</span><strong>{{ cause.after }}</strong></div>
     </article>
   </section>
