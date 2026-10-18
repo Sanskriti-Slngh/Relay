@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import type { ContextNote, Procedure, Step, StepQuestion } from "../api.ts";
+import type { ContextNote, PendingReview, Procedure, Step, StepQuestion } from "../api.ts";
 
-const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; focusProcedure?: string }>();
+const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; canEditContext: boolean; focusProcedure?: string; focusContextStep?: string; review?: PendingReview }>();
 const emit = defineEmits<{
   create: [payload: { title: string; onSuccess: () => void }];
   addStep: [payload: { procedure: Procedure; text: string; onSuccess: () => void }];
@@ -11,7 +11,10 @@ const emit = defineEmits<{
   moveStep: [payload: { procedure: Procedure; step: Step; position: number }];
   removeStep: [payload: { procedure: Procedure; step: Step }];
   askQuestion: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
+  attachContext: [payload: { note: ContextNote; procedure: Procedure; step: Step; onSuccess: () => void }];
+  recordContext: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
   archive: [procedure: Procedure];
+  returnToReview: [];
 }>();
 
 const procedureTitle = ref("");
@@ -23,6 +26,10 @@ const titleDraft = reactive<Record<string, string>>({});
 const stepEditDraft = reactive<Record<string, string>>({});
 const questionDraft = reactive<Record<string, string>>({});
 const questionComposer = reactive<Record<string, boolean>>({});
+const contextComposer = reactive<Record<string, boolean>>({});
+const contextMode = reactive<Record<string, "existing" | "new">>({});
+const contextSelection = reactive<Record<string, string>>({});
+const contextDraft = reactive<Record<string, string>>({});
 const editingTitle = ref("");
 const editingStep = ref("");
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
@@ -38,13 +45,21 @@ watch(() => props.focusProcedure, (procedure) => {
   if (procedure && activeProcedures.value.some(({ procedure: id }) => id === procedure)) selectedProcedureId.value = procedure;
 }, { immediate: true });
 
+watch(() => props.focusContextStep, (step) => {
+  if (!step) return;
+  contextComposer[step] = true;
+  contextMode[step] = "new";
+}, { immediate: true });
+
 function selectProcedure(procedure: Procedure) {
   selectedProcedureId.value = procedure.procedure;
   editingTitle.value = "";
   editingStep.value = "";
   showAddStep.value = false;
 }
-function notesForProcedure(procedureId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId)); }
+function notesForProcedure(procedureId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId && !attachment.anchor)); }
+function notesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
+function availableNotesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => !note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
 function questionsForStep(step: string) { return props.stepQuestions.filter((question) => question.step === step); }
 function createProcedure() {
   const title = procedureTitle.value.trim(); if (!title) return;
@@ -67,6 +82,20 @@ function editStep(procedure: Procedure, step: Step) {
 function askQuestion(procedure: Procedure, step: Step) {
   const text = (questionDraft[step.step] ?? "").trim(); if (!text) return;
   emit("askQuestion", { procedure, step, text, onSuccess: () => { questionDraft[step.step] = ""; questionComposer[step.step] = false; } });
+}
+function openContext(step: Step) {
+  contextComposer[step.step] = !contextComposer[step.step];
+  if (contextComposer[step.step]) contextMode[step.step] ??= props.contexts.length ? "existing" : "new";
+}
+function attachExistingContext(procedure: Procedure, step: Step) {
+  const id = contextSelection[step.step] ?? "";
+  const note = props.contexts.find(({ context }) => context === id);
+  if (!note) return;
+  emit("attachContext", { note, procedure, step, onSuccess: () => { contextSelection[step.step] = ""; } });
+}
+function recordStepContext(procedure: Procedure, step: Step) {
+  const text = (contextDraft[step.step] ?? "").trim(); if (!text) return;
+  emit("recordContext", { procedure, step, text, onSuccess: () => { contextDraft[step.step] = ""; } });
 }
 </script>
 
@@ -95,6 +124,11 @@ function askQuestion(procedure: Procedure, step: Step) {
     </aside>
 
     <article v-if="selectedProcedure" class="playbook-document">
+      <aside v-if="review?.procedure === selectedProcedure.procedure" class="review-edit-context" aria-label="Review context">
+        <div><strong>Editing for review</strong><p>{{ review.causes.length }} {{ review.causes.length === 1 ? "context change affects" : "context changes affect" }} this playbook.</p></div>
+        <button class="button button-small button-secondary" type="button" @click="emit('returnToReview')">Back to review</button>
+        <div class="review-edit-causes"><p v-for="cause in review.causes" :key="cause.cause"><span>Context now says</span>{{ cause.after }}</p></div>
+      </aside>
       <header class="document-header">
         <div class="document-title">
           <form v-if="canEdit && editingTitle === selectedProcedure.procedure" class="title-edit-form" @submit.prevent="renameProcedure(selectedProcedure)">
@@ -114,8 +148,18 @@ function askQuestion(procedure: Procedure, step: Step) {
             </form>
             <template v-else>
               <p class="step-text">{{ step.text }}</p>
-              <div class="step-tools"><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">Questions{{ questionsForStep(step.step).length ? ` (${questionsForStep(step.step).length})` : "" }}</button><details v-if="canEdit" class="action-menu step-menu"><summary :aria-label="`Actions for step ${step.position}`">Actions</summary><div><button type="button" :disabled="!!actionBusy || step.position === 1" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position - 1 })">Move up</button><button type="button" :disabled="!!actionBusy || step.position === selectedProcedure.steps.length" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position + 1 })">Move down</button><button type="button" :disabled="!!actionBusy" @click="beginEditStep(step)">Edit step</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeStep', { procedure: selectedProcedure, step })">Remove step</button></div></details></div>
+              <div class="step-tools"><button v-if="canEditContext || notesForStep(selectedProcedure.procedure, step.step).length" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">Context{{ notesForStep(selectedProcedure.procedure, step.step).length ? ` (${notesForStep(selectedProcedure.procedure, step.step).length})` : "" }}</button><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">Questions{{ questionsForStep(step.step).length ? ` (${questionsForStep(step.step).length})` : "" }}</button><details v-if="canEdit" class="action-menu step-menu"><summary :aria-label="`Actions for step ${step.position}`">Actions</summary><div><button type="button" :disabled="!!actionBusy || step.position === 1" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position - 1 })">Move up</button><button type="button" :disabled="!!actionBusy || step.position === selectedProcedure.steps.length" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position + 1 })">Move down</button><button type="button" :disabled="!!actionBusy" @click="beginEditStep(step)">Edit step</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeStep', { procedure: selectedProcedure, step })">Remove step</button></div></details></div>
             </template>
+            <section v-if="contextComposer[step.step]" class="inline-disclosure step-context-disclosure" :aria-label="`Context for step ${step.position}`">
+              <div v-if="notesForStep(selectedProcedure.procedure, step.step).length" class="step-context-list"><blockquote v-for="note in notesForStep(selectedProcedure.procedure, step.step)" :key="note.context">{{ note.text }}</blockquote></div>
+              <div v-else class="inline-empty-note">No context attached.</div>
+              <div v-if="canEditContext" class="context-connect">
+                <div class="context-mode" role="group" :aria-label="`Add context to step ${step.position}`"><button type="button" :class="{ active: contextMode[step.step] !== 'new' }" @click="contextMode[step.step] = 'existing'">Use existing</button><button type="button" :class="{ active: contextMode[step.step] === 'new' }" @click="contextMode[step.step] = 'new'">Write new</button></div>
+                <form v-if="contextMode[step.step] !== 'new'" class="context-connect-form" @submit.prevent="attachExistingContext(selectedProcedure, step)"><label class="sr-only" :for="`context-for-${step.step}`">Choose existing context</label><select :id="`context-for-${step.step}`" v-model="contextSelection[step.step]" required><option value="" disabled>Choose a note…</option><option v-for="note in availableNotesForStep(selectedProcedure.procedure, step.step)" :key="note.context" :value="note.context">{{ note.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !contextSelection[step.step]">{{ actionBusy === `attach-step-${step.step}` ? "Attaching…" : "Attach" }}</button></form>
+                <form v-else class="context-connect-form context-connect-new" @submit.prevent="recordStepContext(selectedProcedure, step)"><label :for="`new-context-${step.step}`">Why does this step matter? <span class="context-optional">Optional</span></label><textarea :id="`new-context-${step.step}`" v-model="contextDraft[step.step]" placeholder="Add a decision, constraint, or useful explanation…" required maxlength="4000" rows="2"></textarea><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(contextDraft[step.step] ?? '').trim()">{{ actionBusy === `record-step-context-${step.step}` ? "Saving…" : "Save and attach" }}</button></form>
+                <p v-if="contextMode[step.step] !== 'new' && !availableNotesForStep(selectedProcedure.procedure, step.step).length" class="form-guidance">No other notes are available. Write a new one instead.</p>
+              </div>
+            </section>
             <section v-if="questionComposer[step.step]" class="inline-disclosure" :aria-label="`Questions about step ${step.position}`">
               <div v-if="questionsForStep(step.step).length" class="subject-question-list"><article v-for="question in questionsForStep(step.step)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>
               <form class="question-form" @submit.prevent="askQuestion(selectedProcedure, step)"><label :for="`question-${step.step}`">Ask about this step</label><div class="form-row"><input :id="`question-${step.step}`" v-model="questionDraft[step.step]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(questionDraft[step.step] ?? '').trim()">{{ actionBusy === `ask-step-${step.step}` ? "Sending…" : "Ask" }}</button></div></form>

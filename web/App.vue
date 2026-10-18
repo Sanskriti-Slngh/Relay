@@ -13,6 +13,8 @@ type Section = "overview" | "procedures" | "context" | "reviews" | "questions" |
 const api = createRelayApi();
 const section = ref<Section>("overview");
 const focusedProcedure = ref("");
+const focusedContextStep = ref("");
+const focusedReviewId = ref("");
 const authenticated = ref(false);
 const sessionChecked = ref(false);
 const workspace = ref("");
@@ -53,6 +55,7 @@ const canEditContext = computed(() => permissions.value.includes("EDIT_CONTEXT")
 const canReview = computed(() => permissions.value.includes("COMPLETE_REVIEW"));
 const canAnswer = computed(() => permissions.value.includes("ANSWER_QUESTION"));
 const hasWorkspace = computed(() => !!workspace.value);
+const focusedReview = computed(() => reviews.value.find(({ review }) => review === focusedReviewId.value));
 const navigation: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "procedures", label: "Playbooks" },
@@ -64,8 +67,19 @@ const navigation: { id: Section; label: string }[] = [
 
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
 
+function navigate(target: { section: Section; procedure?: string }) {
+  clearMessages();
+  focusedProcedure.value = target.procedure ?? "";
+  focusedContextStep.value = "";
+  focusedReviewId.value = "";
+  section.value = target.section;
+}
+
 function clearWorkspaceState() {
   refreshSequence += 1;
+  focusedProcedure.value = "";
+  focusedContextStep.value = "";
+  focusedReviewId.value = "";
   authenticated.value = false;
   csrfToken.value = "";
   workspace.value = "";
@@ -150,6 +164,9 @@ async function acceptSession(session: SessionState) {
   role.value = session.role ?? "";
   permissions.value = session.permissions ?? [];
   workspaces.value = session.workspaces ?? [];
+  focusedProcedure.value = "";
+  focusedContextStep.value = "";
+  focusedReviewId.value = "";
   section.value = "overview";
   if (authenticated.value && workspace.value) await refreshData();
 }
@@ -195,11 +212,20 @@ async function signOut() {
 }
 
 async function createProcedure({ title, onSuccess }: { title: string; onSuccess: () => void }) {
-  await runAction("create-procedure", async () => { await api.createProcedure(title, csrfToken.value); onSuccess(); section.value = "procedures"; }, "Playbook created.");
+  await runAction("create-procedure", async () => {
+    const created = await api.createProcedure(title, csrfToken.value);
+    focusedProcedure.value = created.procedure;
+    onSuccess();
+    section.value = "procedures";
+  }, "Playbook created.");
 }
 
 async function addStep({ procedure, text, onSuccess }: { procedure: Procedure; text: string; onSuccess: () => void }) {
-  await runAction(`step-${procedure.procedure}`, async () => { await api.addStep(procedure.procedure, text, csrfToken.value); onSuccess(); }, "Step added to the playbook.");
+  await runAction(`step-${procedure.procedure}`, async () => {
+    const createdStep = await api.addStep(procedure.procedure, text, csrfToken.value);
+    if (!procedure.steps.length) focusedContextStep.value = createdStep.step;
+    onSuccess();
+  }, "Step added.");
 }
 
 async function renameProcedure({ procedure, title, onSuccess }: { procedure: Procedure; title: string; onSuccess: () => void }) {
@@ -236,17 +262,30 @@ async function attachContext({ note, procedure, step, onSuccess }: { note: Conte
   }, "Context note attached.");
 }
 
+async function attachStepContext({ note, procedure, step, onSuccess }: { note: ContextNote; procedure: Procedure; step: Procedure["steps"][number]; onSuccess: () => void }) {
+  await runAction(`attach-step-${step.step}`, async () => {
+    await api.attachContextNoteAtStep(note.context, procedure.procedure, step.step, csrfToken.value);
+    onSuccess();
+  }, "Context attached to the step.");
+}
+
+async function recordStepContext({ procedure, step, text, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void }) {
+  await runAction(`record-step-context-${step.step}`, async () => {
+    const created = await api.recordContextNote(text, csrfToken.value);
+    await api.attachContextNoteAtStep(created.context, procedure.procedure, step.step, csrfToken.value);
+    onSuccess();
+  }, "Context saved with the step.");
+}
+
 async function correctContext({ note, text, onSuccess }: { note: ContextNote; text: string; onSuccess: () => void }) {
   await runAction(`correct-${note.context}`, async () => { await api.correctContextNote(note.context, text, csrfToken.value); onSuccess(); }, "Wording corrected. No review was created.");
 }
 
 async function changeContext({ note, text, onSuccess }: { note: ContextNote; text: string; onSuccess: () => void }) {
-  if (!window.confirm("Record this as a meaningful change? Attached active playbooks may receive a review.")) return;
   await runAction(`change-${note.context}`, async () => { await api.changeContextNote(note.context, text, csrfToken.value); onSuccess(); }, "Meaningful change recorded; affected review state has been refreshed.");
 }
 
 async function confirmReview(review: PendingReview) {
-  if (!window.confirm(`Confirm that "${review.title}" has been reviewed?`)) return;
   await runAction(`confirm-${review.review}`, async () => { await api.confirmReview(review.review, review.procedure, csrfToken.value); }, "Review confirmed as correct.");
 }
 
@@ -255,7 +294,6 @@ async function requireReviewChanges(review: PendingReview) {
 }
 
 async function resolveReview(review: PendingReview) {
-  if (!window.confirm(`Resolve the review for "${review.title}" after completing the needed edits?`)) return;
   await runAction(`resolve-${review.review}`, async () => { await api.resolveReview(review.review, review.procedure, csrfToken.value); }, "Review resolved. Its causes remain in review history.");
 }
 
@@ -264,11 +302,17 @@ async function cancelReview(review: PendingReview) {
   await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, csrfToken.value); }, "Review cancelled. Its causes remain in review history.");
 }
 
-function editReviewedPlaybook(procedure: string) {
+function editReviewedPlaybook(review: PendingReview) {
   clearMessages();
-  focusedProcedure.value = procedure;
-  successMessage.value = "Edit the affected playbook below, then return to Reviews to resolve it.";
+  focusedProcedure.value = review.procedure;
+  focusedReviewId.value = review.review;
   section.value = "procedures";
+}
+
+function returnToReview() {
+  clearMessages();
+  focusedProcedure.value = "";
+  section.value = "reviews";
 }
 
 async function askStepQuestion({ procedure, step, text, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void }) {
@@ -354,11 +398,11 @@ onUnmounted(() => {
     </section>
     <div v-else class="workspace-layout">
       <aside class="sidebar">
-        <a class="brand-lockup sidebar-brand" href="#" @click.prevent="section = 'overview'"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></a>
+        <a class="brand-lockup sidebar-brand" href="#" @click.prevent="navigate({ section: 'overview' })"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></a>
         <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
         <select v-if="workspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value)"><option v-for="club in workspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
-          <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="focusedProcedure = ''; section = item.id">
+          <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
             <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
           </button>
         </nav>
@@ -372,10 +416,10 @@ onUnmounted(() => {
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
-          <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="focusedProcedure = ''; section = $event" />
-          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :focus-procedure="focusedProcedure" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @archive="archiveProcedure" />
+          <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
+          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
-          <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="section = 'context'" />
+          <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />
           <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
           <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @select="selectClub" />
         </div>
