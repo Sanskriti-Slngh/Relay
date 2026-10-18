@@ -1,6 +1,5 @@
 import {
   MongoServerError,
-  type ClientSession,
   type Collection,
   type Db,
   type Document,
@@ -8,6 +7,7 @@ import {
   type MongoClient,
 } from "mongodb";
 import { connectToDatabase, db, mongoClient } from "../db.ts";
+import { runAtomically, type OptionalMongoSession } from "../mongoAtomic.ts";
 
 type ContextNoteDocument = Document & {
   _id: string;
@@ -82,21 +82,10 @@ async function ensureStorage(storage: ContextTrackingStorage): Promise<void> {
 
 async function inTransaction<T>(
   storage: ContextTrackingStorage,
-  work: (session: ClientSession) => Promise<T>,
+  work: (session: OptionalMongoSession) => Promise<T>,
 ): Promise<T> {
   await ensureStorage(storage);
-  const session = storage.mongoClient.startSession();
-  try {
-    const result = await session.withTransaction(async () => ({
-      value: await work(session),
-    }));
-    if (result === undefined) {
-      throw new Error("MongoDB transaction completed without a result.");
-    }
-    return result.value;
-  } finally {
-    await session.endSession();
-  }
+  return runAtomically(storage.db, storage.mongoClient, work);
 }
 
 function isAttachmentUniquenessViolation(error: unknown): boolean {

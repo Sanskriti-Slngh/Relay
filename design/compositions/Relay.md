@@ -46,6 +46,14 @@ Permission, Assignment, User, or selected workspace as authority: the host
 loads both User and selected workspace from the server-side session and
 replaces any forged body fields before invoking the composition.
 
+Concept actions that need several guarded MongoDB operations use transactions
+when connected to a replica set. The 6.1040 Apps database is a standalone
+MongoDB server, so the same actions are serialized inside its single Relay
+process and retain their conditional updates and uniqueness constraints without
+requesting unsupported transaction numbers. This is a persistence adapter
+choice; concept actions and composition reactions have the same contract on
+both topologies.
+
 ## Procedures
 
 An officer creates Procedures and adds their ordered Steps through authorized

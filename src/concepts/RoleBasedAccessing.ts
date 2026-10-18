@@ -1,12 +1,12 @@
 import {
   MongoServerError,
-  type ClientSession,
   type Collection,
   type Db,
   type Document,
   type MongoClient,
 } from "mongodb";
 import { connectToDatabase, db, mongoClient } from "../db.ts";
+import { runAtomically, type OptionalMongoSession } from "../mongoAtomic.ts";
 
 type RoleDocument = Document & {
   _id: string;
@@ -74,21 +74,10 @@ async function ensureStorage(storage: RoleBasedAccessingStorage): Promise<void> 
 
 async function inTransaction<T>(
   storage: RoleBasedAccessingStorage,
-  work: (session: ClientSession) => Promise<T>,
+  work: (session: OptionalMongoSession) => Promise<T>,
 ): Promise<T> {
   await ensureStorage(storage);
-  const session = storage.mongoClient.startSession();
-  try {
-    const result = await session.withTransaction(async () => ({
-      value: await work(session),
-    }));
-    if (result === undefined) {
-      throw new Error("MongoDB transaction completed without a result.");
-    }
-    return result.value;
-  } finally {
-    await session.endSession();
-  }
+  return runAtomically(storage.db, storage.mongoClient, work);
 }
 
 function isUniqueIndexViolation(error: unknown, keys: string[]): boolean {
@@ -100,7 +89,7 @@ function isUniqueIndexViolation(error: unknown, keys: string[]): boolean {
 async function lockRole(
   storage: RoleBasedAccessingStorage,
   role: string,
-  session: ClientSession,
+  session: OptionalMongoSession,
 ): Promise<RoleDocument | null> {
   return storage.roles.findOneAndUpdate(
     { _id: role },
@@ -165,16 +154,21 @@ export class RoleBasedAccessingConcept {
     role: string;
     permission: string;
   }): Promise<Record<string, never>> {
-    await ensureStorage(this.storage);
-    const result = await this.storage.roles.updateOne(
-      { _id: role, permissions: { $ne: permission } },
-      { $addToSet: { permissions: permission }, $inc: { coordinationVersion: 1 } },
-    );
-    if (result.matchedCount === 1) return {};
+    return inTransaction(this.storage, async (session) => {
+      const result = await this.storage.roles.updateOne(
+        { _id: role, permissions: { $ne: permission } },
+        { $addToSet: { permissions: permission }, $inc: { coordinationVersion: 1 } },
+        { session },
+      );
+      if (result.matchedCount === 1) return {};
 
-    const found = await this.storage.roles.findOne({ _id: role }, { projection: { _id: 1 } });
-    if (found === null) throw new RoleNotFound("There is no such Role.");
-    throw new PermissionAlreadyGranted("The Role already has that Permission.");
+      const found = await this.storage.roles.findOne(
+        { _id: role },
+        { session, projection: { _id: 1 } },
+      );
+      if (found === null) throw new RoleNotFound("There is no such Role.");
+      throw new PermissionAlreadyGranted("The Role already has that Permission.");
+    });
   }
 
   async revokePermission({
@@ -184,29 +178,34 @@ export class RoleBasedAccessingConcept {
     role: string;
     permission: string;
   }): Promise<Record<string, never>> {
-    await ensureStorage(this.storage);
-    const result = await this.storage.roles.updateOne(
-      { _id: role, permissions: permission },
-      [
-        {
-          $set: {
-            permissions: {
-              $filter: {
-                input: "$permissions",
-                as: "existingPermission",
-                cond: { $ne: ["$$existingPermission", permission] },
+    return inTransaction(this.storage, async (session) => {
+      const result = await this.storage.roles.updateOne(
+        { _id: role, permissions: permission },
+        [
+          {
+            $set: {
+              permissions: {
+                $filter: {
+                  input: "$permissions",
+                  as: "existingPermission",
+                  cond: { $ne: ["$$existingPermission", permission] },
+                },
               },
+              coordinationVersion: { $add: ["$coordinationVersion", 1] },
             },
-            coordinationVersion: { $add: ["$coordinationVersion", 1] },
           },
-        },
-      ],
-    );
-    if (result.matchedCount === 1) return {};
+        ],
+        { session },
+      );
+      if (result.matchedCount === 1) return {};
 
-    const found = await this.storage.roles.findOne({ _id: role }, { projection: { _id: 1 } });
-    if (found === null) throw new RoleNotFound("There is no such Role.");
-    throw new PermissionNotGranted("The Role does not have that Permission.");
+      const found = await this.storage.roles.findOne(
+        { _id: role },
+        { session, projection: { _id: 1 } },
+      );
+      if (found === null) throw new RoleNotFound("There is no such Role.");
+      throw new PermissionNotGranted("The Role does not have that Permission.");
+    });
   }
 
   async assign({

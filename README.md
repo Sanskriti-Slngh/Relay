@@ -152,3 +152,9 @@ branch and exact commit on the deployment screen, then deploy. `/health`
 returns 200 only after the process has connected to MongoDB and a live ping
 succeeds. Locally, `bun run preview` builds and starts the same production
 host using the private `.env` configuration.
+
+Relay detects whether MongoDB is a replica set. It uses database transactions
+when they are available and serializes guarded multi-operation actions in the
+single application process when running against the standalone MongoDB supplied
+by 6.1040 Apps. Both modes retain the concepts' conditional-write and unique-
+index checks.
