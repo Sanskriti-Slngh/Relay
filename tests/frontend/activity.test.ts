@@ -38,6 +38,10 @@ describe("Overview activity presentation", () => {
       .toBe("Maya resolved a review for Book Rehearsal Space");
     expect(activityDescription({ ...baseEvent, type: "QUESTION_ANSWERED" }))
       .toBe("Maya answered a question in Book Rehearsal Space");
+    expect(activityDescription({ ...baseEvent, type: "MEMBER_PROMOTED", targetName: "Alex", targetRole: "Officer" }))
+      .toBe("Maya made Alex an Officer");
+    expect(activityDescription({ ...baseEvent, type: "OWNERSHIP_TRANSFERRED", targetName: "Alex", targetRole: "Owner" }))
+      .toBe("Maya transferred ownership to Alex");
   });
 
   test("formats compact relative times from server timestamps", () => {

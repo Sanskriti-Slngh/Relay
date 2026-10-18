@@ -4,6 +4,7 @@ import { RoleBasedAccessingConcept } from "../../src/concepts/RoleBasedAccessing
 import { validateHostConfig } from "../../src/host/config.ts";
 import {
   OfficerProvisioningConflict,
+  provisionApplicationRoles,
   provisionOfficer,
 } from "../../src/host/provision.ts";
 
@@ -79,6 +80,17 @@ describe("host Officer provisioning", () => {
         resource: hostConfig.clubWorkspaceId,
         role: result.role,
       },
+    ]);
+  });
+
+  test("provisions Owner with Officer permissions and Member with ask-only permission", async () => {
+    const roles = await provisionApplicationRoles(roleAccess);
+    expect(await roleAccess._getRole({ role: roles.ownerRole })).toEqual([{ name: "Owner" }]);
+    expect(await roleAccess._permissions({ role: roles.ownerRole })).toEqual(
+      await roleAccess._permissions({ role: roles.officerRole }),
+    );
+    expect(await roleAccess._permissions({ role: roles.memberRole })).toEqual([
+      { permission: "ASK_QUESTION" },
     ]);
   });
 

@@ -13,12 +13,16 @@ describe("Relay browser API client", () => {
     await api.createWorkspace("Robotics", "csrf");
     await api.selectWorkspace("workspace-id", "csrf");
     await api.workspaceMembers("csrf");
+    await api.claimOwnership("csrf");
+    await api.changeMemberRole("member-id", "Officer", "csrf");
+    await api.removeMember("member-id", "csrf");
+    await api.transferOwnership("member-id", "Member", "csrf");
     await api.recentActivity("csrf");
     await api.pendingInvitations("csrf");
     await api.createInvitation("invitee@example.org", "csrf");
     await api.reissueInvitation("invitation-id", "csrf");
     await api.acceptInvitation("invite-token", "csrf");
-    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/members", "/workspaces/activity", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
+    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/members", "/workspaces/ownership/claim", "/workspaces/members/role", "/workspaces/members/remove", "/workspaces/ownership/transfer", "/workspaces/activity", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
     for (const { init } of calls) expect(init?.body).not.toContain('"user"');
     for (const { init } of calls.slice(2)) expect(new Headers(init?.headers).get("X-Relay-CSRF")).toBe("csrf");
   });
@@ -45,6 +49,21 @@ describe("Relay browser API client", () => {
     expect(calls[0].init?.credentials).toBe("same-origin");
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({ credential });
     expect(calls[0].init?.headers).toEqual({ "Content-Type": "application/json" });
+  });
+
+  test("sends logout as explicit empty JSON so development proxies cannot create an ambiguous empty stream", async () => {
+    const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
+    const api = createRelayApi(async (input, init) => {
+      calls.push({ input, init });
+      return Response.json({ authenticated: false });
+    });
+
+    await api.logout("csrf");
+
+    expect(calls[0].input).toBe("/session/logout");
+    expect(new Headers(calls[0].init?.headers).get("content-type")).toBe("application/json");
+    expect(new Headers(calls[0].init?.headers).get("x-relay-csrf")).toBe("csrf");
+    expect(calls[0].init?.body).toBe("{}");
   });
 
   test("sends a CSRF token and no caller-controlled identity on composition operations", async () => {

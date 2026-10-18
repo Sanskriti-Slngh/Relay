@@ -9,10 +9,13 @@ import {
   AccountStore,
   InvalidCredentials,
   InvitationUnavailable,
+  MembershipConflict,
   NotAuthorized,
+  OwnershipRequired,
   WorkspaceUnavailable,
   type AuthenticatedSession,
   type ActivityEventType,
+  type ApplicationRoles,
 } from "./accounts.ts";
 
 const COOKIE = "relay_session";
@@ -103,7 +106,7 @@ export function createMultiUserRelayHttpHandler(
   application: Parameters<typeof createHttpHandler>[0]["application"],
   accounts: AccountStore,
   config: DeploymentHostConfig,
-  roles: { officerRole: string; memberRole: string },
+  roles: ApplicationRoles,
 ) {
   const gateway = createGateway({ application });
   const conceptHandler = createHttpHandler({
@@ -192,7 +195,7 @@ export function createMultiUserRelayHttpHandler(
     if (!equalSecret(session.csrfToken, request.headers.get("x-relay-csrf"))) return errorResponse(403, "CSRF_REJECTED");
 
     if (pathname === "/session/logout") {
-      if (request.body !== null) { await request.body.cancel(); return errorResponse(400, "INVALID_INPUT"); }
+      if (request.body !== null) await request.body.cancel();
       await accounts.logout(session.idHash);
       return response(200, { authenticated: false }, { "Set-Cookie": cookie("", config.secureCookies, 0) });
     }
@@ -202,7 +205,7 @@ export function createMultiUserRelayHttpHandler(
       if (pathname === "/workspaces") return response(200, { workspaces: await accounts.memberships(session.user) });
       if (pathname === "/workspaces/create") {
         const values = strings(body, ["name"]); if (!values) return errorResponse(400, "INVALID_INPUT");
-        const created = await accounts.createWorkspace(session.user, values[0], roles.officerRole);
+        const created = await accounts.createWorkspace(session.user, values[0], roles);
         await accounts.selectWorkspace(session, created.workspace);
         const refreshed = await accounts.authenticate(tokenOf(request)!);
         return response(200, { ...created, ...(refreshed ? await sessionPayload(refreshed) : {}) });
@@ -216,6 +219,31 @@ export function createMultiUserRelayHttpHandler(
       if (pathname === "/workspaces/members") {
         if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
         return response(200, { members: await accounts.workspaceMembers(session.user, session.workspace) });
+      }
+      if (pathname === "/workspaces/ownership/claim") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        await accounts.claimLegacyOwnership(session.user, session.workspace, roles);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
+      }
+      if (pathname === "/workspaces/members/role") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const values = strings(body, ["targetUser", "role"]); if (!values || (values[1] !== "Officer" && values[1] !== "Member")) return errorResponse(400, "INVALID_INPUT");
+        await accounts.changeMemberRole(session.user, session.workspace, values[0], values[1], roles);
+        return response(200, { changed: true });
+      }
+      if (pathname === "/workspaces/members/remove") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const values = strings(body, ["targetUser"]); if (!values) return errorResponse(400, "INVALID_INPUT");
+        await accounts.removeMember(session.user, session.workspace, values[0]);
+        return response(200, { removed: true });
+      }
+      if (pathname === "/workspaces/ownership/transfer") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const values = strings(body, ["targetUser", "formerOwnerRole"]); if (!values || (values[1] !== "Officer" && values[1] !== "Member")) return errorResponse(400, "INVALID_INPUT");
+        await accounts.transferOwnership(session.user, session.workspace, values[0], values[1], roles);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
       }
       if (pathname === "/workspaces/activity") {
         if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
@@ -376,6 +404,8 @@ export function createMultiUserRelayHttpHandler(
     } catch (error) {
       if (error instanceof WorkspaceUnavailable || error instanceof InvitationUnavailable) return errorResponse(404, error instanceof InvitationUnavailable ? "INVITATION_NOT_AVAILABLE" : "WORKSPACE_NOT_AVAILABLE");
       if (error instanceof NotAuthorized) return errorResponse(403, "FORBIDDEN");
+      if (error instanceof MembershipConflict) return errorResponse(409, "MEMBERSHIP_CONFLICT");
+      if (error instanceof OwnershipRequired) return errorResponse(409, "OWNERSHIP_REQUIRED");
       if (error instanceof AccountInputError) return errorResponse(400, "INVALID_INPUT");
       throw error;
     }

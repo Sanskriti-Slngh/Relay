@@ -624,6 +624,29 @@ If attachment fails, the standalone creation remains; attaching an older Note
 creates a separate event. The projection is still durable but non-atomic with
 the concept mutation, so it remains an awareness aid rather than an audit log.
 
+## Explicit workspace ownership — October 18
+
+I extended the existing RoleBasedAccessing integration with three effective
+workspace roles instead of adding an administration concept. Owner and Officer
+share the same domain permissions; the workspace record separately identifies
+the one authoritative Owner. This keeps Playbook, Context, Question, and Review
+authorization unchanged while making membership powers precise.
+
+Role transitions and ownership transfer run through the same topology-aware
+atomic path as the concepts. On a replica set they share a MongoDB transaction;
+on the class platform's standalone MongoDB they are serialized within the one
+Relay process and retain conditional writes. Removal also clears the revoked
+member's selected workspace and invalidates matching open invitations, so an
+existing session or old code cannot restore access.
+
+There is no trustworthy way to infer who created a workspace that predates the
+owner field. Relay therefore leaves such a workspace visibly unclaimed until
+an authenticated existing Officer explicitly claims it. A conditional update
+makes concurrent claims converge on one Owner. This is an intentional migration
+state rather than fabricated ownership history. As with the rest of the
+standalone fallback, serialization is process-local; a future multi-instance
+deployment would require a transaction-capable MongoDB topology.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

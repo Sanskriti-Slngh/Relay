@@ -9,6 +9,12 @@ export function activityProcedureTarget(event: ActivityEvent): string | undefine
 export function activityDescription(event: ActivityEvent): string {
   const title = event.procedureTitle ?? "a playbook";
   const step = event.stepPosition ? `Step ${event.stepPosition}` : "a Step";
+  const target = event.targetName ?? "a member";
+  if (event.type === "MEMBER_PROMOTED") return `${event.actorName} made ${target} an Officer`;
+  if (event.type === "OFFICER_DEMOTED") return `${event.actorName} made ${target} a Member`;
+  if (event.type === "MEMBER_REMOVED") return `${event.actorName} removed ${target} from the workspace`;
+  if (event.type === "OWNERSHIP_CLAIMED") return `${event.actorName} became the workspace Owner`;
+  if (event.type === "OWNERSHIP_TRANSFERRED") return `${event.actorName} transferred ownership to ${target}`;
   if (event.type === "PLAYBOOK_CREATED") return `${event.actorName} created ${title}`;
   if (event.type === "PLAYBOOK_RENAMED") return `${event.actorName} renamed a playbook to ${title}`;
   if (event.type === "PLAYBOOK_ARCHIVED") return `${event.actorName} archived ${title}`;

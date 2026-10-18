@@ -61,6 +61,7 @@ const canEditContext = computed(() => permissions.value.includes("EDIT_CONTEXT")
 const canReview = computed(() => permissions.value.includes("COMPLETE_REVIEW"));
 const canAnswer = computed(() => permissions.value.includes("ANSWER_QUESTION"));
 const hasWorkspace = computed(() => !!workspace.value);
+const ownershipConfigured = computed(() => workspaces.value.find(({ workspace: id }) => id === workspace.value)?.ownershipConfigured ?? false);
 const focusedReview = computed(() => reviews.value.find(({ review }) => review === focusedReviewId.value));
 const navigation: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -129,6 +130,32 @@ async function refreshData(announce = false, background = false): Promise<boolea
     clearMessages();
   }
   try {
+    const latestSession = await api.session();
+    if (sequence !== refreshSequence) return false;
+    if (!latestSession.authenticated) {
+      clearWorkspaceState();
+      return false;
+    }
+    csrfToken.value = latestSession.csrfToken ?? csrfToken.value;
+    currentUser.value = latestSession.user;
+    workspaces.value = latestSession.workspaces ?? [];
+    role.value = latestSession.role ?? "";
+    permissions.value = latestSession.permissions ?? [];
+    workspaceName.value = latestSession.workspaceName ?? "";
+    if (latestSession.workspace !== workspace.value) {
+      workspace.value = latestSession.workspace ?? "";
+      procedures.value = [];
+      contexts.value = [];
+      reviews.value = [];
+      reviewHistory.value = [];
+      stepQuestions.value = [];
+      contextQuestions.value = [];
+      workspaceMembers.value = [];
+      pendingInvitations.value = [];
+      recentActivity.value = [];
+      section.value = "overview";
+      return true;
+    }
     const officerReads = canReview.value
       ? Promise.all([api.pendingReviews(csrfToken.value), api.reviewHistory(csrfToken.value)])
       : Promise.resolve([{ reviews: [] as PendingReview[] }, { procedures: [] as ProcedureReviewHistory[] }] as const);
@@ -241,6 +268,29 @@ async function reissueInvitation(invitation: PendingInvitation) {
     const replacement = await api.reissueInvitation(invitation.invitation, csrfToken.value);
     createdInvite.value = { ...replacement, reissued: true };
   }, "A replacement invitation code was created. The previous code no longer works.");
+}
+
+async function claimOwnership() {
+  if (!window.confirm("Claim ownership of this legacy workspace? You will become its only Owner.")) return;
+  await runAction("claim-ownership", async () => { await acceptSession(await api.claimOwnership(csrfToken.value)); }, "You are now the workspace Owner.");
+}
+
+async function changeMemberRole({ member, role: nextRole }: { member: WorkspaceMember; role: "Officer" | "Member" }) {
+  if (!window.confirm(`${nextRole === "Officer" ? "Promote" : "Demote"} ${member.name} to ${nextRole}?`)) return;
+  await runAction(`role-${member.user}`, async () => { await api.changeMemberRole(member.user, nextRole, csrfToken.value); }, `${member.name} is now ${nextRole}.`);
+}
+
+async function removeWorkspaceMember(member: WorkspaceMember) {
+  if (!window.confirm(`Remove ${member.name} from ${workspaceName.value}? Their access will end immediately.`)) return;
+  await runAction(`remove-member-${member.user}`, async () => { await api.removeMember(member.user, csrfToken.value); }, `${member.name} was removed from the workspace.`);
+}
+
+async function transferOwnership({ member, formerOwnerRole, onSuccess }: { member: WorkspaceMember; formerOwnerRole: "Officer" | "Member"; onSuccess: () => void }) {
+  if (!window.confirm(`Transfer ownership to ${member.name}? You will become ${formerOwnerRole}.`)) return;
+  await runAction("transfer-ownership", async () => {
+    await acceptSession(await api.transferOwnership(member.user, formerOwnerRole, csrfToken.value));
+    onSuccess();
+  }, `Ownership transferred to ${member.name}.`);
 }
 
 async function signOut() {
@@ -431,7 +481,7 @@ onUnmounted(() => {
     <section v-else-if="!hasWorkspace" class="loading-screen onboarding-screen">
       <span class="brand-mark" aria-hidden="true">R</span><h1>Choose a club</h1><p>Create a new club or enter an invitation code.</p>
       <div v-if="workspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in workspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
-      <form class="onboarding-card" @submit.prevent="createClub"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Officer</button></form>
+      <form class="onboarding-card" @submit.prevent="createClub"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Owner</button></form>
       <form class="onboarding-card" @submit.prevent="acceptInvitation"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">Join club</button></form>
       <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
     </section>
@@ -460,7 +510,7 @@ onUnmounted(() => {
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />
           <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
-          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" />
         </div>
       </section>
     </div>

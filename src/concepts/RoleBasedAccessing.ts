@@ -39,6 +39,7 @@ export class AssignmentAlreadyExists extends Error {}
 export class AssignmentNotFound extends Error {}
 export class NotAuthorized extends Error {}
 export class RoleBasedAccessingIntegrityError extends Error {}
+export const hostAssignmentMutation = Symbol("RoleBasedAccessing.hostAssignmentMutation");
 
 async function ensureConnected(storage: RoleBasedAccessingStorage): Promise<void> {
   if (storage.db === db && storage.mongoClient === mongoClient) {
@@ -108,6 +109,38 @@ export class RoleBasedAccessingConcept {
       roles: database.collection<RoleDocument>("roleBasedAccessing_roles"),
       assignments: database.collection<AssignmentDocument>("roleBasedAccessing_assignments"),
     };
+  }
+
+  /**
+   * Host integration for changes that must atomically update workspace metadata and
+   * RoleBasedAccessing assignments. Domain actions continue to use the public
+   * concept API; the host owns membership lifecycle and supplies the same Mongo
+   * session to its workspace collections.
+   */
+  async [hostAssignmentMutation]<T>(
+    work: (context: {
+      session: OptionalMongoSession;
+      assignmentsFor: (user: string, resource: string) => Promise<AssignmentDocument[]>;
+      replaceAssignment: (user: string, resource: string, role: string) => Promise<string>;
+      removeAssignments: (user: string, resource: string) => Promise<void>;
+    }) => Promise<T>,
+  ): Promise<T> {
+    return inTransaction(this.storage, async (session) => work({
+      session,
+      assignmentsFor: (user, resource) => this.storage.assignments
+        .find({ user, resource }, { session }).sort({ _id: 1 }).toArray(),
+      replaceAssignment: async (user, resource, role) => {
+        const foundRole = await this.storage.roles.findOne({ _id: role }, { session });
+        if (foundRole === null) throw new RoleNotFound("There is no such Role.");
+        await this.storage.assignments.deleteMany({ user, resource }, { session });
+        const assignment = crypto.randomUUID();
+        await this.storage.assignments.insertOne({ _id: assignment, user, resource, role }, { session });
+        return assignment;
+      },
+      removeAssignments: async (user, resource) => {
+        await this.storage.assignments.deleteMany({ user, resource }, { session });
+      },
+    }));
   }
 
   async createRole({ name }: { name: string }): Promise<{ role: string }> {

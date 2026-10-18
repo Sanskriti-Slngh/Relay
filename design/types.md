@@ -20,17 +20,19 @@ concrete Command
   An opaque application command passed through authorization unchanged.
 ```
 
-The P3 host provisions the Officer Role with `ASK_QUESTION`,
+The P3 host provisions Owner and Officer Roles with `ASK_QUESTION`,
 `ANSWER_QUESTION`, `EDIT_PROCEDURE`, `EDIT_CONTEXT`, and `COMPLETE_REVIEW`.
 The Member Role has only `ASK_QUESTION`, which also authorizes workspace-scoped
-Procedure, ContextNote, and Question reads. Workspace creators receive Officer;
-accepted invitations receive Member. Relay exposes no public endpoint for
-choosing a Role, granting Permissions, or assigning Users.
+Procedure, ContextNote, and Question reads. Workspace creators receive Owner;
+accepted invitations receive Member. Exactly one host-effective Role is
+required per User and workspace. Owner and Officer transitions are narrow host
+operations, not general-purpose Role or Permission administration.
 
 The host may project existing workspace Role assignments into a roster without
 introducing another concept. Roster reads require membership in the selected
 server-side workspace. Members receive names and Roles; Officers may also see
-email addresses and pending invitation administration. Invitation tokens remain
+email addresses and pending invitation administration. Owner is an authoritative
+field on the workspace record; it cannot be removed or demoted. Invitation tokens remain
 one-time, email-bound, expiring values stored only as SHA-256 hashes.
 
 ```instances

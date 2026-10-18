@@ -32,11 +32,13 @@ P2 recording longer than the P3 two-minute limit and is not submission-ready.
 ## Local development
 
 Relay supports distinct accounts, persistent server-side sessions, multiple
-club workspaces, and invitation-based Member onboarding. RoleBasedAccessing
+club workspaces, and invitation-based Member onboarding. Workspace creators
+become the sole Owner; Owner and Officer domain permissions continue to come
+from RoleBasedAccessing
 authorizes every composition operation using the User and selected workspace
 loaded from the server-side session.
 
-Invitations are email-bound but are not delivered by email. An Officer creates
+Invitations are email-bound but are not delivered by email. An Owner or Officer creates
 a one-time code in Relay and shares it securely with the invited address's
 owner, who must register with that same normalized email before accepting it.
 
@@ -74,7 +76,7 @@ owner, who must register with that same normalized email before accepting it.
    Choose a new name if that database already contains demo data. To use the
    configured URI database instead, run `bun run dev`. Startup validates
    configuration, connects to MongoDB, and creates or verifies the private
-   Officer and Member Roles before opening the API listener. It also starts
+   Owner, Officer, and Member Roles before opening the API listener. It also starts
    Vite on loopback. Open
    [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account and club,
    and follow the workflow below.

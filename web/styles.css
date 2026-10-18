@@ -364,6 +364,14 @@ button.activity-row:hover { background: #f4f6f2; }
 .management-row strong { overflow-wrap: anywhere; font-size: 14px; font-weight: 570; }
 .management-row small { color: var(--quiet); font-size: 12px; }
 .management-row > span { flex: 0 0 auto; color: var(--muted); font-size: 12px; }
+.member-actions { display: flex !important; grid-auto-flow: column; align-items: center; justify-content: end; gap: 8px !important; }
+.member-actions > span { color: var(--muted); font-size: 12px; margin-right: 4px; }
+.danger-text { color: var(--error); }
+.ownership-setup p { margin: 10px 0 18px; }
+.ownership-transfer-form { display: grid; max-width: 520px; gap: 9px; margin-top: 18px; }
+.ownership-transfer-form select { width: 100%; }
+.ownership-transfer-form .confirmation-check { display: flex; align-items: flex-start; gap: 9px; margin: 10px 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.ownership-transfer-form .confirmation-check input { width: auto; margin-top: 2px; }
 .quiet-empty { margin: 13px 0 0 !important; color: var(--quiet) !important; font-size: 13px; }
 .invite-form { margin-top: 22px; }
 .invite-output { display: grid; gap: 5px; margin-top: 22px; border-left: 2px solid var(--complete); padding: 12px 16px; background: var(--complete-bg); }
@@ -430,6 +438,7 @@ button.activity-row:hover { background: #f4f6f2; }
   .editorial-list span { text-align: left; }
   .workspace-identity { align-items: flex-start; }
   .management-row { align-items: flex-start; }
+  .member-actions { grid-auto-flow: row; justify-items: end; }
   .invitation-row { flex-direction: column; gap: 8px; }
   .invite-code-row { align-items: stretch; flex-direction: column; }
   .invite-code-row .button { align-self: flex-start; }
