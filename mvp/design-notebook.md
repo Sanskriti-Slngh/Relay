@@ -519,6 +519,26 @@ map to the same correction/change actions and preserve Review behavior. The
 principle was to remove explanation before removing capability: every workflow
 and historical record remains reachable without relying on hover or tooltips.
 
+## Context in the flow of work — October 18
+
+The next usability pass focused on continuity rather than another visual
+restyle. Relay's model already allowed Context to attach to a stable Step, but
+the interface made an Officer leave the Playbook, create a note, and relocate
+the Step. Context can now be written or reused beside that Step, and first-time
+Step creation offers a quiet optional explanation. These controls call the
+existing ContextTracking record and attach operations; no new concept or
+special attachment type was introduced.
+
+I also treated navigation as part of the product model. Overview rows now
+retain the selected Playbook identity. Review editing keeps the changed
+Context visible beside the affected Playbook and provides a direct route back
+to the Review, so the officer does not have to hold the cause in memory.
+Meaningful Context updates show how many active Playbooks will be affected at
+the moment of choice. That consequence label replaces a redundant confirmation
+dialog, while destructive actions still ask for confirmation. Stable IDs key
+all new drafts and disclosures so the existing three-second refresh does not
+interrupt work in progress.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

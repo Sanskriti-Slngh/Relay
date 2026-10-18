@@ -48,12 +48,28 @@ document-like procedure. Steps retain stable identity and order but read as a
 continuous numbered document. Rename, archive, reorder, remove, and edit are
 available through labeled disclosures; adding and asking appear only on
 request. Questions expand next to their source, while attached Context Notes
-read as quiet callouts. Review links focus the affected Playbook directly.
+read as quiet callouts. Step-anchored Context appears beside its Step rather
+than in a generic Playbook footer. Officers can reuse a shared note or write
+and attach a new one without leaving the instruction where the need arose.
+The first-Step flow offers the same explanation field as an optional
+disclosure, keeping the normal path lightweight.
+
+Navigation preserves object identity. Overview rows focus the selected
+Playbook instead of merely opening the Playbooks section. Review links focus
+the affected Playbook with the changed Context still visible in a compact
+work banner and a direct return to the Review. Background refreshes replace
+server data without keying or resetting these local disclosure and draft
+states.
 
 Shared Context uses an editorial ledger. Update first requires a clear choice
 between a wording correction (no Review) and a meaningful information change
 (exact before/after history and potentially new Reviews). Attachments,
 questions, and history remain adjacent to the note but collapsed until useful.
+Before a meaningful update is submitted, Relay states the exact number of
+active Playbooks that will receive or update a Review. This explicit choice
+removes the need for a second browser confirmation. Confirming or resolving a
+Review is likewise a direct task action; destructive removal, archiving, and
+Review cancellation retain confirmation.
 
 Questions and Reviews are inboxes. Open work is first, with source and status
 visible before expansion. The primary next action appears in the expanded row;

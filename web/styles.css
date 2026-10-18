@@ -154,6 +154,12 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .playbook-index-row span { font-size: 14px; font-weight: 600; }
 .playbook-index-row small { color: var(--quiet); font-size: 12px; }
 .playbook-document { min-width: 0; }
+.review-edit-context { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; margin-bottom: 28px; border-left: 3px solid var(--pending); padding: 14px 16px; background: var(--pending-bg); }
+.review-edit-context strong { color: var(--pending); font-size: 13px; }
+.review-edit-context p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.review-edit-causes { grid-column: 1 / -1; display: grid; gap: 6px; border-top: 1px solid #ecdcbf; padding-top: 11px; }
+.review-edit-causes p { line-height: 1.5; }
+.review-edit-causes span { display: block; color: var(--pending); font-size: 11px; font-weight: 600; }
 .document-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); padding-bottom: 28px; }
 .document-title h2 { margin: 0; font-size: clamp(28px, 3.2vw, 38px); font-weight: 520; line-height: 1.15; letter-spacing: -.035em; }
 .document-title > p:last-child { margin: 10px 0 0; color: var(--quiet); font-size: 13px; }
@@ -177,6 +183,18 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .step-menu > summary { padding: 3px 0; }
 .step-edit-form textarea { font-size: 15px; }
 .inline-disclosure { margin-top: 16px; border-left: 2px solid var(--line-strong); padding: 2px 0 2px 16px; }
+.step-context-list { display: grid; gap: 8px; }
+.step-context-list blockquote { margin: 0; padding: 10px 12px; color: var(--muted); background: #f4f6f2; font-size: 14px; line-height: 1.55; }
+.inline-empty-note { color: var(--quiet); font-size: 13px; }
+.context-connect { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.context-mode { display: flex; gap: 14px; margin-bottom: 10px; }
+.context-mode button { border: 0; border-bottom: 1px solid transparent; padding: 2px 0 4px; color: var(--quiet); background: transparent; font-size: 12px; font-weight: 600; }
+.context-mode button.active { border-bottom-color: var(--accent); color: var(--accent); }
+.context-connect-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.context-connect-new { grid-template-columns: minmax(0, 1fr) auto; }
+.context-connect-new label { grid-column: 1 / -1; }
+.context-optional { margin-left: 5px; color: var(--quiet); font-weight: 400; }
+.context-connect-new textarea { min-height: 72px; }
 .question-form { margin-top: 14px; }
 .subject-question-list { display: grid; gap: 10px; }
 .subject-question { padding: 12px 14px; background: var(--complete-bg); }
@@ -337,6 +355,11 @@ input::placeholder, textarea::placeholder { color: #68736c; }
   .document-step { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 22px 0; }
   .add-step-control { padding-left: 42px; }
   .form-row, .review-decision { align-items: stretch; flex-direction: column; }
+  .review-edit-context { grid-template-columns: 1fr; }
+  .review-edit-context .button { justify-self: start; }
+  .review-edit-causes { grid-column: 1; }
+  .context-connect-form, .context-connect-new { grid-template-columns: 1fr; }
+  .context-connect-new label { grid-column: 1; }
   .form-row .button { width: 100%; }
   .attach-form { grid-template-columns: 1fr; }
   .context-entry-header { align-items: flex-start; flex-direction: column; }
