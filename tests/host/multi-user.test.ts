@@ -51,6 +51,7 @@ describe("multi-user Relay host", () => {
     const firstClub = await call("/workspaces/create", { name: "First Club" }, officer);
     expect(firstClub.status).toBe(200);
     const firstWorkspace = firstClub.body.workspace as string;
+    const privateInvitation = await call("/invitations/create", { email: "private@example.org" }, officer);
     const procedure = await call("/api/workspaces/procedures/create", { title: "Private plan", user: "forged", workspace: "forged" }, officer);
     expect(procedure.status).toBe(200);
 
@@ -61,6 +62,14 @@ describe("multi-user Relay host", () => {
     const outsiderRead = await call("/api/workspaces/procedures", { workspace: firstWorkspace, user: firstClub.body.user?.id }, outsider);
     expect(outsiderRead.status).toBe(200);
     expect(outsiderRead.body.procedures).toEqual([]);
+    const forgedRosterRead = await call("/workspaces/members", { workspace: firstWorkspace }, outsider);
+    expect(forgedRosterRead.status).toBe(200);
+    expect(forgedRosterRead.body.members).toEqual([
+      expect.objectContaining({ name: "outsider", role: "Officer", email: "outsider@example.org" }),
+    ]);
+    expect(forgedRosterRead.body.members).not.toContainEqual(expect.objectContaining({ name: "officer" }));
+    expect((await call("/invitations/pending", { workspace: firstWorkspace }, outsider)).body.invitations).toEqual([]);
+    expect((await call("/invitations/reissue", { invitation: privateInvitation.body.invitation }, outsider)).status).toBe(404);
     const selectForeign = await call("/workspaces/select", { workspace: firstWorkspace }, outsider);
     expect(selectForeign).toEqual(expect.objectContaining({ status: 404 }));
   });
@@ -72,6 +81,21 @@ describe("multi-user Relay host", () => {
     const step = await call("/api/workspaces/procedures/steps/add", { procedure: procedure.body.procedure, text: "Charge batteries" }, officer);
     const invitation = await call("/invitations/create", { email: "member@example.org", role: "Officer" }, officer);
     expect(invitation.status).toBe(200);
+    expect(invitation.body).toEqual(expect.objectContaining({
+      invitation: expect.any(String),
+      email: "member@example.org",
+      token: expect.any(String),
+      expiresAt: expect.any(String),
+    }));
+    const storedInvitation = await database.collection("host_invitations").findOne({ _id: invitation.body.invitation });
+    expect(storedInvitation?.tokenHash).not.toBe(invitation.body.token);
+    expect(storedInvitation).not.toHaveProperty("token");
+    expect((await call("/workspaces/members", {}, officer)).body.members).toEqual([
+      expect.objectContaining({ name: "leader", role: "Officer", email: "leader@example.org" }),
+    ]);
+    expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([
+      expect.objectContaining({ invitation: invitation.body.invitation, email: "member@example.org", status: "PENDING" }),
+    ]);
 
     const member = await register("member@example.org");
     const accepted = await call("/invitations/accept", { token: invitation.body.token, role: "Officer" }, member);
@@ -80,6 +104,20 @@ describe("multi-user Relay host", () => {
     expect(accepted.body.workspace).toBe(club.body.workspace);
     const reused = await call("/invitations/accept", { token: invitation.body.token }, member);
     expect(reused.status).toBe(404);
+    expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([]);
+    expect((await call("/workspaces/members", {}, officer)).body.members).toEqual([
+      expect.objectContaining({ name: "leader", role: "Officer", email: "leader@example.org" }),
+      expect.objectContaining({ name: "member", role: "Member", email: "member@example.org" }),
+    ]);
+    const memberRoster = await call("/workspaces/members", {}, member);
+    expect(memberRoster.status).toBe(200);
+    expect(memberRoster.body.members).toEqual([
+      expect.objectContaining({ name: "leader", role: "Officer" }),
+      expect.objectContaining({ name: "member", role: "Member" }),
+    ]);
+    expect(memberRoster.body.members.every((entry: Record<string, unknown>) => !("email" in entry))).toBe(true);
+    expect((await call("/invitations/pending", {}, member)).status).toBe(403);
+    expect((await call("/invitations/reissue", { invitation: invitation.body.invitation }, member)).status).toBe(403);
 
     const read = await call("/api/workspaces/procedures", {}, member);
     expect(read.status).toBe(200);
@@ -101,6 +139,38 @@ describe("multi-user Relay host", () => {
       question: question.body.question,
       answer: "Use the blue labeled charger.",
     }));
+
+    const original = await call("/invitations/create", { email: "replacement@example.org" }, officer);
+    const replacement = await call("/invitations/reissue", { invitation: original.body.invitation }, officer);
+    expect(replacement.status).toBe(200);
+    expect(replacement.body.token).not.toBe(original.body.token);
+    expect(replacement.body.email).toBe("replacement@example.org");
+    const replacementMember = await register("replacement@example.org");
+    expect((await call("/invitations/accept", { token: original.body.token }, replacementMember)).status).toBe(404);
+    expect((await call("/invitations/accept", { token: replacement.body.token }, replacementMember)).status).toBe(200);
+    expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([]);
+  });
+
+  test("rejects expired invitation tokens and omits them from pending administration", async () => {
+    const previousHandler = handler;
+    let now = new Date("2026-10-01T12:00:00Z");
+    const { application: expiringApplication, roleAccess } = createApplication(database, client);
+    const roles = await provisionApplicationRoles(roleAccess);
+    handler = createMultiUserRelayHttpHandler(expiringApplication, new AccountStore(database, roleAccess, () => now), config, roles);
+    try {
+      const officer = await register("expiry-officer@example.org");
+      const club = await call("/workspaces/create", { name: "Expiry Club" }, officer);
+      const invitation = await call("/invitations/create", { email: "expired@example.org" }, officer);
+      now = new Date("2026-10-09T12:00:00Z");
+      const invitee = await register("expired@example.org");
+      expect((await call("/invitations/accept", { token: invitation.body.token }, invitee)).status).toBe(404);
+      const renewedOfficer = await call("/auth/login", { email: "expiry-officer@example.org", password: "a secure password" });
+      const currentOfficer = { cookie: renewedOfficer.headers.get("set-cookie")!.split(";")[0], csrf: renewedOfficer.body.csrfToken };
+      await call("/workspaces/select", { workspace: club.body.workspace }, currentOfficer);
+      expect((await call("/invitations/pending", {}, currentOfficer)).body.invitations).toEqual([]);
+    } finally {
+      handler = previousHandler;
+    }
   });
 
   test("persists sessions across handler instances and expires them server-side", async () => {

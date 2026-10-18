@@ -572,6 +572,25 @@ create a shared note. The implementation continues to call existing Step and
 Context operations. Step edits do not generate Reviews, and an active Review
 remains the same Review until an Officer resolves it.
 
+## Workspace projections and balanced attention — October 18
+
+Workspace management needed information that no composition former should
+manufacture: actual accounts attached to existing Role assignments and open
+host invitations. I added narrow host projections rather than a new concept.
+Both use the workspace selected in the verified session. Members can see names
+and Roles, while only Officers receive emails or invitation administration.
+Invitation reissue updates the existing open record with a new SHA-256 token
+hash, preserving its intended email while making the old plaintext code fail.
+The UI keeps a returned code only in memory and clears it on session or club
+changes.
+
+The Overview attention preview now alternates Reviews and Questions so a large
+queue of either cannot conceal the other. I kept the four-item bound and exact
+identity navigation. Smaller consistency changes remain local: the Playbook
+index gains title search only when it grows, whole-Playbook Context does not
+repeat a note already anchored beside a Step, and long Context Notes use an
+explicit Read more control rather than irreversible truncation.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

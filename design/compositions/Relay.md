@@ -310,12 +310,23 @@ neither is declared as a public composition endpoint here.
 
 The host owns these non-concept onboarding routes: `POST /auth/register`,
 `POST /auth/login`, `GET /session`, `POST /session/logout`, `POST /workspaces`,
-`POST /workspaces/create`, `POST /workspaces/select`,
-`POST /invitations/create`, and `POST /invitations/accept`. Authenticated host
+`POST /workspaces/create`, `POST /workspaces/select`, `POST /workspaces/members`,
+`POST /invitations/pending`, `POST /invitations/create`,
+`POST /invitations/reissue`, and `POST /invitations/accept`. Authenticated host
 mutations require the same session, Origin, and CSRF checks as composition
 mutations. Session responses include the verified account, selected workspace,
 Role, effective Permissions, and all current workspace memberships. Invitation
 acceptance always assigns Member, regardless of extra fields in the request.
+
+The roster and invitation projections always use the workspace selected in the
+server-side session; a request body cannot select another club. Any current
+Member may read joined users' names and Roles. Only an Officer authorized for
+`EDIT_PROCEDURE` receives member email addresses or may list, create, or
+reissue pending invitations. Pending reads omit accepted and expired records.
+Reissue atomically replaces the stored SHA-256 token hash for the same open,
+unexpired, email-bound invitation, which immediately invalidates the previous
+code. Plaintext codes are returned only from create or reissue and are never
+stored by the host.
 
 All composition routes are `POST /api<endpoint-path>` with a JSON object,
 same-origin session cookie, and `X-Relay-CSRF` header. The host supplies

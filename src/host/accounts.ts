@@ -37,6 +37,19 @@ type InvitationDocument = Document & {
   expiresAt: Date;
   acceptedBy?: string;
 };
+export interface WorkspaceMember {
+  readonly user: string;
+  readonly name: string;
+  readonly role: string;
+  readonly email?: string;
+}
+
+export interface PendingInvitation {
+  readonly invitation: string;
+  readonly email: string;
+  readonly status: "PENDING";
+  readonly expiresAt: Date;
+}
 
 export interface AuthenticatedSession {
   readonly idHash: string;
@@ -113,6 +126,7 @@ export class AccountStore {
       this.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "session_expiry" }),
       this.invitations.createIndex({ tokenHash: 1 }, { unique: true, name: "invitation_token_unique" }),
       this.invitations.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "invitation_expiry" }),
+      this.invitations.createIndex({ workspace: 1, status: 1, expiresAt: 1 }, { name: "invitation_workspace_status" }),
     ]).then(() => undefined);
     await this.indexesReady;
   }
@@ -214,14 +228,73 @@ export class AccountStore {
     await this.sessions.updateOne({ _id: session.idHash }, { $set: { workspace } });
   }
 
-  async createInvitation(user: string, workspace: string, emailValue: string): Promise<{ token: string; expiresAt: Date }> {
+  async workspaceMembers(user: string, workspace: string): Promise<WorkspaceMember[]> {
+    await this.ready();
+    const ownAssignments = await this.roleAccess._assignmentsFor({ user, resource: workspace });
+    if (!ownAssignments.length) throw new WorkspaceUnavailable();
+
+    let includeEmails = true;
+    try {
+      await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "READ_MEMBER_EMAILS" });
+    } catch (error) {
+      if (!(error instanceof NotAuthorized)) throw error;
+      includeEmails = false;
+    }
+
+    const roles = new Map((await this.roleAccess._roles()).map((role) => [role.role, role.name]));
+    const members: WorkspaceMember[] = [];
+    for (const account of await this.users.find({}).sort({ name: 1, _id: 1 }).toArray()) {
+      const assignment = (await this.roleAccess._assignmentsFor({ user: account._id, resource: workspace }))[0];
+      const role = assignment ? roles.get(assignment.role) : undefined;
+      if (!role) continue;
+      members.push({
+        user: account._id,
+        name: account.name,
+        role,
+        ...(includeEmails ? { email: account.email } : {}),
+      });
+    }
+    return members.sort((left, right) =>
+      Number(right.role === "Officer") - Number(left.role === "Officer") ||
+      left.name.localeCompare(right.name) || left.user.localeCompare(right.user));
+  }
+
+  async pendingInvitations(user: string, workspace: string): Promise<PendingInvitation[]> {
+    await this.ready();
+    await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "READ_INVITATIONS" });
+    const invitations = await this.invitations.find({ workspace, status: "OPEN", expiresAt: { $gt: this.now() } })
+      .sort({ expiresAt: 1, email: 1, _id: 1 }).toArray();
+    return invitations.map((invitation) => ({
+      invitation: invitation._id,
+      email: invitation.email,
+      status: "PENDING",
+      expiresAt: invitation.expiresAt,
+    }));
+  }
+
+  async createInvitation(user: string, workspace: string, emailValue: string): Promise<{ invitation: string; email: string; token: string; expiresAt: Date }> {
     await this.ready();
     await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "INVITE_MEMBER" });
     const email = normalizeEmail(emailValue);
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(this.now().getTime() + INVITATION_LIFETIME_MS);
-    await this.invitations.insertOne({ _id: crypto.randomUUID(), tokenHash: digest(token), workspace, email, invitedBy: user, status: "OPEN", expiresAt });
-    return { token, expiresAt };
+    const invitation = crypto.randomUUID();
+    await this.invitations.insertOne({ _id: invitation, tokenHash: digest(token), workspace, email, invitedBy: user, status: "OPEN", expiresAt });
+    return { invitation, email, token, expiresAt };
+  }
+
+  async reissueInvitation(user: string, workspace: string, invitation: string): Promise<{ invitation: string; email: string; token: string; expiresAt: Date }> {
+    await this.ready();
+    await this.roleAccess.authorize({ user, resource: workspace, permission: "EDIT_PROCEDURE", command: "REISSUE_INVITATION" });
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(this.now().getTime() + INVITATION_LIFETIME_MS);
+    const replaced = await this.invitations.findOneAndUpdate(
+      { _id: invitation, workspace, status: "OPEN", expiresAt: { $gt: this.now() } },
+      { $set: { tokenHash: digest(token), expiresAt, invitedBy: user }, $unset: { acceptedBy: "" } },
+      { returnDocument: "after" },
+    );
+    if (!replaced) throw new InvitationUnavailable();
+    return { invitation: replaced._id, email: replaced.email, token, expiresAt: replaced.expiresAt };
   }
 
   async acceptInvitation(user: string, token: string, memberRole: string): Promise<{ workspace: string }> {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { createRelayApi, RelayApiError, type ContextNote, type ContextQuestion, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMembership } from "./api.ts";
+import { createRelayApi, RelayApiError, type ContextNote, type ContextQuestion, type IssuedInvitation, type PendingInvitation, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMember, type WorkspaceMembership } from "./api.ts";
 import ContextView from "./components/ContextView.vue";
 import OverviewView from "./components/OverviewView.vue";
 import PlaybooksView from "./components/PlaybooksView.vue";
@@ -33,7 +33,7 @@ const password = ref("");
 const displayName = ref("");
 const clubName = ref("");
 const invitationToken = ref("");
-const createdInvite = ref("");
+const createdInvite = ref<IssuedInvitation>();
 const loginBusy = ref(false);
 const refreshing = ref(false);
 const actionBusy = ref("");
@@ -45,6 +45,8 @@ const reviews = ref<PendingReview[]>([]);
 const reviewHistory = ref<ProcedureReviewHistory[]>([]);
 const stepQuestions = ref<StepQuestion[]>([]);
 const contextQuestions = ref<ContextQuestion[]>([]);
+const workspaceMembers = ref<WorkspaceMember[]>([]);
+const pendingInvitations = ref<PendingInvitation[]>([]);
 let refreshSequence = 0;
 let refreshTimer: number | undefined;
 
@@ -97,12 +99,15 @@ function clearWorkspaceState() {
   role.value = "";
   permissions.value = [];
   workspaces.value = [];
+  createdInvite.value = undefined;
   procedures.value = [];
   contexts.value = [];
   reviews.value = [];
   reviewHistory.value = [];
   stepQuestions.value = [];
   contextQuestions.value = [];
+  workspaceMembers.value = [];
+  pendingInvitations.value = [];
 }
 
 function showError(error: unknown) {
@@ -125,9 +130,12 @@ async function refreshData(announce = false, background = false): Promise<boolea
     const officerReads = canReview.value
       ? Promise.all([api.pendingReviews(csrfToken.value), api.reviewHistory(csrfToken.value)])
       : Promise.resolve([{ reviews: [] as PendingReview[] }, { procedures: [] as ProcedureReviewHistory[] }] as const);
-    const [procedureResult, contextResult, [reviewResult, historyResult], questionResult] = await Promise.all([
+    const invitationRead = canEdit.value
+      ? api.pendingInvitations(csrfToken.value)
+      : Promise.resolve({ invitations: [] as PendingInvitation[] });
+    const [procedureResult, contextResult, [reviewResult, historyResult], questionResult, memberResult, invitationResult] = await Promise.all([
       api.procedures(csrfToken.value), api.contextHistory(csrfToken.value),
-      officerReads, api.questions(csrfToken.value),
+      officerReads, api.questions(csrfToken.value), api.workspaceMembers(csrfToken.value), invitationRead,
     ]);
     if (sequence !== refreshSequence) return false;
     procedures.value = procedureResult.procedures;
@@ -136,6 +144,8 @@ async function refreshData(announce = false, background = false): Promise<boolea
     reviewHistory.value = historyResult.procedures;
     stepQuestions.value = questionResult.stepQuestions;
     contextQuestions.value = questionResult.contextQuestions;
+    workspaceMembers.value = memberResult.members;
+    pendingInvitations.value = invitationResult.invitations;
     if (announce) successMessage.value = "Workspace information is up to date.";
     return true;
   } catch (error) {
@@ -165,6 +175,7 @@ async function runAction(label: string, action: () => Promise<void>, success: st
 }
 
 async function acceptSession(session: SessionState) {
+  createdInvite.value = undefined;
   authenticated.value = session.authenticated;
   csrfToken.value = session.csrfToken ?? "";
   workspace.value = session.workspace ?? "";
@@ -201,6 +212,7 @@ async function createClub() {
 }
 
 async function selectClub(id: string) {
+  createdInvite.value = undefined;
   await runAction("select-workspace", async () => { await acceptSession(await api.selectWorkspace(id, csrfToken.value)); }, "Workspace selected.");
 }
 
@@ -210,13 +222,23 @@ async function acceptInvitation() {
 }
 
 async function inviteMember({ email: address, onSuccess }: { email: string; onSuccess: () => void }) {
+  createdInvite.value = undefined;
   await runAction("invite-member", async () => {
     const invite = await api.createInvitation(address, csrfToken.value);
-    createdInvite.value = invite.token; onSuccess();
+    createdInvite.value = invite; onSuccess();
   }, "Invitation code created. Relay does not send email; share the code securely with the invited member.");
 }
 
+async function reissueInvitation(invitation: PendingInvitation) {
+  createdInvite.value = undefined;
+  await runAction(`reissue-invitation-${invitation.invitation}`, async () => {
+    const replacement = await api.reissueInvitation(invitation.invitation, csrfToken.value);
+    createdInvite.value = { ...replacement, reissued: true };
+  }, "A replacement invitation code was created. The previous code no longer works.");
+}
+
 async function signOut() {
+  createdInvite.value = undefined;
   clearMessages();
   try { await api.logout(csrfToken.value); }
   catch (error) { showError(error); return; }
@@ -248,7 +270,7 @@ async function editStep({ procedure, step, text, onSuccess }: { procedure: Proce
 }
 
 async function moveStep({ procedure, step, position }: { procedure: Procedure; step: Procedure["steps"][number]; position: number }) {
-  await runAction(`move-${step.step}`, async () => { await api.moveStep(procedure.procedure, step.step, position, csrfToken.value); }, "Step order updated.");
+  await runAction(`move-${step.step}`, async () => { await api.moveStep(procedure.procedure, step.step, position, csrfToken.value); }, "");
 }
 
 async function removeStep({ procedure, step }: { procedure: Procedure; step: Procedure["steps"][number] }) {
@@ -432,7 +454,7 @@ onUnmounted(() => {
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />
           <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
-          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @select="selectClub" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" />
         </div>
       </section>
     </div>

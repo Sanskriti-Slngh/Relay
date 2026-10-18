@@ -27,6 +27,12 @@ Procedure, ContextNote, and Question reads. Workspace creators receive Officer;
 accepted invitations receive Member. Relay exposes no public endpoint for
 choosing a Role, granting Permissions, or assigning Users.
 
+The host may project existing workspace Role assignments into a roster without
+introducing another concept. Roster reads require membership in the selected
+server-side workspace. Members receive names and Roles; Officers may also see
+email addresses and pending invitation administration. Invitation tokens remain
+one-time, email-bound, expiring values stored only as SHA-256 hashes.
+
 ```instances
 instantiate ProcedureMaintaining with
   Space is ClubWorkspace
