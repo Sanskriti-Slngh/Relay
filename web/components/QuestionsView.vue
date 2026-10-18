@@ -2,7 +2,7 @@
 import { computed, reactive } from "vue";
 import type { ContextQuestion, StepQuestion } from "../api.ts";
 
-const props = defineProps<{ stepQuestions: StepQuestion[]; contextQuestions: ContextQuestion[]; actionBusy: string; canAnswer: boolean; currentUserId: string }>();
+const props = defineProps<{ stepQuestions: StepQuestion[]; contextQuestions: ContextQuestion[]; actionBusy: string; canAnswer: boolean; currentUserId: string; focusQuestion?: string; focusKind?: "step" | "context" | "" }>();
 const emit = defineEmits<{
   answer: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; onSuccess: () => void }];
   revise: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; onSuccess: () => void }];
@@ -32,7 +32,7 @@ function isRemovedStep(kind: "step" | "context", question: StepQuestion | Contex
 
   <div v-if="!openQuestions.length" class="empty-page-state"><h2>All answered</h2></div>
   <div v-else class="inbox-list">
-    <details v-for="entry in openQuestions" :key="`${entry.kind}-${entry.question.question}`" class="inbox-row">
+    <details v-for="entry in openQuestions" :key="`${entry.kind}-${entry.question.question}`" class="inbox-row" :open="entry.question.question === focusQuestion && entry.kind === focusKind">
       <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ entry.question.text }}</strong><small>{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small></span><span class="row-status pending">Open</span></summary>
       <div class="inbox-detail">
         <div class="source-excerpt"><span>About</span><p>{{ entry.question.subjectText }}</p><small v-if="isRemovedStep(entry.kind, entry.question)">The original step was removed. This question is still preserved.</small></div>

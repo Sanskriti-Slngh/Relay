@@ -45,14 +45,22 @@ compact header and the navigation remains reachable without hover.
 
 Playbooks use a master-detail layout: a scannable title index and one focused,
 document-like procedure. Steps retain stable identity and order but read as a
-continuous numbered document. Rename, archive, reorder, remove, and edit are
-available through labeled disclosures; adding and asking appear only on
-request. Questions expand next to their source, while attached Context Notes
-read as quiet callouts. Step-anchored Context appears beside its Step rather
-than in a generic Playbook footer. Officers can reuse a shared note or write
-and attach a new one without leaving the instruction where the need arose.
-The first-Step flow offers the same explanation field as an optional
-disclosure, keeping the normal path lightweight.
+continuous numbered document. Each Officer sees a consistent right-hand Step
+toolbar for moving, editing, and removing; Members see the same instructions
+without mutation controls. Editing replaces only the selected Step with its
+textarea and Save/Cancel actions. Local drafts are keyed by stable Step
+identity, so polling does not replace unfinished text. Removal remains a
+confirmed destructive action.
+
+Step-anchored Context appears beside its Step rather than in a generic
+Playbook footer. Attached notes use the quiet label **Why this matters**; an
+unattached Step offers only **+ Add context** to Officers and has no empty
+placeholder. Reusing a shared note and writing a new one remain available in
+that disclosure. Empty Playbooks similarly show only **+ Add step**. Questions
+remain adjacent to their source. These presentation changes use the existing
+Step and Context operations: normal Step edits preserve identity and do not
+request Reviews, while meaningful shared-Context changes retain their existing
+Review behavior.
 
 Navigation preserves object identity. Overview rows focus the selected
 Playbook instead of merely opening the Playbooks section. Review links focus
@@ -74,9 +82,20 @@ Review cancellation retain confirmation.
 Questions and Reviews are inboxes. Open work is first, with source and status
 visible before expansion. The primary next action appears in the expanded row;
 less common alternatives sit under a plainly labeled disclosure. Completed
-history remains accessible with quieter typography and spacing. The Overview
-prioritizes unanswered Questions and unfinished Reviews, then offers compact
-recent-knowledge lists instead of metric cards.
+history remains accessible with quieter typography and spacing.
+
+The Overview uses a deliberate 70/30 hierarchy on desktop. A dominant
+Playbooks column shows up to six substantial, readable rows, while an Officer
+attention rail shows up to four actual unanswered Questions or unfinished
+Reviews. Selecting a Playbook preserves its Procedure identity; selecting a
+task opens that exact Question or Review rather than only changing sections.
+Shared Context is intentionally absent because it is reference material, not
+the Overview's primary next action. Additional Playbooks remain one click away
+through **View all Playbooks**, so workspace growth does not turn the page into
+another dense index. On mobile the columns stack, and the attention list moves
+first only when pending work exists. Members never receive Officer task
+controls. Empty Officers receive one create action, while empty Members get a
+short role-appropriate explanation.
 
 ## First-use simplification
 
@@ -86,14 +105,15 @@ shell. A truly empty workspace now leads with one action: create the first
 Playbook. The empty Playbooks page opens its creation form immediately for an
 Officer, while Members receive a concise role-appropriate state.
 
-Playbook headers now show only the title and Step count. Context attachments,
-Question threads, archives, and per-Step actions remain available through
-labeled disclosures. Context Notes lead with their text; dependencies and
-history are collapsed. The update choice uses the user-facing labels **Fix
-wording** and **Information changed**, while continuing to invoke the existing
-correction and meaningful-change operations exactly as before. Questions and
-Reviews retain compact summary rows, with source text, before/after evidence,
-and lifecycle actions revealed only when a row is opened.
+Playbook headers now show only the title and Step count. Question threads and
+archives remain available through labeled disclosures, while routine Step
+editing controls stay visible to Officers. Context Notes lead with their text;
+dependencies and history are collapsed. The update choice uses the user-facing
+labels **Fix wording** and **Information changed**, while continuing to invoke
+the existing correction and meaningful-change operations exactly as before.
+Questions and Reviews retain compact summary rows, with source text,
+before/after evidence, and lifecycle actions revealed only when a row is
+opened.
 
 ## Sources applied
 

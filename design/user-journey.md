@@ -1,9 +1,9 @@
 ## User Journey
 
-> This is the broader P1 product-direction journey. It includes member-facing
-> questions and fuller Review resolution that are deferred beyond the P2 MVP.
-> See [P2 MVP User Journey](../mvp/p2-mvp-user-journey.md) for the implemented
-> screen-recording path. Policy statements below are hypothetical design
+> This is the original P1 product-direction journey. Its member-facing
+> Questions and full Review resolution are implemented in P3 Beta. See the
+> [P3 Beta user journey](../mvp/p3-beta-user-journey.md) for the current
+> multi-user workflow. Policy statements below are hypothetical design
 > examples, not assertions about current MIT rules.
 
 **1. Tiya inherits instructions that look trustworthy.** Tiya has just taken over rehearsal-space logistics for the MIT Dance Team after the previous officer graduated. In Relay, she opens the **Book Rehearsal Space** Playbook shown in **Fig. 2, Playbook detail**, and sees a short ordered process instead of having to reconstruct it from old emails. One Step says to check that the rehearsal-space renewal is current before the semester begins. Attached to that Step is the Context Note explaining the assumption behind it: **MIT event spaces only need to be renewed once per academic year**. Because that explanation is preserved with the Playbook, Tiya can see not just what the club has been doing, but what that Step depended on.

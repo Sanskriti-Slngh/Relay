@@ -21,48 +21,13 @@ not write application files at runtime.
 
 ## Automated checks
 
-All commands below completed on Bun 1.4.0:
+The final October 18 local run is saved verbatim in
+[`artifacts/p3-verification-output.txt`](../artifacts/p3-verification-output.txt).
+It records 132 passing tests with no failures, successful Vue and TypeScript
+checks, a successful production build, passing design and generated-artifact
+checks, and a clean `git diff --check` result.
 
-```text
-$ bun test
-131 pass
-0 fail
-727 expect() calls
-Ran 131 tests across 12 files. [3.80s on the development replica set]
-
-$ MONGODB_URL=mongodb://127.0.0.1:27019/relay_standalone bun test
-131 pass
-0 fail
-730 expect() calls
-Ran 131 tests across 12 files. [2.13s on standalone MongoDB 8]
-
-$ bun run typecheck
-$ tsc --noEmit && vue-tsc --noEmit -p tsconfig.web.json
-exit 0
-
-$ bun run build
-vite v8.3.4 building client environment for production...
-23 modules transformed
-dist/index.html                  0.56 kB (gzip 0.34 kB)
-dist/assets/index-*.css         29.97 kB (gzip 7.24 kB)
-dist/assets/index-*.js         123.63 kB (gzip 40.66 kB)
-build completed in 227 ms
-
-$ bunx sync-engine check --show-advisories
-Concept action/query source check passed for 6 concepts.
-Application diagnostic check passed with 26 advisories.
-
-$ bunx sync-engine check-design design/concepts/*.md design/types.md design/compositions/*.md
-Design form check passed for 7 files.
-
-$ bunx sync-engine artifacts check
-exit 0
-
-$ git diff --check
-exit 0
-```
-
-The 26 advisories comprise 20 `MISSING_ENDPOINT_FALLBACK` warnings and six
+The 28 advisories comprise 22 `MISSING_ENDPOINT_FALLBACK` warnings and six
 `ORDER_SENSITIVE_FORMER` notices. They were reviewed as described in the
 design notebook. Existing backend tests cover missing resources, lifecycle
 conflicts, invalid inputs, role failures, foreign-workspace access, forged

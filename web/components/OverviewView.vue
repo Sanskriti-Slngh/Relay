@@ -1,40 +1,116 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ContextNote, PendingReview, Procedure } from "../api.ts";
-const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; reviews: PendingReview[]; unansweredCount: number; canEdit: boolean; canReview: boolean; canAnswer: boolean }>();
-type OverviewTarget = { section: "procedures" | "context" | "reviews" | "questions"; procedure?: string };
+import type { ContextQuestion, PendingReview, Procedure, StepQuestion } from "../api.ts";
+
+type OverviewTarget = {
+  section: "procedures" | "reviews" | "questions";
+  procedure?: string;
+  review?: string;
+  question?: string;
+  questionKind?: "step" | "context";
+  createPlaybook?: boolean;
+};
+
+type AttentionItem =
+  | { kind: "review"; id: string; title: string; detail: string }
+  | { kind: "question"; id: string; title: string; detail: string; questionKind: "step" | "context" };
+
+const props = defineProps<{
+  procedures: Procedure[];
+  reviews: PendingReview[];
+  stepQuestions: StepQuestion[];
+  contextQuestions: ContextQuestion[];
+  canEdit: boolean;
+  canReview: boolean;
+  canAnswer: boolean;
+}>();
 const emit = defineEmits<{ navigate: [target: OverviewTarget] }>();
+
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
-const firstRun = computed(() => !activeProcedures.value.length && !props.contexts.length);
-function playbookCountForNote(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject)).size; }
+const firstRun = computed(() => !activeProcedures.value.length);
+const reviewItems = computed<AttentionItem[]>(() => props.canReview
+  ? [...props.reviews]
+    .sort((left, right) => Number(right.status === "CHANGES_REQUIRED") - Number(left.status === "CHANGES_REQUIRED"))
+    .map((review) => ({
+      kind: "review" as const,
+      id: review.review,
+      title: review.title,
+      detail: review.status === "CHANGES_REQUIRED" ? "Playbook changes required" : "Shared context changed",
+    }))
+  : []);
+const questionItems = computed<AttentionItem[]>(() => props.canAnswer
+  ? [
+    ...props.stepQuestions.filter(({ status }) => status === "OPEN").map((question) => ({
+      kind: "question" as const,
+      id: question.question,
+      title: question.text,
+      detail: `${question.title} · Step`,
+      questionKind: "step" as const,
+    })),
+    ...props.contextQuestions.filter(({ status }) => status === "OPEN").map((question) => ({
+      kind: "question" as const,
+      id: question.question,
+      title: question.text,
+      detail: `Shared context · ${question.subjectText}`,
+      questionKind: "context" as const,
+    })),
+  ]
+  : []);
+const attentionItems = computed(() => [...reviewItems.value, ...questionItems.value].slice(0, 4));
+const hasAttention = computed(() => attentionItems.value.length > 0);
+const visiblePlaybooks = computed(() => activeProcedures.value.slice(0, 6));
+
+function openAttentionItem(item: AttentionItem) {
+  if (item.kind === "review") {
+    emit("navigate", { section: "reviews", review: item.id });
+    return;
+  }
+  emit("navigate", { section: "questions", question: item.id, questionKind: item.questionKind });
+}
 </script>
 
 <template>
-  <header class="page-heading heading-with-action"><h1>Overview</h1><button v-if="canEdit && !firstRun" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">New playbook</button></header>
+  <header class="page-heading overview-heading heading-with-action">
+    <h1>Overview</h1>
+    <button v-if="canEdit && !firstRun" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures', createPlaybook: true })">+ New playbook</button>
+  </header>
 
   <section v-if="firstRun" class="first-run">
-    <h2>Start with a playbook</h2><p>Choose one recurring task and write the steps in order.</p>
-    <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">Create your first playbook</button><p v-else>An Officer can add the first playbook.</p>
+    <h2>{{ canEdit ? "Create your first playbook" : "No playbooks yet" }}</h2>
+    <p>{{ canEdit ? "Write the steps for one task your club does regularly." : "An Officer can add the first playbook." }}</p>
+    <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">Create your first playbook</button>
   </section>
 
-  <template v-else>
-  <section v-if="(canReview && reviews.length) || (canAnswer && unansweredCount)" class="attention-section">
-    <h2>Needs attention</h2>
-    <button v-if="canReview && reviews.length" class="attention-row" type="button" @click="emit('navigate', { section: 'reviews' })"><span><strong>{{ reviews.length }} {{ reviews.length === 1 ? "playbook to review" : "playbooks to review" }}</strong><small>Context changed</small></span><span>Review</span></button>
-    <button v-if="canAnswer && unansweredCount" class="attention-row" type="button" @click="emit('navigate', { section: 'questions' })"><span><strong>{{ unansweredCount }} unanswered {{ unansweredCount === 1 ? "question" : "questions" }}</strong><small>Waiting for an answer</small></span><span>Answer</span></button>
-  </section>
-  <p v-else class="all-clear">All caught up.</p>
+  <div v-else class="overview-grid" :class="{ 'has-attention': hasAttention }">
+    <section class="overview-playbooks" aria-labelledby="overview-playbooks-title">
+      <header class="overview-section-header">
+        <div><h2 id="overview-playbooks-title">Playbooks</h2><p>{{ activeProcedures.length }} active</p></div>
+        <button class="text-button" type="button" @click="emit('navigate', { section: 'procedures' })">View all</button>
+      </header>
+      <div class="overview-playbook-list">
+        <button v-for="procedure in visiblePlaybooks" :key="procedure.procedure" class="overview-playbook-row" type="button" @click="emit('navigate', { section: 'procedures', procedure: procedure.procedure })">
+          <span class="playbook-identifier" aria-hidden="true">{{ procedure.title.trim().charAt(0).toUpperCase() || "P" }}</span>
+          <span class="playbook-row-copy"><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small></span>
+          <span class="playbook-row-arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+      <p v-if="activeProcedures.length > visiblePlaybooks.length" class="overview-list-note">{{ activeProcedures.length - visiblePlaybooks.length }} more in Playbooks</p>
+    </section>
 
-  <section class="overview-section">
-    <header><div><h2>Playbooks</h2><p>{{ activeProcedures.length }} active</p></div><button class="text-button" type="button" @click="emit('navigate', { section: 'procedures' })">View all</button></header>
-    <div v-if="activeProcedures.length" class="editorial-list"><button v-for="procedure in activeProcedures.slice(0, 5)" :key="procedure.procedure" type="button" @click="emit('navigate', { section: 'procedures', procedure: procedure.procedure })"><strong>{{ procedure.title }}</strong><span>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</span></button></div>
-    <div v-else class="inline-empty"><p>No active playbooks yet.</p><button class="text-button" type="button" @click="emit('navigate', { section: 'procedures' })">Create one</button></div>
-  </section>
-
-  <section class="overview-section">
-    <header><div><h2>Shared knowledge</h2><p>{{ contexts.length }} {{ contexts.length === 1 ? "note" : "notes" }}</p></div><button class="text-button" type="button" @click="emit('navigate', { section: 'context' })">View all</button></header>
-    <div v-if="contexts.length" class="context-preview-list"><article v-for="note in contexts.slice(0, 3)" :key="note.context"><p>{{ note.text }}</p><small>Used by {{ playbookCountForNote(note) }} {{ playbookCountForNote(note) === 1 ? "playbook" : "playbooks" }}</small></article></div>
-    <div v-else class="inline-empty"><p>No context notes yet.</p><button class="text-button" type="button" @click="emit('navigate', { section: 'context' })">Add context</button></div>
-  </section>
-  </template>
+    <aside class="overview-attention" aria-labelledby="overview-attention-title">
+      <header class="attention-panel-header"><h2 id="overview-attention-title">Needs attention</h2><span v-if="hasAttention">{{ reviewItems.length + questionItems.length }}</span></header>
+      <div v-if="hasAttention" class="attention-item-list">
+        <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" type="button" @click="openAttentionItem(item)">
+          <span class="attention-item-kind">{{ item.kind === "review" ? "Review" : "Question" }}</span>
+          <strong :class="{ 'clamped-copy': item.kind === 'question' }">{{ item.title }}</strong>
+          <small class="clamped-source">{{ item.detail }}</small>
+        </button>
+      </div>
+      <p v-else class="attention-clear"><span aria-hidden="true">✓</span> All caught up</p>
+      <footer v-if="hasAttention" class="attention-panel-links">
+        <button v-if="reviewItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'reviews' })">All reviews</button>
+        <button v-if="questionItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'questions' })">All questions</button>
+      </footer>
+    </aside>
+  </div>
 </template>

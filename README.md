@@ -5,10 +5,29 @@ connected. A meaningful context change preserves its before/after text and
 creates a pending Review for each attached active Procedure; a wording
 correction does not.
 
-The implemented P2 walkthrough is documented in
-[mvp/p2-mvp-user-journey.md](mvp/p2-mvp-user-journey.md). Its room-renewal
-policy is fictional demo content, not a statement of current MIT policy. The
-broader P1 journey remains design direction for later work.
+The implemented beta walkthrough is documented in the
+[P3 Beta user journey](mvp/p3-beta-user-journey.md). Its room-renewal policy is
+fictional demo content, not a statement of current MIT policy. The original
+[P1 journey](design/user-journey.md) and historical
+[P2 MVP journey](mvp/p2-mvp-user-journey.md) remain available for comparison.
+
+## P3 Beta submission map
+
+- [Design index and specifications](design/README.md), including all five
+  [concept specifications](design/concepts), the
+  [Relay composition](design/compositions/Relay.md), and the
+  [visual-system specification](design/visual-design.md)
+- [Automated tests](tests) and
+  [saved P3 verification output](artifacts/p3-verification-output.txt)
+- [Updated P3 Beta user journey](mvp/p3-beta-user-journey.md)
+- [Deployment-preparation and verification record](mvp/p3-beta-deployment-verification.md)
+- [Implementation design notebook](mvp/design-notebook.md); the submission must
+  also link the current notebook from the private individual repository
+
+The required two-slide visual design study, final YouTube recording, confirmed
+live deployment URL, private-repository link, and final submitted commit hashes
+must be added before submission. The tracked `mvp/My Movie.mp4` is an obsolete
+P2 recording longer than the P3 two-minute limit and is not submission-ready.
 
 ## Local development
 
