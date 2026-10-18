@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { createRelayApi, RelayApiError, type ContextNote, type ContextQuestion, type IssuedInvitation, type PendingInvitation, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMember, type WorkspaceMembership } from "./api.ts";
+import { createRelayApi, RelayApiError, type ActivityEvent, type ContextNote, type ContextQuestion, type IssuedInvitation, type PendingInvitation, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMember, type WorkspaceMembership } from "./api.ts";
 import ContextView from "./components/ContextView.vue";
 import OverviewView from "./components/OverviewView.vue";
 import PlaybooksView from "./components/PlaybooksView.vue";
@@ -47,6 +47,7 @@ const stepQuestions = ref<StepQuestion[]>([]);
 const contextQuestions = ref<ContextQuestion[]>([]);
 const workspaceMembers = ref<WorkspaceMember[]>([]);
 const pendingInvitations = ref<PendingInvitation[]>([]);
+const recentActivity = ref<ActivityEvent[]>([]);
 let refreshSequence = 0;
 let refreshTimer: number | undefined;
 
@@ -108,6 +109,7 @@ function clearWorkspaceState() {
   contextQuestions.value = [];
   workspaceMembers.value = [];
   pendingInvitations.value = [];
+  recentActivity.value = [];
 }
 
 function showError(error: unknown) {
@@ -133,9 +135,12 @@ async function refreshData(announce = false, background = false): Promise<boolea
     const invitationRead = canEdit.value
       ? api.pendingInvitations(csrfToken.value)
       : Promise.resolve({ invitations: [] as PendingInvitation[] });
-    const [procedureResult, contextResult, [reviewResult, historyResult], questionResult, memberResult, invitationResult] = await Promise.all([
+    const activityRead = canEdit.value
+      ? api.recentActivity(csrfToken.value)
+      : Promise.resolve({ events: [] as ActivityEvent[] });
+    const [procedureResult, contextResult, [reviewResult, historyResult], questionResult, memberResult, invitationResult, activityResult] = await Promise.all([
       api.procedures(csrfToken.value), api.contextHistory(csrfToken.value),
-      officerReads, api.questions(csrfToken.value), api.workspaceMembers(csrfToken.value), invitationRead,
+      officerReads, api.questions(csrfToken.value), api.workspaceMembers(csrfToken.value), invitationRead, activityRead,
     ]);
     if (sequence !== refreshSequence) return false;
     procedures.value = procedureResult.procedures;
@@ -146,6 +151,7 @@ async function refreshData(announce = false, background = false): Promise<boolea
     contextQuestions.value = questionResult.contextQuestions;
     workspaceMembers.value = memberResult.members;
     pendingInvitations.value = invitationResult.invitations;
+    recentActivity.value = activityResult.events;
     if (announce) successMessage.value = "Workspace information is up to date.";
     return true;
   } catch (error) {
@@ -449,7 +455,7 @@ onUnmounted(() => {
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
-          <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
+          <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
           <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />

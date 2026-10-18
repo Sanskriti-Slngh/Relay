@@ -13,11 +13,12 @@ describe("Relay browser API client", () => {
     await api.createWorkspace("Robotics", "csrf");
     await api.selectWorkspace("workspace-id", "csrf");
     await api.workspaceMembers("csrf");
+    await api.recentActivity("csrf");
     await api.pendingInvitations("csrf");
     await api.createInvitation("invitee@example.org", "csrf");
     await api.reissueInvitation("invitation-id", "csrf");
     await api.acceptInvitation("invite-token", "csrf");
-    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/members", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
+    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/members", "/workspaces/activity", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
     for (const { init } of calls) expect(init?.body).not.toContain('"user"');
     for (const { init } of calls.slice(2)) expect(new Headers(init?.headers).get("X-Relay-CSRF")).toBe("csrf");
   });

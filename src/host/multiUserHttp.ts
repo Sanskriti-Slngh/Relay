@@ -12,12 +12,43 @@ import {
   NotAuthorized,
   WorkspaceUnavailable,
   type AuthenticatedSession,
+  type ActivityEventType,
 } from "./accounts.ts";
 
 const COOKIE = "relay_session";
 const MAX_REQUEST_BYTES = 65_536;
 const SESSION_SECONDS = 8 * 60 * 60;
 const JSON_HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
+const ACTIVITY_PATHS = new Map<string, ActivityEventType>([
+  ["/api/workspaces/procedures/create", "PLAYBOOK_CREATED"],
+  ["/api/workspaces/procedures/rename", "PLAYBOOK_RENAMED"],
+  ["/api/workspaces/procedures/archive", "PLAYBOOK_ARCHIVED"],
+  ["/api/workspaces/procedures/steps/add", "STEP_ADDED"],
+  ["/api/workspaces/procedures/steps/edit", "STEP_EDITED"],
+  ["/api/workspaces/procedures/steps/remove", "STEP_REMOVED"],
+  ["/api/workspaces/context/notes", "CONTEXT_CREATED"],
+  ["/api/workspaces/context/attachments", "CONTEXT_ATTACHED"],
+  ["/api/workspaces/context/step-attachments", "CONTEXT_ATTACHED"],
+  ["/api/workspaces/context/change", "CONTEXT_CHANGED"],
+  ["/api/workspaces/reviews/confirm", "REVIEW_CONFIRMED"],
+  ["/api/workspaces/reviews/resolve", "REVIEW_RESOLVED"],
+  ["/api/workspaces/questions/steps/answer", "QUESTION_ANSWERED"],
+  ["/api/workspaces/questions/context/answer", "QUESTION_ANSWERED"],
+]);
+
+type ProcedureProjection = {
+  procedure: string;
+  title: string;
+  steps: { step: string; position: number }[];
+};
+type ContextProjection = {
+  context: string;
+  attachments: { subject: string; anchor?: string }[];
+};
+type QuestionProjection = {
+  stepQuestions: { question: string; step: string; procedure: string; title: string }[];
+  contextQuestions: { question: string; context: string }[];
+};
 
 function response(status: number, value: Record<string, unknown>, headers?: HeadersInit): Response {
   const resultHeaders = new Headers(JSON_HEADERS);
@@ -115,6 +146,18 @@ export function createMultiUserRelayHttpHandler(
     };
   }
 
+  async function projection<T>(request: Request, session: AuthenticatedSession, path: string): Promise<T | undefined> {
+    const url = new URL(request.url);
+    url.pathname = `/api${path}`;
+    const projected = await conceptHandler(inject(new Request(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    }), {}, session));
+    if (!projected.ok) return undefined;
+    return await projected.json() as T;
+  }
+
   return async (request: Request): Promise<Response> => {
     const { pathname } = new URL(request.url);
     const origin = request.headers.get("origin");
@@ -174,6 +217,13 @@ export function createMultiUserRelayHttpHandler(
         if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
         return response(200, { members: await accounts.workspaceMembers(session.user, session.workspace) });
       }
+      if (pathname === "/workspaces/activity") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const events = await accounts.recentActivity(session.user, session.workspace);
+        return response(200, {
+          events: events.map((event) => ({ ...event, occurredAt: event.occurredAt.toISOString() })),
+        });
+      }
       if (pathname === "/invitations/pending") {
         if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
         const invitations = await accounts.pendingInvitations(session.user, session.workspace);
@@ -202,8 +252,126 @@ export function createMultiUserRelayHttpHandler(
       if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
       const membership = (await accounts.memberships(session.user)).some(({ workspace }) => workspace === session.workspace);
       if (!membership) return errorResponse(403, "FORBIDDEN");
+      const activityType = ACTIVITY_PATHS.get(pathname);
+      const beforeProcedures = activityType && activityType !== "PLAYBOOK_CREATED" && activityType !== "CONTEXT_CREATED"
+        ? (await projection<{ procedures: ProcedureProjection[] }>(request, session, "/workspaces/procedures"))?.procedures ?? []
+        : [];
+      const beforeContexts = activityType === "CONTEXT_CHANGED" || activityType === "QUESTION_ANSWERED"
+        ? (await projection<{ contexts: ContextProjection[] }>(request, session, "/workspaces/context"))?.contexts ?? []
+        : [];
+      const beforeQuestions = activityType === "QUESTION_ANSWERED"
+        ? await projection<QuestionProjection>(request, session, "/workspaces/questions")
+        : undefined;
       const result = await conceptHandler(inject(request, body, session));
       if (result.ok && (pathname === "/api/workspaces/context/change" || pathname === "/api/workspaces/procedures/steps/remove")) await application.whenIdle();
+      if (result.ok && activityType) {
+        try {
+          const output = await result.clone().json() as Record<string, unknown>;
+          const procedureId = typeof output.procedure === "string"
+            ? output.procedure
+            : typeof body.procedure === "string" ? body.procedure : undefined;
+          const needsAfterProcedures = activityType === "PLAYBOOK_CREATED" || activityType === "PLAYBOOK_RENAMED" || activityType === "STEP_ADDED";
+          const afterProcedures = needsAfterProcedures
+            ? (await projection<{ procedures: ProcedureProjection[] }>(request, session, "/workspaces/procedures"))?.procedures ?? beforeProcedures
+            : beforeProcedures;
+          const procedure = [...afterProcedures, ...beforeProcedures].find((entry) => entry.procedure === procedureId);
+          const stepId = typeof output.step === "string"
+            ? output.step
+            : typeof body.step === "string" ? body.step : undefined;
+          const step = procedure?.steps.find((entry) => entry.step === stepId)
+            ?? beforeProcedures.find((entry) => entry.procedure === procedureId)?.steps.find((entry) => entry.step === stepId);
+
+          if (activityType === "CONTEXT_CREATED") {
+            const contextId = typeof output.context === "string" ? output.context : undefined;
+            if (contextId) await accounts.recordActivity({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              type: activityType,
+              context: contextId,
+            });
+          } else if (activityType === "CONTEXT_ATTACHED" && procedureId && procedure) {
+            const contextId = typeof body.context === "string" ? body.context : undefined;
+            const attachmentId = typeof output.attachment === "string" ? output.attachment : undefined;
+            if (contextId && attachmentId) await accounts.recordContextAttachment({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              context: contextId,
+              attachment: attachmentId,
+              procedure: procedureId,
+              procedureTitle: procedure.title,
+              ...(stepId ? { step: stepId } : {}),
+              ...(step?.position !== undefined ? { stepPosition: step.position } : {}),
+            });
+          } else if (activityType === "CONTEXT_CHANGED") {
+            const contextId = typeof body.context === "string" ? body.context : undefined;
+            const attachedProcedureIds = [...new Set(
+              beforeContexts.find((entry) => entry.context === contextId)?.attachments.map(({ subject }) => subject) ?? [],
+            )];
+            const attached = attachedProcedureIds
+              .map((id) => beforeProcedures.find((entry) => entry.procedure === id))
+              .filter((entry): entry is ProcedureProjection => !!entry);
+            const first = attached[0];
+            const title = first
+              ? attached.length > 1 ? `${first.title} and ${attached.length - 1} more` : first.title
+              : undefined;
+            await accounts.recordActivity({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              type: activityType,
+              ...(first ? { procedure: first.procedure } : {}),
+              ...(contextId ? { context: contextId } : {}),
+              ...(title ? { procedureTitle: title } : {}),
+            });
+          } else if (activityType === "REVIEW_CONFIRMED" || activityType === "REVIEW_RESOLVED") {
+            const reviewId = typeof body.review === "string" ? body.review : undefined;
+            if (reviewId && procedureId && procedure) await accounts.recordActivity({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              type: activityType,
+              review: reviewId,
+              procedure: procedureId,
+              procedureTitle: procedure.title,
+            });
+          } else if (activityType === "QUESTION_ANSWERED") {
+            const questionId = typeof body.question === "string" ? body.question : undefined;
+            const stepQuestion = beforeQuestions?.stepQuestions.find((entry) => entry.question === questionId);
+            const contextQuestion = beforeQuestions?.contextQuestions.find((entry) => entry.question === questionId);
+            const contextId = contextQuestion?.context;
+            const contextProcedureId = contextId
+              ? beforeContexts.find((entry) => entry.context === contextId)?.attachments[0]?.subject
+              : undefined;
+            const questionProcedureId = stepQuestion?.procedure ?? contextProcedureId;
+            const questionProcedure = beforeProcedures.find((entry) => entry.procedure === questionProcedureId);
+            if (questionId) await accounts.recordActivity({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              type: activityType,
+              question: questionId,
+              ...(questionProcedure ? { procedure: questionProcedure.procedure, procedureTitle: questionProcedure.title } : {}),
+              ...(stepQuestion ? { step: stepQuestion.step } : {}),
+              ...(contextId ? { context: contextId } : {}),
+            });
+          } else if (procedureId && procedure) {
+            await accounts.recordActivity({
+              workspace: session.workspace,
+              actor: session.user,
+              actorName: session.name,
+              type: activityType,
+              procedure: procedureId,
+              procedureTitle: procedure.title,
+              ...(stepId ? { step: stepId } : {}),
+              ...(step?.position !== undefined ? { stepPosition: step.position } : {}),
+            });
+          }
+        } catch (error) {
+          console.error("Relay activity recording failed after a successful mutation.", error);
+        }
+      }
       return result;
     } catch (error) {
       if (error instanceof WorkspaceUnavailable || error instanceof InvitationUnavailable) return errorResponse(404, error instanceof InvitationUnavailable ? "INVITATION_NOT_AVAILABLE" : "WORKSPACE_NOT_AVAILABLE");

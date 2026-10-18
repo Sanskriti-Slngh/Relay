@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import type { Collection, Db, Document } from "mongodb";
+import { ObjectId, type Collection, type Db, type Document } from "mongodb";
 import {
   AssignmentAlreadyExists,
   NotAuthorized,
@@ -37,6 +37,35 @@ type InvitationDocument = Document & {
   expiresAt: Date;
   acceptedBy?: string;
 };
+export type ActivityEventType =
+  | "PLAYBOOK_CREATED"
+  | "PLAYBOOK_RENAMED"
+  | "PLAYBOOK_ARCHIVED"
+  | "STEP_ADDED"
+  | "STEP_EDITED"
+  | "STEP_REMOVED"
+  | "CONTEXT_CREATED"
+  | "CONTEXT_ATTACHED"
+  | "CONTEXT_CHANGED"
+  | "REVIEW_CONFIRMED"
+  | "REVIEW_RESOLVED"
+  | "QUESTION_ANSWERED";
+type ActivityDocument = Document & {
+  _id: ObjectId;
+  workspace: string;
+  actor: string;
+  actorName: string;
+  type: ActivityEventType;
+  occurredAt: Date;
+  procedure?: string;
+  step?: string;
+  context?: string;
+  attachment?: string;
+  review?: string;
+  question?: string;
+  procedureTitle?: string;
+  stepPosition?: number;
+};
 export interface WorkspaceMember {
   readonly user: string;
   readonly name: string;
@@ -49,6 +78,22 @@ export interface PendingInvitation {
   readonly email: string;
   readonly status: "PENDING";
   readonly expiresAt: Date;
+}
+
+export interface ActivityEvent {
+  readonly event: string;
+  readonly actor: string;
+  readonly actorName: string;
+  readonly type: ActivityEventType;
+  readonly occurredAt: Date;
+  readonly procedure?: string;
+  readonly step?: string;
+  readonly context?: string;
+  readonly attachment?: string;
+  readonly review?: string;
+  readonly question?: string;
+  readonly procedureTitle?: string;
+  readonly stepPosition?: number;
 }
 
 export interface AuthenticatedSession {
@@ -107,6 +152,7 @@ export class AccountStore {
   private readonly workspaces: Collection<WorkspaceDocument>;
   private readonly sessions: Collection<SessionDocument>;
   private readonly invitations: Collection<InvitationDocument>;
+  private readonly activity: Collection<ActivityDocument>;
   private indexesReady?: Promise<void>;
 
   constructor(
@@ -118,6 +164,7 @@ export class AccountStore {
     this.workspaces = database.collection<WorkspaceDocument>("host_workspaces");
     this.sessions = database.collection<SessionDocument>("host_sessions");
     this.invitations = database.collection<InvitationDocument>("host_invitations");
+    this.activity = database.collection<ActivityDocument>("host_activity");
   }
 
   private async ready(): Promise<void> {
@@ -127,6 +174,7 @@ export class AccountStore {
       this.invitations.createIndex({ tokenHash: 1 }, { unique: true, name: "invitation_token_unique" }),
       this.invitations.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: "invitation_expiry" }),
       this.invitations.createIndex({ workspace: 1, status: 1, expiresAt: 1 }, { name: "invitation_workspace_status" }),
+      this.activity.createIndex({ workspace: 1, occurredAt: -1, _id: -1 }, { name: "activity_workspace_recent" }),
     ]).then(() => undefined);
     await this.indexesReady;
   }
@@ -311,6 +359,108 @@ export class AccountStore {
     try { await this.roleAccess.assign({ user, resource: invite.workspace, role: memberRole }); }
     catch (error) { if (!(error instanceof AssignmentAlreadyExists)) throw error; }
     return { workspace: invite.workspace };
+  }
+
+  async recordActivity(input: {
+    workspace: string;
+    actor: string;
+    actorName: string;
+    type: ActivityEventType;
+    procedure?: string;
+    step?: string;
+    context?: string;
+    attachment?: string;
+    review?: string;
+    question?: string;
+    procedureTitle?: string;
+    stepPosition?: number;
+  }): Promise<void> {
+    await this.ready();
+    const occurredAt = this.now();
+    await this.activity.insertOne({
+      _id: new ObjectId(),
+      workspace: input.workspace,
+      actor: input.actor,
+      actorName: input.actorName,
+      type: input.type,
+      occurredAt,
+      ...(input.procedure ? { procedure: input.procedure } : {}),
+      ...(input.step ? { step: input.step } : {}),
+      ...(input.context ? { context: input.context } : {}),
+      ...(input.attachment ? { attachment: input.attachment } : {}),
+      ...(input.review ? { review: input.review } : {}),
+      ...(input.question ? { question: input.question } : {}),
+      ...(input.procedureTitle ? { procedureTitle: input.procedureTitle.slice(0, 200) } : {}),
+      ...(input.stepPosition !== undefined ? { stepPosition: input.stepPosition } : {}),
+    });
+  }
+
+  async recordContextAttachment(input: {
+    workspace: string;
+    actor: string;
+    actorName: string;
+    context: string;
+    attachment: string;
+    procedure: string;
+    procedureTitle: string;
+    step?: string;
+    stepPosition?: number;
+  }): Promise<void> {
+    await this.ready();
+    const occurredAt = this.now();
+    const workflowCutoff = new Date(occurredAt.getTime() - 5 * 60 * 1_000);
+    const upgraded = await this.activity.findOneAndUpdate(
+      {
+        workspace: input.workspace,
+        actor: input.actor,
+        context: input.context,
+        type: "CONTEXT_CREATED",
+        occurredAt: { $gte: workflowCutoff },
+      },
+      {
+        $set: {
+          type: "CONTEXT_ATTACHED",
+          occurredAt,
+          attachment: input.attachment,
+          procedure: input.procedure,
+          procedureTitle: input.procedureTitle.slice(0, 200),
+          ...(input.step ? { step: input.step } : {}),
+          ...(input.stepPosition !== undefined ? { stepPosition: input.stepPosition } : {}),
+        },
+      },
+      { sort: { occurredAt: -1, _id: -1 }, returnDocument: "after" },
+    );
+    if (upgraded) return;
+    await this.recordActivity({
+      ...input,
+      type: "CONTEXT_ATTACHED",
+    });
+  }
+
+  async recentActivity(user: string, workspace: string): Promise<ActivityEvent[]> {
+    await this.ready();
+    await this.roleAccess.authorize({
+      user,
+      resource: workspace,
+      permission: "EDIT_PROCEDURE",
+      command: "READ_RECENT_ACTIVITY",
+    });
+    return (await this.activity.find({ workspace }).sort({ occurredAt: -1, _id: -1 }).limit(5).toArray())
+      .map((event) => ({
+        event: event._id.toHexString(),
+        actor: event.actor,
+        actorName: event.actorName,
+        type: event.type,
+        occurredAt: event.occurredAt,
+        ...(event.procedure ? { procedure: event.procedure } : {}),
+        ...(event.step ? { step: event.step } : {}),
+        ...(event.context ? { context: event.context } : {}),
+        ...(event.attachment ? { attachment: event.attachment } : {}),
+        ...(event.review ? { review: event.review } : {}),
+        ...(event.question ? { question: event.question } : {}),
+        ...(event.procedureTitle ? { procedureTitle: event.procedureTitle } : {}),
+        ...(event.stepPosition !== undefined ? { stepPosition: event.stepPosition } : {}),
+      }));
   }
 }
 

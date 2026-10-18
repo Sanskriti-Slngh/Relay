@@ -591,6 +591,39 @@ index gains title search only when it grows, whole-Playbook Context does not
 repeat a note already anchored beside a Step, and long Context Notes use an
 explicit Read more control rather than irreversible truncation.
 
+## Recent activity without dashboard growth — October 18
+
+I separated two kinds of awareness on Overview. **Needs attention** remains the
+amber, actionable queue; the neutral **Recent activity** ledger below it shows
+what another club member changed without competing for urgency. The ledger is
+Officer-only, limited to five rows, and links back to stable Playbook identity.
+
+The five domain concepts do not reliably retain authenticated actors and host
+timestamps, so I kept this as a narrow host projection rather than inventing a
+sixth concept or reconstructing history from current state. The server records
+only successful authorized mutations using the verified session's User and
+workspace. Recording follows the concept mutation and therefore is durable but
+not atomic with it; documenting that gap is more accurate than treating this
+small continuity aid as a complete audit system.
+
+## Meaningful activity without interaction noise — October 18
+
+I expanded the same host projection only where an Officer would reasonably
+need continuity: archiving a Playbook, creating or attaching shared Context,
+confirming or resolving a Review, and answering a Question. I deliberately
+left reads, navigation, polling, Step moves, wording fixes, and answer revisions
+out. Those actions either do not change shared meaning or would make five
+recent rows feel like instrumentation instead of a useful handoff.
+
+Inline Context exposed an important implementation detail: Relay records a
+Note and attaches it with two API requests. The host now records creation
+truthfully, then upgrades that same event when the same actor successfully
+attaches the Note within five minutes. This keeps the interface at one human
+action—“added context”—without trusting a browser-supplied workflow identity.
+If attachment fails, the standalone creation remains; attaching an older Note
+creates a separate event. The projection is still durable but non-atomic with
+the concept mutation, so it remains an awareness aid rather than an audit log.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**
