@@ -38,9 +38,11 @@ instantiate ContextTracking with
 
 instantiate Questioning as StepQuestioning with
   Subject is ProcedureMaintaining.Step
+  Answerer is User
 
 instantiate Questioning as ContextQuestioning with
   Subject is ContextTracking.ContextNote
+  Answerer is User
 
 instantiate Reviewing with
   Item is ProcedureMaintaining.Procedure

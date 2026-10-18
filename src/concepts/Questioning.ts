@@ -9,6 +9,7 @@ type QuestionDocument = Document & {
   text: string;
   status: QuestionStatus;
   answer?: string;
+  answerer?: string;
 };
 
 type QuestioningStorage = {
@@ -20,6 +21,7 @@ type QuestioningStorage = {
 
 export class QuestionNotFound extends Error {}
 export class QuestionNotOpen extends Error {}
+export class QuestionAnswerNotEditable extends Error {}
 
 async function ensureConnected(storage: QuestioningStorage): Promise<void> {
   if (storage.db === db && storage.mongoClient === mongoClient) {
@@ -51,6 +53,7 @@ function questionRow(question: QuestionDocument) {
     text: question.text,
     status: question.status,
     ...(question.answer === undefined ? {} : { answer: question.answer }),
+    ...(question.answerer === undefined ? {} : { answerer: question.answerer }),
   };
 }
 
@@ -93,14 +96,16 @@ export class QuestioningConcept {
   async answer({
     question,
     answer,
+    answerer,
   }: {
     question: string;
     answer: string;
+    answerer: string;
   }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.questions.updateOne(
       { _id: question, status: "OPEN" },
-      { $set: { status: "ANSWERED", answer } },
+      { $set: { status: "ANSWERED", answer, answerer } },
     );
     if (result.matchedCount === 1) return {};
 
@@ -112,6 +117,32 @@ export class QuestioningConcept {
     throw new QuestionNotOpen("Only an OPEN Question can be answered.");
   }
 
+  async reviseAnswer({
+    question,
+    answer,
+    answerer,
+  }: {
+    question: string;
+    answer: string;
+    answerer: string;
+  }): Promise<Record<string, never>> {
+    await ensureStorage(this.storage);
+    const result = await this.storage.questions.updateOne(
+      { _id: question, status: "ANSWERED", answerer },
+      { $set: { answer } },
+    );
+    if (result.matchedCount === 1) return {};
+
+    const found = await this.storage.questions.findOne(
+      { _id: question },
+      { projection: { _id: 1 } },
+    );
+    if (found === null) throw new QuestionNotFound("There is no such Question.");
+    throw new QuestionAnswerNotEditable(
+      "Only the original answerer can revise an ANSWERED Question.",
+    );
+  }
+
   async _forSubject({
     subject,
   }: {
@@ -121,6 +152,7 @@ export class QuestioningConcept {
     text: string;
     status: QuestionStatus;
     answer?: string;
+    answerer?: string;
   }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.questions.find({ subject }).sort({ _id: 1 }).toArray();
@@ -142,6 +174,7 @@ export class QuestioningConcept {
     text: string;
     status: QuestionStatus;
     answer?: string;
+    answerer?: string;
   }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.questions.find({}).sort({ _id: 1 }).toArray();
@@ -157,11 +190,18 @@ export class QuestioningConcept {
     text: string;
     status: QuestionStatus;
     answer?: string;
+    answerer?: string;
   }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.questions.findOne({ _id: question });
     if (found === null) return [];
     const row = questionRow(found);
-    return [{ subject: found.subject, text: row.text, status: row.status, ...("answer" in row ? { answer: row.answer } : {}) }];
+    return [{
+      subject: found.subject,
+      text: row.text,
+      status: row.status,
+      ...("answer" in row ? { answer: row.answer } : {}),
+      ...("answerer" in row ? { answerer: row.answerer } : {}),
+    }];
   }
 }

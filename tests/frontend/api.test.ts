@@ -114,7 +114,7 @@ describe("Relay browser API client", () => {
       .toBe(true);
   });
 
-  test("sends Question reads, asks, and officer answers without caller-controlled identities", async () => {
+  test("sends Question reads, asks, answers, and owned revisions without caller-controlled identities", async () => {
     const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
     const api = createRelayApi(async (input, init) => {
       calls.push({ input, init });
@@ -126,6 +126,8 @@ describe("Relay browser API client", () => {
     await api.askContextQuestion("procedure", "context", "Context question?", "csrf");
     await api.answerStepQuestion("step-question", "Step answer.", "csrf");
     await api.answerContextQuestion("context-question", "Context answer.", "csrf");
+    await api.reviseStepQuestionAnswer("step-question", "Revised step answer.", "csrf");
+    await api.reviseContextQuestionAnswer("context-question", "Revised context answer.", "csrf");
 
     expect(calls.map(({ input }) => input)).toEqual([
       "/api/workspaces/questions",
@@ -133,6 +135,8 @@ describe("Relay browser API client", () => {
       "/api/workspaces/questions/context/ask",
       "/api/workspaces/questions/steps/answer",
       "/api/workspaces/questions/context/answer",
+      "/api/workspaces/questions/steps/revise",
+      "/api/workspaces/questions/context/revise",
     ]);
     expect(calls.map(({ init }) => JSON.parse(String(init?.body)))).toEqual([
       {},
@@ -140,7 +144,10 @@ describe("Relay browser API client", () => {
       { procedure: "procedure", context: "context", text: "Context question?" },
       { question: "step-question", answer: "Step answer." },
       { question: "context-question", answer: "Context answer." },
+      { question: "step-question", answer: "Revised step answer." },
+      { question: "context-question", answer: "Revised context answer." },
     ]);
+    expect(calls.every(({ init }) => !String(init?.body).includes("user"))).toBe(true);
   });
 
   test("surfaces unauthenticated API responses as an explicit sign-in error", async () => {

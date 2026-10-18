@@ -252,6 +252,15 @@ stores the answer, and changes the state from `OPEN` to `ANSWERED`. Repeated
 answers, unknown Questions, and foreign-workspace Questions are unavailable at
 the application boundary.
 
+[ReviseStepQuestionAnswer](reaction:Relay.QuestionOperations.ReviseStepQuestionAnswer)
+and [ReviseContextQuestionAnswer](reaction:Relay.QuestionOperations.ReviseContextQuestionAnswer)
+authorize with the same `ANSWER_QUESTION` permission and scope the Question to
+the selected workspace. The `Questioning` concept additionally requires the
+trusted current User to match the answer's original answerer. A revision
+replaces only the answer text; it preserves the Question, subject, state, and
+answerer. This keeps ordinary Members and other Officers from rewriting
+someone else's response.
+
 [GetQuestions](reaction:Relay.ReadOperations.GetQuestions) returns both
 [WorkspaceStepQuestions](former:Relay.Reads.WorkspaceStepQuestions) and
 [WorkspaceContextQuestions](former:Relay.Reads.WorkspaceContextQuestions).
@@ -266,6 +275,8 @@ Relay.QuestionOperations.AskStepQuestion at /workspaces/questions/steps/ask
 Relay.QuestionOperations.AskContextQuestion at /workspaces/questions/context/ask
 Relay.QuestionOperations.AnswerStepQuestion at /workspaces/questions/steps/answer
 Relay.QuestionOperations.AnswerContextQuestion at /workspaces/questions/context/answer
+Relay.QuestionOperations.ReviseStepQuestionAnswer at /workspaces/questions/steps/revise
+Relay.QuestionOperations.ReviseContextQuestionAnswer at /workspaces/questions/context/revise
 Relay.ReadOperations.GetQuestions at /workspaces/questions
 ```
 

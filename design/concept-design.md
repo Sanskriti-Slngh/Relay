@@ -292,6 +292,7 @@ concept Questioning
 
 types
   external Subject
+  external Answerer
 
   QuestionStatus is OPEN or ANSWERED
 
@@ -310,6 +311,7 @@ state
     a text String
     a status QuestionStatus
     an optional answer String
+    an optional answerer Answerer
 
 actions
 
@@ -324,14 +326,29 @@ actions
 
   answer (
     question: Question,
-    answer: String
+    answer: String,
+    answerer: Answerer
   )
     where
       question exists
       question status is OPEN
     then
       associate answer with question
+      associate answerer with question
       set question status to ANSWERED
+
+  reviseAnswer (
+    question: Question,
+    answer: String,
+    answerer: Answerer
+  )
+    where
+      question exists
+      question status is ANSWERED
+      question answerer is answerer
+    then
+      replace the associated answer
+      preserve the original question, subject, and answerer
 ```
 
 Relay uses the same generic Questioning concept twice: once with `Subject = Step` and once with `Subject = ContextNote`. For readability, the reactions below call these instances **StepQuestioning** and **ContextQuestioning**. This is one reusable concept specification with two type instantiations, not two additional concepts.
@@ -726,7 +743,7 @@ where
     procedure space is workspace
 
 then
-  StepQuestioning.answer(question, answer)
+  StepQuestioning.answer(question, answer, user)
 ```
 
 ## Only officers may answer a ContextNote question
@@ -749,7 +766,7 @@ where
     context scope is workspace
 
 then
-  ContextQuestioning.answer(question, answer)
+  ContextQuestioning.answer(question, answer, user)
 ```
 
 Only the **Officer** role contains `ANSWER_QUESTION`.
@@ -808,7 +825,7 @@ Each protected operation occurs only after `RoleBasedAccessing.authorize` succee
 | Correct a ContextNote's wording | `EDIT_CONTEXT` | `ContextTracking.correct` |
 | Record a meaningful ContextNote change | `EDIT_CONTEXT` | `ContextTracking.change` |
 | Ask about a Step or ContextNote | `ASK_QUESTION` | `StepQuestioning.ask` or `ContextQuestioning.ask` |
-| Answer a Step or ContextNote question | `ANSWER_QUESTION` | `StepQuestioning.answer` or `ContextQuestioning.answer` |
+| Answer or revise one's own answer to a Step or ContextNote question | `ANSWER_QUESTION` | `StepQuestioning.answer` / `reviseAnswer` or `ContextQuestioning.answer` / `reviseAnswer` |
 | Confirm a Review | `COMPLETE_REVIEW` | `Reviewing.confirm` |
 | Mark a Review as requiring changes | `COMPLETE_REVIEW` | `Reviewing.requireChanges` |
 | Resolve a Review after updating the Procedure | `COMPLETE_REVIEW` | `Reviewing.resolve` |

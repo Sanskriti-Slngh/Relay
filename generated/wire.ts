@@ -212,6 +212,7 @@ export type RelayP2MVPWire = {
     output: {
       "contextQuestions": ({
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answer"]>> | null;
+        "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answerer"]>> | null;
         "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["subject"]>]>>;
         "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["status"]>>;
@@ -220,6 +221,7 @@ export type RelayP2MVPWire = {
       })[];
       "stepQuestions": ({
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answer"]>> | null;
+        "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answerer"]>> | null;
         "procedure": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["procedure"]>]>>;
         "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["status"]>>;
@@ -236,7 +238,7 @@ export type RelayP2MVPWire = {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["answer"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>]>>;
-      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
     };
     output: {
@@ -259,11 +261,24 @@ export type RelayP2MVPWire = {
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_SUBJECT_NOT_AVAILABLE" };
   };
+  "/workspaces/questions/context/revise": {
+    input: {
+      "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["answer"]>>;
+      "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>]>>;
+      "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["answerer"]>]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["question"]>>;
+      "status": "ANSWERED";
+    };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" };
+  };
   "/workspaces/questions/steps/answer": {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["answer"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>]>>;
-      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
     };
     output: {
@@ -285,6 +300,19 @@ export type RelayP2MVPWire = {
       "step": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["ask"]>[0], ["subject"]>>;
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_SUBJECT_NOT_AVAILABLE" };
+  };
+  "/workspaces/questions/steps/revise": {
+    input: {
+      "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["answer"]>>;
+      "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>]>>;
+      "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["answerer"]>]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["question"]>>;
+      "status": "ANSWERED";
+    };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" };
   };
   "/workspaces/reviews": {
     input: {

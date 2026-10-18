@@ -7,6 +7,7 @@ const props = defineProps<{
   contextQuestions: ContextQuestion[];
   actionBusy: string;
   canAnswer: boolean;
+  currentUserId: string;
 }>();
 
 const emit = defineEmits<{
@@ -16,9 +17,16 @@ const emit = defineEmits<{
     answer: string;
     onSuccess: () => void;
   }];
+  revise: [payload: {
+    kind: "step" | "context";
+    question: StepQuestion | ContextQuestion;
+    answer: string;
+    onSuccess: () => void;
+  }];
 }>();
 
 const answerDraft = reactive<Record<string, string>>({});
+const editingAnswer = reactive<Record<string, boolean>>({});
 const questions = computed(() => [
   ...props.stepQuestions.map((question) => ({ kind: "step" as const, question })),
   ...props.contextQuestions.map((question) => ({ kind: "context" as const, question })),
@@ -35,6 +43,31 @@ function answerQuestion(kind: "step" | "context", question: StepQuestion | Conte
     answer,
     onSuccess: () => { answerDraft[question.question] = ""; },
   });
+}
+
+function beginAnswerRevision(question: StepQuestion | ContextQuestion) {
+  answerDraft[question.question] = question.answer ?? "";
+  editingAnswer[question.question] = true;
+}
+
+function cancelAnswerRevision(question: StepQuestion | ContextQuestion) {
+  delete answerDraft[question.question];
+  delete editingAnswer[question.question];
+}
+
+function reviseQuestionAnswer(kind: "step" | "context", question: StepQuestion | ContextQuestion) {
+  const answer = (answerDraft[question.question] ?? "").trim();
+  if (!answer) return;
+  emit("revise", {
+    kind,
+    question,
+    answer,
+    onSuccess: () => cancelAnswerRevision(question),
+  });
+}
+
+function canRevise(question: StepQuestion | ContextQuestion) {
+  return props.canAnswer && question.answerer === props.currentUserId;
 }
 
 function subjectLabel(kind: "step" | "context", question: StepQuestion | ContextQuestion) {
@@ -88,7 +121,18 @@ function isRemovedStep(kind: "step" | "context", question: StepQuestion | Contex
     <article v-for="entry in answeredQuestions" :key="`${entry.kind}-${entry.question.question}`" class="answered-question">
       <div class="answered-question-heading"><strong>{{ subjectLabel(entry.kind, entry.question) }}</strong><span>{{ entry.kind === "step" ? "Step" : "Context" }}</span></div>
       <p class="answered-question-text">{{ entry.question.text }}</p>
-      <p class="answered-question-answer"><span>Answer</span>{{ entry.question.answer }}</p>
+      <form v-if="editingAnswer[entry.question.question]" class="question-answer-form" @submit.prevent="reviseQuestionAnswer(entry.kind, entry.question)">
+        <label :for="`revise-${entry.question.question}`">Revise your answer</label>
+        <textarea :id="`revise-${entry.question.question}`" v-model="answerDraft[entry.question.question]" required maxlength="2000" rows="3"></textarea>
+        <div class="answer-edit-actions">
+          <button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(answerDraft[entry.question.question] ?? '').trim()">{{ actionBusy === `revise-${entry.question.question}` ? "Saving…" : "Save answer" }}</button>
+          <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="cancelAnswerRevision(entry.question)">Cancel</button>
+        </div>
+      </form>
+      <template v-else>
+        <p class="answered-question-answer"><span>Answer</span>{{ entry.question.answer }}</p>
+        <button v-if="canRevise(entry.question)" class="text-button answer-edit-button" type="button" :disabled="!!actionBusy" @click="beginAnswerRevision(entry.question)">Edit your answer</button>
+      </template>
     </article>
   </section>
 </template>
