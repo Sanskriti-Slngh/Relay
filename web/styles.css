@@ -80,10 +80,8 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .sign-in-card { width: 100%; border-top: 1px solid var(--line); padding: 32px 0 0; }
 .card-kicker { color: var(--accent); font-size: 13px; font-weight: 600; }
 .sign-in-card h2 { margin: 10px 0 8px; font-size: 28px; font-weight: 560; letter-spacing: -.025em; }
-.sign-in-card > p:not(.privacy-note):not(.inline-error) { margin: 0 0 28px; color: var(--muted); }
 .sign-in-card label, .disclosure-form label, .question-form label, .question-answer-form label, .update-disclosure form > label, .invite-form label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .sign-in-card input { margin-bottom: 18px; }
-.privacy-note { margin: 18px 0 0; color: var(--quiet); font-size: 12px; line-height: 1.55; text-align: center; }
 .inline-error { color: var(--error); font-size: 13px; }
 .auth-switch { display: flex; margin: 16px auto 0; }
 
@@ -116,8 +114,6 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .breadcrumb { color: var(--quiet); font-size: 12px; }
 .breadcrumb span { margin: 0 6px; color: #abb3ad; }
 .topbar-actions { display: flex; align-items: center; gap: 13px; }
-.live-indicator { display: flex; align-items: center; gap: 7px; color: var(--quiet); font-size: 12px; }
-.live-indicator span { width: 6px; height: 6px; border-radius: 50%; background: var(--complete); }
 .icon-button { display: grid; width: 32px; height: 32px; place-items: center; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: transparent; font-size: 17px; }
 .icon-button:hover { border-color: var(--line-strong); color: var(--ink); }
 .mobile-sign-out { display: none; border: 0; color: var(--muted); background: transparent; font-size: 12px; }
@@ -128,7 +124,6 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .page-heading { margin-bottom: 36px; }
 .heading-with-action { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
 .page-heading h1 { margin: 0; font-size: clamp(32px, 4vw, 44px); font-weight: 520; line-height: 1.12; letter-spacing: -.04em; }
-.page-intro { max-width: 680px; margin: 12px 0 0; color: var(--muted); font-size: 15px; line-height: 1.65; }
 .flash { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; border-left: 3px solid; padding: 11px 14px; font-size: 13px; }
 .flash p { flex: 1; margin: 0; }
 .flash button { border: 0; color: inherit; background: transparent; font-size: 18px; }
@@ -138,6 +133,10 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .empty-page-state h2 { margin: 0 0 8px; font-size: 20px; font-weight: 560; }
 .empty-page-state p { max-width: 480px; margin: 0; color: var(--muted); }
 .empty-page-state .button { margin-top: 20px; }
+.first-run { min-height: 360px; display: flex; max-width: 620px; flex-direction: column; align-items: flex-start; justify-content: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.first-run h2 { margin: 0; font-size: 28px; font-weight: 560; letter-spacing: -.025em; }
+.first-run p { max-width: 480px; margin: 10px 0 24px; color: var(--muted); font-size: 16px; }
+.first-run p:last-child { margin-bottom: 0; }
 
 .disclosure-form { border-left: 2px solid var(--accent); padding: 4px 0 4px 18px; }
 .create-disclosure { margin: -12px 0 32px; }
@@ -156,7 +155,6 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .playbook-index-row small { color: var(--quiet); font-size: 12px; }
 .playbook-document { min-width: 0; }
 .document-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--line); padding-bottom: 28px; }
-.document-label { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 600; }
 .document-title h2 { margin: 0; font-size: clamp(28px, 3.2vw, 38px); font-weight: 520; line-height: 1.15; letter-spacing: -.035em; }
 .document-title > p:last-child { margin: 10px 0 0; color: var(--quiet); font-size: 13px; }
 .title-edit-form { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -190,7 +188,8 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .subject-question .question-answer span { display: block; margin-bottom: 2px; font-weight: 600; }
 .document-empty { margin: 26px 0; color: var(--muted); }
 .add-step-control { border-bottom: 1px solid var(--line); padding: 20px 0 28px 54px; }
-.document-context { padding: 30px 0; }
+.document-context { margin-top: 26px; padding: 16px 0 30px; }
+.document-context > summary { margin-bottom: 16px; }
 .document-context h3, .context-dependencies h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
 .document-context > p, .context-dependencies > p { margin: 0; color: var(--quiet); font-size: 13px; }
 .context-callouts { display: grid; gap: 10px; }
@@ -205,7 +204,6 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .archived-playbook ol { display: grid; gap: 8px; padding-left: 0; list-style: none; }
 .archived-playbook li { display: flex; gap: 12px; color: var(--muted); font-size: 13px; }
 
-.context-encouragement, .context-explainer { margin: -12px 0 28px; border-left: 2px solid #b8c7bd; padding: 7px 14px; color: var(--muted); background: #f4f6f2; font-size: 13px; }
 .context-ledger { border-top: 1px solid var(--line); }
 .context-entry { border-bottom: 1px solid var(--line); padding: 30px 0; }
 .context-entry-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; }
@@ -221,6 +219,7 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .update-disclosure fieldset strong { font-size: 13px; }
 .update-disclosure fieldset small { color: var(--muted); font-size: 12px; }
 .context-dependencies { margin: 22px 0 16px; }
+.context-dependencies > section { padding-top: 12px; }
 .dependency-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .dependency-list > span { display: inline-flex; align-items: baseline; gap: 7px; border-bottom: 1px solid var(--line-strong); padding: 4px 0; }
 .dependency-list strong { font-size: 13px; font-weight: 600; }
@@ -325,7 +324,6 @@ input::placeholder, textarea::placeholder { color: #68736c; }
   .nav-link { min-width: 0; min-height: 52px; flex: 1; justify-content: center; padding: 0 3px; font-size: 12px; text-align: center; }
   .nav-count { position: absolute; transform: translate(28px, -14px); }
   .topbar { min-height: 52px; padding: 0 16px; }
-  .live-indicator { font-size: 0; }
   .mobile-sign-out { display: inline-flex; }
   .content-area { padding: 32px 16px 54px; }
   .heading-with-action { align-items: flex-start; flex-direction: column; }

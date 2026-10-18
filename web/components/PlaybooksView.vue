@@ -31,6 +31,7 @@ const selectedProcedure = computed(() => activeProcedures.value.find(({ procedur
 
 watch(activeProcedures, (procedures) => {
   if (!procedures.some(({ procedure }) => procedure === selectedProcedureId.value)) selectedProcedureId.value = procedures[0]?.procedure ?? "";
+  if (!procedures.length && props.canEdit) showCreate.value = true;
 }, { immediate: true });
 
 watch(() => props.focusProcedure, (procedure) => {
@@ -71,8 +72,8 @@ function askQuestion(procedure: Procedure, step: Step) {
 
 <template>
   <header class="page-heading heading-with-action">
-    <div><h1>Playbooks</h1><p class="page-intro">The official steps your club follows, with the context and answers that explain them.</p></div>
-    <button v-if="canEdit" class="button button-primary" type="button" @click="showCreate = !showCreate">{{ showCreate ? "Close" : "New playbook" }}</button>
+    <h1>Playbooks</h1>
+    <button v-if="canEdit && activeProcedures.length" class="button button-primary" type="button" @click="showCreate = !showCreate">{{ showCreate ? "Close" : "New playbook" }}</button>
   </header>
 
   <form v-if="canEdit && showCreate" class="disclosure-form create-disclosure" @submit.prevent="createProcedure">
@@ -81,8 +82,9 @@ function askQuestion(procedure: Procedure, step: Step) {
   </form>
 
   <div v-if="!activeProcedures.length" class="empty-page-state">
-    <h2>{{ archivedProcedures.length ? "No active playbooks" : "Create the first playbook" }}</h2>
-    <p>{{ archivedProcedures.length ? "Archived playbooks remain available below." : "Start with one recurring process and write the steps in the order people perform them." }}</p>
+    <h2>{{ archivedProcedures.length ? "No active playbooks" : "Start with a playbook" }}</h2>
+    <p>{{ archivedProcedures.length ? "Archived playbooks are available below." : "Write the steps for one recurring task." }}</p>
+    <button v-if="canEdit && !showCreate" class="button button-primary" type="button" @click="showCreate = true">Create playbook</button>
   </div>
 
   <div v-else class="playbook-workspace">
@@ -98,7 +100,7 @@ function askQuestion(procedure: Procedure, step: Step) {
           <form v-if="canEdit && editingTitle === selectedProcedure.procedure" class="title-edit-form" @submit.prevent="renameProcedure(selectedProcedure)">
             <label class="sr-only" :for="`rename-${selectedProcedure.procedure}`">Rename {{ selectedProcedure.title }}</label><input :id="`rename-${selectedProcedure.procedure}`" v-model="titleDraft[selectedProcedure.procedure]" required maxlength="160"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !titleDraft[selectedProcedure.procedure]?.trim()">Save</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="editingTitle = ''">Cancel</button>
           </form>
-          <template v-else><p class="document-label">Playbook</p><h2>{{ selectedProcedure.title }}</h2><p>{{ selectedProcedure.steps.length }} ordered {{ selectedProcedure.steps.length === 1 ? "step" : "steps" }} · {{ notesForProcedure(selectedProcedure.procedure).length }} context {{ notesForProcedure(selectedProcedure.procedure).length === 1 ? "note" : "notes" }}</p></template>
+          <template v-else><h2>{{ selectedProcedure.title }}</h2><p>{{ selectedProcedure.steps.length }} {{ selectedProcedure.steps.length === 1 ? "step" : "steps" }}</p></template>
         </div>
         <details v-if="canEdit" class="action-menu"><summary aria-label="Playbook actions">Actions</summary><div><button type="button" @click="beginRename(selectedProcedure)">Rename</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('archive', selectedProcedure)">Archive</button></div></details>
       </header>
@@ -128,9 +130,9 @@ function askQuestion(procedure: Procedure, step: Step) {
         <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div></form>
       </div>
 
-      <section class="document-context"><h3>Attached context</h3><div v-if="notesForProcedure(selectedProcedure.procedure).length" class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure.procedure)" :key="note.context">{{ note.text }}</blockquote></div><p v-else>No context notes are attached yet. The playbook can still stand on its own.</p></section>
+      <details v-if="notesForProcedure(selectedProcedure.procedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure.procedure).length }}</span></summary><div class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure.procedure)" :key="note.context">{{ note.text }}</blockquote></div></details>
     </article>
   </div>
 
-  <details v-if="archivedProcedures.length" class="quiet-history archived-playbooks"><summary>Archived playbooks <span>{{ archivedProcedures.length }}</span></summary><article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook"><header><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} steps</small></header><ol><li v-for="step in procedure.steps" :key="step.step"><span>{{ step.position }}</span>{{ step.text }}</li></ol><p>{{ notesForProcedure(procedure.procedure).length }} attached context notes. Review history remains available.</p></article></details>
+  <details v-if="archivedProcedures.length" class="quiet-history archived-playbooks"><summary>Archived playbooks <span>{{ archivedProcedures.length }}</span></summary><article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook"><header><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} steps</small></header><ol><li v-for="step in procedure.steps" :key="step.step"><span>{{ step.position }}</span>{{ step.text }}</li></ol></article></details>
 </template>
