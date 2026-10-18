@@ -504,6 +504,21 @@ visible, and the navigation collapses for mobile. A Review's Edit action now
 opens its exact affected Playbook, closing a small but important usability gap
 without changing application behavior.
 
+## First-use simplification — October 18
+
+After the visual redesign, Relay was calmer but still explained itself too
+often. I removed repeated page subtitles, technical session language, visible
+connection copy, and metadata that competed with the task at hand. Empty clubs
+now start with one action—create a Playbook—and Officers land on its open form.
+Populated Playbooks emphasize the instructions; Context connections, Question
+threads, histories, and uncommon mutations remain behind clear text labels.
+
+This pass also changed the Context update language to **Fix wording** and
+**Information changed**. Those labels are easier to decide between, but still
+map to the same correction/change actions and preserve Review behavior. The
+principle was to remove explanation before removing capability: every workflow
+and historical record remains reachable without relying on hover or tooltips.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

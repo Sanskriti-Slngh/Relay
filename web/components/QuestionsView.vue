@@ -28,15 +28,15 @@ function isRemovedStep(kind: "step" | "context", question: StepQuestion | Contex
 </script>
 
 <template>
-  <header class="page-heading heading-with-action"><div><h1>Questions</h1><p class="page-intro">Unanswered questions stay visible until an Officer responds.</p></div><span class="status-count" :class="{ attention: openQuestions.length }">{{ openQuestions.length }} unanswered</span></header>
+  <header class="page-heading heading-with-action"><h1>Questions</h1><span class="status-count" :class="{ attention: openQuestions.length }">{{ openQuestions.length }} unanswered</span></header>
 
-  <div v-if="!openQuestions.length" class="empty-page-state"><h2>No unanswered questions</h2><p>New questions about steps and context notes will appear here.</p></div>
+  <div v-if="!openQuestions.length" class="empty-page-state"><h2>All answered</h2></div>
   <div v-else class="inbox-list">
     <details v-for="entry in openQuestions" :key="`${entry.kind}-${entry.question.question}`" class="inbox-row">
       <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ entry.question.text }}</strong><small>{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small></span><span class="row-status pending">Open</span></summary>
       <div class="inbox-detail">
-        <div class="source-excerpt"><span>Source</span><p>{{ entry.question.subjectText }}</p><small v-if="isRemovedStep(entry.kind, entry.question)">This step was removed, but its Question remains attached to the original identity.</small></div>
-        <form v-if="canAnswer" class="question-answer-form" @submit.prevent="answerQuestion(entry.kind, entry.question)"><label :for="`answer-${entry.question.question}`">Answer</label><textarea :id="`answer-${entry.question.question}`" v-model="answerDraft[entry.question.question]" placeholder="Give a clear answer future readers can rely on…" required maxlength="2000" rows="4"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(answerDraft[entry.question.question] ?? '').trim()">{{ actionBusy === `answer-${entry.question.question}` ? "Answering…" : "Answer question" }}</button></div></form>
+        <div class="source-excerpt"><span>About</span><p>{{ entry.question.subjectText }}</p><small v-if="isRemovedStep(entry.kind, entry.question)">The original step was removed. This question is still preserved.</small></div>
+        <form v-if="canAnswer" class="question-answer-form" @submit.prevent="answerQuestion(entry.kind, entry.question)"><label :for="`answer-${entry.question.question}`">Answer</label><textarea :id="`answer-${entry.question.question}`" v-model="answerDraft[entry.question.question]" placeholder="Write an answer…" required maxlength="2000" rows="4"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(answerDraft[entry.question.question] ?? '').trim()">{{ actionBusy === `answer-${entry.question.question}` ? "Answering…" : "Answer" }}</button></div></form>
       </div>
     </details>
   </div>

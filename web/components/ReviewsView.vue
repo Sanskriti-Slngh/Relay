@@ -9,17 +9,16 @@ function procedureIsActive(procedure: string) { return props.procedures.some((en
 </script>
 
 <template>
-  <header class="page-heading heading-with-action"><div><h1>Reviews</h1><p class="page-intro">Reconsider playbooks when the context behind them changes.</p></div><span class="status-count" :class="{ attention: reviews.length }">{{ reviews.length }} pending</span></header>
-  <p class="context-explainer"><strong>Why reviews appear:</strong> meaningful context changes preserve their before-and-after text and flag every affected active playbook.</p>
+  <header class="page-heading heading-with-action"><h1>Reviews</h1><span class="status-count" :class="{ attention: reviews.length }">{{ reviews.length }} open</span></header>
 
-  <div v-if="!reviews.length" class="empty-page-state"><h2>Your review inbox is clear</h2><p>No playbooks currently need reconsideration.</p><button class="button button-secondary" type="button" @click="emit('browseContext')">Browse shared context</button></div>
+  <div v-if="!reviews.length" class="empty-page-state"><h2>No reviews</h2><button class="button button-secondary" type="button" @click="emit('browseContext')">View context</button></div>
   <div v-else class="inbox-list">
     <details v-for="review in reviews" :key="review.review" class="inbox-row">
       <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ review.title }}</strong><small>{{ review.causes.length }} {{ review.causes.length === 1 ? "context change" : "context changes" }}</small></span><span class="row-status pending">{{ review.status === "PENDING" ? "Review" : "Changes required" }}</span></summary>
       <div class="inbox-detail">
         <div class="cause-list"><article v-for="cause in review.causes" :key="cause.cause" class="cause-diff"><div><span>Before</span><p>{{ cause.before }}</p></div><div><span>After</span><p>{{ cause.after }}</p></div></article><p v-if="!review.causes.length" class="form-guidance">No cause text is available for this Review.</p></div>
         <div class="review-decision">
-          <p v-if="review.status === 'PENDING'">Check whether the playbook remains correct after these changes.</p><p v-else>Edit the active playbook, then resolve the Review when the official steps are current.</p>
+          <p v-if="review.status === 'PENDING'">Is this playbook still correct?</p><p v-else>Update the playbook, then resolve this review.</p>
           <div class="review-actions">
             <template v-if="review.status === 'PENDING'"><button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('confirm', review)">{{ actionBusy === `confirm-${review.review}` ? "Confirming…" : "Confirm correct" }}</button><details class="action-menu"><summary>Other actions</summary><div><button type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('requireChanges', review)">Require changes</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">Cancel review</button></div></details></template>
             <template v-else><button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('editPlaybook', review.procedure)">Edit playbook</button><button class="button button-primary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('resolve', review)">{{ actionBusy === `resolve-${review.review}` ? "Resolving…" : "Resolve review" }}</button><details class="action-menu"><summary>Other actions</summary><div><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">Cancel review</button></div></details></template>

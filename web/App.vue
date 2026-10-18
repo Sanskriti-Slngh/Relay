@@ -331,23 +331,22 @@ onUnmounted(() => {
     <section v-else-if="!authenticated" class="sign-in-layout">
       <div class="sign-in-story">
         <div class="brand-lockup"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></div>
-        <p class="auth-context">Club knowledge, kept with the work</p><h1>Keep the reasoning behind every playbook.</h1>
-        <p class="story-copy">Preserve shared context, trace what changed, and make sure every affected procedure gets a thoughtful review.</p>
-        <div class="story-foot"><span class="status-dot"></span>Private club workspaces · role-based access</div>
+        <p class="auth-context">Club knowledge, kept with the work</p><h1>Keep every handoff clear.</h1>
+        <p class="story-copy">Write the steps, keep the reasoning, and know when something needs attention.</p>
+        <div class="story-foot"><span class="status-dot"></span>Private club workspaces</div>
       </div>
       <form class="sign-in-card" @submit.prevent="signIn">
-        <div class="card-kicker">{{ authMode === 'signin' ? 'Sign in' : 'Create account' }}</div><h2>{{ authMode === 'signin' ? 'Welcome back' : 'Join Relay' }}</h2><p>{{ authMode === 'signin' ? 'Use your own Relay account.' : 'Create an account, then create a club or accept an invitation.' }}</p>
+        <div class="card-kicker">{{ authMode === 'signin' ? 'Sign in' : 'Create account' }}</div><h2>{{ authMode === 'signin' ? 'Welcome back' : 'Join Relay' }}</h2>
         <label v-if="authMode === 'register'" for="display-name">Name</label><input v-if="authMode === 'register'" id="display-name" v-model="displayName" autocomplete="name" required maxlength="100" :disabled="loginBusy">
         <label for="email">Email</label><input id="email" v-model="email" type="email" autocomplete="email" required maxlength="254" :disabled="loginBusy">
         <label for="password">Password</label><input id="password" v-model="password" type="password" :autocomplete="authMode === 'signin' ? 'current-password' : 'new-password'" required minlength="10" maxlength="128" :disabled="loginBusy">
         <button class="button button-primary button-wide" type="submit" :disabled="loginBusy">{{ loginBusy ? "Please wait…" : authMode === 'signin' ? "Sign in" : "Create account" }} <span aria-hidden="true">→</span></button>
         <button class="text-button auth-switch" type="button" :disabled="loginBusy" @click="authMode = authMode === 'signin' ? 'register' : 'signin'; clearMessages()">{{ authMode === 'signin' ? 'New to Relay? Create an account' : 'Already have an account? Sign in' }}</button>
-        <p class="privacy-note">Passwords are salted and hashed. The browser receives only an expiring, HttpOnly session cookie.</p>
         <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p>
       </form>
     </section>
     <section v-else-if="!hasWorkspace" class="loading-screen onboarding-screen">
-      <span class="brand-mark" aria-hidden="true">R</span><h1>Choose how to get started</h1><p>Signed in as {{ currentUser?.email }}. Create a club as its Officer, or join one with a one-time invitation code.</p>
+      <span class="brand-mark" aria-hidden="true">R</span><h1>Choose a club</h1><p>Create a new club or enter an invitation code.</p>
       <div v-if="workspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in workspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
       <form class="onboarding-card" @submit.prevent="createClub"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Officer</button></form>
       <form class="onboarding-card" @submit.prevent="acceptInvitation"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">Join club</button></form>
@@ -367,8 +366,8 @@ onUnmounted(() => {
       </aside>
       <section class="main-column">
         <header class="topbar">
-          <div class="breadcrumb">Relay <span>/</span> {{ navigation.find((item) => item.id === section)?.label }}</div>
-          <div class="topbar-actions"><span class="live-indicator"><span></span> Workspace connected</span><button class="icon-button" type="button" :disabled="refreshing || !!actionBusy" aria-label="Refresh workspace" @click="refreshData(true)"><span :class="{ spinning: refreshing }" aria-hidden="true">↻</span></button><button class="mobile-sign-out" type="button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
+          <div class="breadcrumb">{{ navigation.find((item) => item.id === section)?.label }}</div>
+          <div class="topbar-actions"><button class="icon-button" type="button" :disabled="refreshing || !!actionBusy" aria-label="Refresh workspace" @click="refreshData(true)"><span :class="{ spinning: refreshing }" aria-hidden="true">↻</span></button><button class="mobile-sign-out" type="button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
         </header>
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>

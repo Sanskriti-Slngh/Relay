@@ -62,6 +62,23 @@ history remains accessible with quieter typography and spacing. The Overview
 prioritizes unanswered Questions and unfinished Reviews, then offers compact
 recent-knowledge lists instead of metric cards.
 
+## First-use simplification
+
+The follow-up simplification pass removes page subtitles that repeated the
+heading or navigation label and shortens explanatory copy throughout the
+shell. A truly empty workspace now leads with one action: create the first
+Playbook. The empty Playbooks page opens its creation form immediately for an
+Officer, while Members receive a concise role-appropriate state.
+
+Playbook headers now show only the title and Step count. Context attachments,
+Question threads, archives, and per-Step actions remain available through
+labeled disclosures. Context Notes lead with their text; dependencies and
+history are collapsed. The update choice uses the user-facing labels **Fix
+wording** and **Information changed**, while continuing to invoke the existing
+correction and meaningful-change operations exactly as before. Questions and
+Reviews retain compact summary rows, with source text, before/after evidence,
+and lifecycle actions revealed only when a row is opened.
+
 ## Sources applied
 
 - [Nielsen Norman Group, Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/): frequent actions stay visible; advanced or destructive actions use explicit, labeled disclosure.
