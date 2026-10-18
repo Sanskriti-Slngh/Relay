@@ -66,6 +66,7 @@ function messageFor(code: string): string {
     QUESTION_SUBJECT_NOT_AVAILABLE: "That question target is not available in this workspace.",
     QUESTION_NOT_AVAILABLE: "That question is no longer open or available in this workspace.",
     QUESTION_NOT_OPEN: "That question has already been answered.",
+    QUESTION_ANSWER_NOT_EDITABLE: "Only the Officer who originally answered can revise this answer.",
     CSRF_REJECTED: "Your session verification failed. Sign in again.",
   };
   return messages[code] ?? "Relay could not complete the request. Please try again.";
@@ -312,6 +313,18 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     },
     answerContextQuestion(question: string, answer: string, csrfToken: string) {
       return post<{ question: string; status: string }>("/workspaces/questions/context/answer", {
+        question,
+        answer,
+      }, csrfToken);
+    },
+    reviseStepQuestionAnswer(question: string, answer: string, csrfToken: string) {
+      return post<{ question: string; status: string }>("/workspaces/questions/steps/revise", {
+        question,
+        answer,
+      }, csrfToken);
+    },
+    reviseContextQuestionAnswer(question: string, answer: string, csrfToken: string) {
+      return post<{ question: string; status: string }>("/workspaces/questions/context/revise", {
         question,
         answer,
       }, csrfToken);

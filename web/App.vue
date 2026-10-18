@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { createRelayApi, RelayApiError, type ContextNote, type ContextQuestion, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMembership } from "./api.ts";
 import ContextView from "./components/ContextView.vue";
 import OverviewView from "./components/OverviewView.vue";
@@ -40,6 +40,7 @@ const reviewHistory = ref<ProcedureReviewHistory[]>([]);
 const stepQuestions = ref<StepQuestion[]>([]);
 const contextQuestions = ref<ContextQuestion[]>([]);
 let refreshSequence = 0;
+let refreshTimer: number | undefined;
 
 const unfinishedCount = computed(() => reviews.value.length);
 const unansweredCount = computed(() =>
@@ -62,6 +63,7 @@ const navigation: { id: Section; label: string; short: string }[] = [
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
 
 function clearWorkspaceState() {
+  refreshSequence += 1;
   authenticated.value = false;
   csrfToken.value = "";
   workspace.value = "";
@@ -86,11 +88,14 @@ function showError(error: unknown) {
 
 function showValidationError(message: string) { clearMessages(); errorMessage.value = message; }
 
-async function refreshData(announce = false): Promise<boolean> {
+async function refreshData(announce = false, background = false): Promise<boolean> {
   if (!csrfToken.value || !workspace.value) return false;
+  if (background && (refreshing.value || !!actionBusy.value || document.hidden)) return false;
   const sequence = ++refreshSequence;
-  refreshing.value = true;
-  clearMessages();
+  if (!background) {
+    refreshing.value = true;
+    clearMessages();
+  }
   try {
     const officerReads = canReview.value
       ? Promise.all([api.pendingReviews(csrfToken.value), api.reviewHistory(csrfToken.value)])
@@ -109,10 +114,13 @@ async function refreshData(announce = false): Promise<boolean> {
     if (announce) successMessage.value = "Workspace information is up to date.";
     return true;
   } catch (error) {
-    if (sequence === refreshSequence) showError(error);
+    if (
+      sequence === refreshSequence &&
+      (!background || (error instanceof RelayApiError && (error.status === 401 || error.code === "CSRF_REJECTED")))
+    ) showError(error);
     return false;
   } finally {
-    if (sequence === refreshSequence) refreshing.value = false;
+    if (!background && sequence === refreshSequence) refreshing.value = false;
   }
 }
 
@@ -283,12 +291,33 @@ async function answerQuestion({ kind, question, answer, onSuccess }: { kind: "st
   }, "Question answered. The original question and answer are preserved together.");
 }
 
+async function reviseQuestionAnswer({ kind, question, answer, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; onSuccess: () => void }) {
+  await runAction(`revise-${question.question}`, async () => {
+    if (kind === "step") await api.reviseStepQuestionAnswer(question.question, answer, csrfToken.value);
+    else await api.reviseContextQuestionAnswer(question.question, answer, csrfToken.value);
+    onSuccess();
+  }, "Answer updated. The original question and answer ownership are preserved.");
+}
+
 function formatIdentity(identity: string) { return identity.length > 13 ? `${identity.slice(0, 7)}…${identity.slice(-4)}` : identity; }
 
 onMounted(async () => {
   try { await acceptSession(await api.session()); }
   catch (error) { showError(error); }
-  finally { sessionChecked.value = true; }
+  finally {
+    sessionChecked.value = true;
+    refreshTimer = window.setInterval(() => { void refreshData(false, true); }, 3_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+  }
+});
+
+function refreshWhenVisible() {
+  if (!document.hidden) void refreshData(false, true);
+}
+
+onUnmounted(() => {
+  if (refreshTimer !== undefined) window.clearInterval(refreshTimer);
+  document.removeEventListener("visibilitychange", refreshWhenVisible);
 });
 </script>
 
@@ -348,7 +377,7 @@ onMounted(async () => {
           <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @archive="archiveProcedure" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="section = 'context'" />
-          <QuestionsView v-else :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" @answer="answerQuestion" />
+          <QuestionsView v-else :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
         </div>
       </section>
     </div>

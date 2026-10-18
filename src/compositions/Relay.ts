@@ -195,6 +195,7 @@ const WorkspaceStepQuestions = former(
       questionText,
       questionStatus,
       answer,
+      answerer,
       procedure,
       title,
       stepText,
@@ -218,6 +219,7 @@ const WorkspaceStepQuestions = former(
         }),
         ProcedureMaintaining._get({ procedure }).is({ space: workspace, title }),
         whether(StepQuestioning._get({ question }).is({ answer })),
+        whether(StepQuestioning._get({ question }).is({ answerer })),
       )
       .form({
         question,
@@ -225,6 +227,7 @@ const WorkspaceStepQuestions = former(
         text: questionText,
         status: questionStatus,
         answer,
+        answerer,
         procedure,
         title,
         subjectText: stepText,
@@ -234,7 +237,7 @@ const WorkspaceStepQuestions = former(
 
 const WorkspaceContextQuestions = former(
   "Relay.Reads.WorkspaceContextQuestions",
-  ({ workspace }, { question, context, questionText, questionStatus, answer, contextText }) =>
+  ({ workspace }, { question, context, questionText, questionStatus, answer, answerer, contextText }) =>
     each(
       ContextQuestioning._questions({}).is({
         question,
@@ -247,6 +250,7 @@ const WorkspaceContextQuestions = former(
       .where(
         ContextTracking._get({ context }).is({ scope: workspace, text: contextText }),
         whether(ContextQuestioning._get({ question }).is({ answer })),
+        whether(ContextQuestioning._get({ question }).is({ answerer })),
       )
       .form({
         question,
@@ -254,6 +258,7 @@ const WorkspaceContextQuestions = former(
         text: questionText,
         status: questionStatus,
         answer,
+        answerer,
         subjectText: contextText,
       }),
 );
@@ -737,7 +742,7 @@ const AnswerStepQuestion = endpoint(
           ProcedureMaintaining._getStep({ step }).is({ procedure }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
         )
-          .then(StepQuestioning.answer({ question, answer }))
+          .then(StepQuestioning.answer({ question, answer, answerer: user }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("question-in-workspace"),
         where(no(StepQuestioning._get({ question }).is({ status: "OPEN" })))
@@ -775,7 +780,7 @@ const AnswerContextQuestion = endpoint(
           ContextQuestioning._get({ question }).is({ subject: context, status: "OPEN" }),
           ContextTracking._get({ context }).is({ scope: workspace }),
         )
-          .then(ContextQuestioning.answer({ question, answer }))
+          .then(ContextQuestioning.answer({ question, answer, answerer: user }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("question-in-workspace"),
         where(no(ContextQuestioning._get({ question }).is({ status: "OPEN" })))
@@ -783,6 +788,82 @@ const AnswerContextQuestion = endpoint(
           .named("question-unavailable"),
         where(
           ContextQuestioning._get({ question }).is({ subject: context, status: "OPEN" }),
+          no(ContextTracking._get({ context }).is({ scope: workspace })),
+        )
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-outside-workspace"),
+      ),
+  stringInput(
+    ["user", "workspace", "question", "answer"],
+    ["user", "workspace", "question", "answer"],
+    { answer: 2_000 },
+  ),
+);
+
+const ReviseStepQuestionAnswer = endpoint(
+  "/workspaces/questions/steps/revise",
+  ({ user, workspace, question, step, procedure, answer }) =>
+    receive({ user, workspace, question, answer })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "ANSWER_QUESTION",
+          command: "REVISE_STEP_QUESTION_ANSWER",
+        }).responds({}),
+      )
+      .then(
+        where(
+          StepQuestioning._get({ question }).is({ subject: step, status: "ANSWERED" }),
+          ProcedureMaintaining._getStep({ step }).is({ procedure }),
+          ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
+        )
+          .then(StepQuestioning.reviseAnswer({ question, answer, answerer: user }))
+          .then(respond({ question, status: "ANSWERED" }))
+          .named("answered-question-in-workspace"),
+        where(no(StepQuestioning._get({ question }).is({ status: "ANSWERED" })))
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-unavailable"),
+        where(
+          StepQuestioning._get({ question }).is({ subject: step, status: "ANSWERED" }),
+          ProcedureMaintaining._getStep({ step }).is({ procedure }),
+          no(ProcedureMaintaining._get({ procedure }).is({ space: workspace })),
+        )
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-outside-workspace"),
+      ),
+  stringInput(
+    ["user", "workspace", "question", "answer"],
+    ["user", "workspace", "question", "answer"],
+    { answer: 2_000 },
+  ),
+);
+
+const ReviseContextQuestionAnswer = endpoint(
+  "/workspaces/questions/context/revise",
+  ({ user, workspace, question, context, answer }) =>
+    receive({ user, workspace, question, answer })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "ANSWER_QUESTION",
+          command: "REVISE_CONTEXT_QUESTION_ANSWER",
+        }).responds({}),
+      )
+      .then(
+        where(
+          ContextQuestioning._get({ question }).is({ subject: context, status: "ANSWERED" }),
+          ContextTracking._get({ context }).is({ scope: workspace }),
+        )
+          .then(ContextQuestioning.reviseAnswer({ question, answer, answerer: user }))
+          .then(respond({ question, status: "ANSWERED" }))
+          .named("answered-question-in-workspace"),
+        where(no(ContextQuestioning._get({ question }).is({ status: "ANSWERED" })))
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-unavailable"),
+        where(
+          ContextQuestioning._get({ question }).is({ subject: context, status: "ANSWERED" }),
           no(ContextTracking._get({ context }).is({ scope: workspace })),
         )
           .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
@@ -1053,6 +1134,8 @@ export const composition = {
       AskContextQuestion,
       AnswerStepQuestion,
       AnswerContextQuestion,
+      ReviseStepQuestionAnswer,
+      ReviseContextQuestionAnswer,
     },
     ReviewOperations: { ConfirmReview, RequireReviewChanges, ResolveReview, CancelReview },
     ReadOperations: {

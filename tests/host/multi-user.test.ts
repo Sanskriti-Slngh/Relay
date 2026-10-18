@@ -92,6 +92,15 @@ describe("multi-user Relay host", () => {
     expect(forbiddenAnswer.status).toBe(403);
     const officerAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Use the labeled charger." }, officer);
     expect(officerAnswer.status).toBe(200);
+    const forbiddenRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Forged revision", user: club.body.user?.id }, member);
+    expect(forbiddenRevision.status).toBe(403);
+    const officerRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Use the blue labeled charger." }, officer);
+    expect(officerRevision.status).toBe(200);
+    const questionHistory = await call("/api/workspaces/questions", {}, member);
+    expect(questionHistory.body.stepQuestions).toContainEqual(expect.objectContaining({
+      question: question.body.question,
+      answer: "Use the blue labeled charger.",
+    }));
   });
 
   test("persists sessions across handler instances and expires them server-side", async () => {

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { MongoClient } from "mongodb";
 import { db } from "../../src/db.ts";
 import {
+  QuestionAnswerNotEditable,
   QuestioningConcept,
   QuestionNotFound,
   QuestionNotOpen,
@@ -74,18 +75,24 @@ describe("Questioning concept", () => {
   test("answers once while preserving the original Question and Subject", async () => {
     const { question } = await concept.ask({ subject: "context-note", text: "Why is this required?" });
 
-    expect(await concept.answer({ question, answer: "The venue contract requires it." })).toEqual({});
+    expect(await concept.answer({
+      question,
+      answer: "The venue contract requires it.",
+      answerer: "officer-one",
+    })).toEqual({});
     expect(await concept._get({ question })).toEqual([{
       subject: "context-note",
       text: "Why is this required?",
       status: "ANSWERED",
       answer: "The venue contract requires it.",
+      answerer: "officer-one",
     }]);
     expect(await concept._forSubject({ subject: "context-note" })).toEqual([{
       question,
       text: "Why is this required?",
       status: "ANSWERED",
       answer: "The venue contract requires it.",
+      answerer: "officer-one",
     }]);
     expect(await concept._open()).not.toContainEqual(expect.objectContaining({ question }));
   });
@@ -94,7 +101,7 @@ describe("Questioning concept", () => {
     const first = await concept.ask({ subject: "shared-subject", text: "First question?" });
     const second = await concept.ask({ subject: "shared-subject", text: "Second question?" });
     const other = await concept.ask({ subject: "other-subject", text: "Other question?" });
-    await concept.answer({ question: first.question, answer: "First answer." });
+    await concept.answer({ question: first.question, answer: "First answer.", answerer: "officer-one" });
 
     const shared = await concept._forSubject({ subject: "shared-subject" });
     expect(shared).toHaveLength(2);
@@ -113,28 +120,63 @@ describe("Questioning concept", () => {
   });
 
   test("refuses missing Questions and repeat answers without changing the first answer", async () => {
-    await expect(concept.answer({ question: "missing-question", answer: "No" })).rejects
+    await expect(concept.answer({ question: "missing-question", answer: "No", answerer: "officer-one" })).rejects
       .toBeInstanceOf(QuestionNotFound);
 
     const { question } = await concept.ask({ subject: "repeat-subject", text: "One answer?" });
-    await concept.answer({ question, answer: "Original answer." });
-    await expect(concept.answer({ question, answer: "Replacement answer." })).rejects
+    await concept.answer({ question, answer: "Original answer.", answerer: "officer-one" });
+    await expect(concept.answer({ question, answer: "Replacement answer.", answerer: "officer-one" })).rejects
       .toBeInstanceOf(QuestionNotOpen);
     expect(await concept._get({ question })).toEqual([{
       subject: "repeat-subject",
       text: "One answer?",
       status: "ANSWERED",
       answer: "Original answer.",
+      answerer: "officer-one",
     }]);
     expect(await concept._get({ question: "missing-question" })).toEqual([]);
     expect(await concept._forSubject({ subject: "missing-subject" })).toEqual([]);
   });
 
+  test("lets only the original answerer revise an answered Question", async () => {
+    const { question } = await concept.ask({ subject: "owned-answer", text: "Who owns edits?" });
+    await expect(concept.reviseAnswer({
+      question,
+      answer: "Too early.",
+      answerer: "officer-one",
+    })).rejects.toBeInstanceOf(QuestionAnswerNotEditable);
+
+    await concept.answer({ question, answer: "Original answer.", answerer: "officer-one" });
+    await expect(concept.reviseAnswer({
+      question,
+      answer: "Unauthorized replacement.",
+      answerer: "officer-two",
+    })).rejects.toBeInstanceOf(QuestionAnswerNotEditable);
+    await expect(concept.reviseAnswer({
+      question: "missing-question",
+      answer: "Missing.",
+      answerer: "officer-one",
+    })).rejects.toBeInstanceOf(QuestionNotFound);
+
+    expect(await concept.reviseAnswer({
+      question,
+      answer: "Corrected answer.",
+      answerer: "officer-one",
+    })).toEqual({});
+    expect(await concept._get({ question })).toEqual([{
+      subject: "owned-answer",
+      text: "Who owns edits?",
+      status: "ANSWERED",
+      answer: "Corrected answer.",
+      answerer: "officer-one",
+    }]);
+  });
+
   test("allows only one of two concurrent answers to become the preserved answer", async () => {
     const { question } = await concept.ask({ subject: "concurrent-subject", text: "Which answer wins?" });
     const outcomes = await Promise.allSettled([
-      concept.answer({ question, answer: "Answer A" }),
-      concept.answer({ question, answer: "Answer B" }),
+      concept.answer({ question, answer: "Answer A", answerer: "officer-a" }),
+      concept.answer({ question, answer: "Answer B", answerer: "officer-b" }),
     ]);
 
     expect(outcomes.filter(({ status }) => status === "fulfilled")).toHaveLength(1);

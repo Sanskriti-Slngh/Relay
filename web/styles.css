@@ -319,6 +319,8 @@ a { color: inherit; }
 .answered-question-text { margin: 7px 0; color: #62667a; font-size: 10px; }
 .answered-question-answer { margin: 0; border-radius: 7px; padding: 9px 10px; color: #34715f; background: #f0f9f5; font-size: 10px; }
 .answered-question-answer span { margin-right: 8px; font-size: 8px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+.answer-edit-actions { display: flex; align-items: center; gap: 8px; }
+.answer-edit-button { margin-top: 7px; }
 
 @media (min-width: 1500px) {
   .workspace-layout { grid-template-columns: 270px minmax(0, 1fr); }

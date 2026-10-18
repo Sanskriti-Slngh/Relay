@@ -438,13 +438,13 @@ still require both the server-derived identity and per-session CSRF token.
 Platform settings and secrets belong in 6.1040 Apps, never in Vite variables or
 the repository.
 
-The sync-engine checker reports 26 non-fatal advisories. The 20 endpoint
+The sync-engine checker reports 28 non-fatal advisories. The 22 endpoint
 advisories are conservative: each operation starts with an authorization
 action whose refusal is converted by the HTTP policy, and every resource guard
 has tested unavailable branches; action-level domain refusals are likewise
 mapped to bounded public errors. The six former advisories are also reviewed:
-each repeated collection has an explicit `.arranged(...)` key, while the two
-optional `whether` selections can match at most one identity record. The
+each repeated collection has an explicit `.arranged(...)` key, while optional
+`whether` selections can match at most one identity record. The
 invalid-action and concurrency tests exercise the risky paths, so no
 composition change was justified solely to silence the checker.
 
@@ -456,6 +456,25 @@ the server topology. Replica sets keep real transactions; the platform's
 single-process deployment serializes the same guarded operations without a
 session. Running the complete suite against an actual standalone MongoDB, not
 only a mock, verifies the alternate path across onboarding and every concept.
+
+## Answer revision and live workspace refresh — October 17
+
+An answer can now be revised only by the verified Officer identity that first
+recorded it. Questioning stores that answerer and owns the atomic identity
+check; the application continues to derive the User from the authenticated
+session. A separate `reviseAnswer` action preserves the useful invariant that
+`answer` only transitions an OPEN Question once, while still allowing a typo
+or clarification to be corrected later. Existing answers that predate
+answerer metadata remain readable but intentionally are not editable.
+
+Relay now refreshes all workspace formers in the background every three
+seconds and immediately when a hidden tab becomes visible. Local mutations
+still refresh immediately. Polling was chosen over a notification concept or
+socket subsystem because it keeps the sync-engine composition unchanged,
+updates Playbooks, Context, Reviews, Questions, and navigation counts through
+one existing read path, and is sufficient for the class deployment scale.
+Background failures stay quiet unless authentication has expired, so polling
+does not erase action confirmations or create recurring error banners.
 
 ## Final Reflection
 

@@ -1,6 +1,11 @@
 import { registerConcept } from "@mit-sdg/sync-engine/assembly";
 import spec from "@design/concepts/Questioning.md" with { type: "text" };
-import { QuestioningConcept, QuestionNotFound, QuestionNotOpen } from "./Questioning.ts";
+import {
+  QuestionAnswerNotEditable,
+  QuestioningConcept,
+  QuestionNotFound,
+  QuestionNotOpen,
+} from "./Questioning.ts";
 
 export const questioning = registerConcept({
   class: QuestioningConcept,
@@ -8,5 +13,6 @@ export const questioning = registerConcept({
   refusals: {
     QUESTION_NOT_FOUND: QuestionNotFound,
     QUESTION_NOT_OPEN: QuestionNotOpen,
+    QUESTION_ANSWER_NOT_EDITABLE: QuestionAnswerNotEditable,
   },
 });

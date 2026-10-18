@@ -755,13 +755,44 @@ describe("Relay trusted HTTP backend", () => {
       text: "Does the plan need faculty approval?",
       status: "ANSWERED",
       answer: "Yes. The faculty advisor signs the final page.",
+      answerer: hostConfig.officerUserId,
     }));
     expect(history.body.contextQuestions).toContainEqual(expect.objectContaining({
       question: contextQuestion,
       text: "Where is this venue requirement documented?",
       status: "ANSWERED",
       answer: "It is in section 4 of the venue agreement.",
+      answerer: hostConfig.officerUserId,
     }));
+
+    expect(await request("/workspaces/questions/steps/revise", {
+      question: stepQuestion,
+      answer: "Yes. The faculty advisor signs the approved final page.",
+    })).toEqual({ status: 200, body: { question: stepQuestion, status: "ANSWERED" } });
+    expect(await request("/workspaces/questions/context/revise", {
+      question: contextQuestion,
+      answer: "It is in section 4.2 of the venue agreement.",
+    })).toEqual({ status: 200, body: { question: contextQuestion, status: "ANSWERED" } });
+    const revisedHistory = await request("/workspaces/questions", {});
+    expect(revisedHistory.body.stepQuestions).toContainEqual(expect.objectContaining({
+      question: stepQuestion,
+      answer: "Yes. The faculty advisor signs the approved final page.",
+      answerer: hostConfig.officerUserId,
+    }));
+    expect(revisedHistory.body.contextQuestions).toContainEqual(expect.objectContaining({
+      question: contextQuestion,
+      answer: "It is in section 4.2 of the venue agreement.",
+      answerer: hostConfig.officerUserId,
+    }));
+    expect((await request("/workspaces/questions/steps/revise", {
+      question: stepQuestion,
+      answer: "   ",
+    })).status).toBe(400);
+    expect((await application.concepts.StepQuestioning._get({ question: stepQuestion }))[0])
+      .toEqual(expect.objectContaining({
+        answer: "Yes. The faculty advisor signs the approved final page.",
+        answerer: hostConfig.officerUserId,
+      }));
 
     expect((await request("/workspaces/questions/steps/ask", {
       procedure,
@@ -779,6 +810,10 @@ describe("Relay trusted HTTP backend", () => {
       text: "Can I ask this?",
     })).status).toBe(404);
     expect((await request("/workspaces/questions/context/answer", {
+      question: "missing-question",
+      answer: "No",
+    })).status).toBe(404);
+    expect((await request("/workspaces/questions/steps/revise", {
       question: "missing-question",
       answer: "No",
     })).status).toBe(404);
@@ -807,8 +842,38 @@ describe("Relay trusted HTTP backend", () => {
       question: foreignQuestionResult.question,
       answer: "Must not answer",
     })).status).toBe(404);
+    await application.concepts.StepQuestioning.answer({
+      question: foreignQuestionResult.question,
+      answer: "Foreign answer",
+      answerer: hostConfig.officerUserId,
+    });
+    expect((await request("/workspaces/questions/steps/revise", {
+      question: foreignQuestionResult.question,
+      answer: "Must not revise",
+    })).status).toBe(404);
 
     const officerRole = (await roleAccess._roles()).find(({ name }) => name === "Officer")!.role;
+    const otherOfficerUser = `relay-officer-${crypto.randomUUID()}`;
+    const otherOfficerCredential = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
+    await roleAccess.assign({
+      user: otherOfficerUser,
+      resource: hostConfig.clubWorkspaceId,
+      role: officerRole,
+    });
+    const otherOfficerRequest = await authenticatedRequester(
+      createRelayHttpHandler(application, {
+        ...hostConfig,
+        officerUserId: otherOfficerUser,
+        localAccessCredential: otherOfficerCredential,
+      }),
+      otherOfficerCredential,
+    );
+    expect((await otherOfficerRequest("/workspaces/questions/steps/revise", {
+      question: stepQuestion,
+      answer: "Another Officer must not replace this answer.",
+      user: hostConfig.officerUserId,
+    })).status).toBe(403);
+
     await roleAccess.revokePermission({ role: officerRole, permission: "ASK_QUESTION" });
     expect((await request("/workspaces/questions/steps/ask", {
       procedure,
@@ -824,6 +889,10 @@ describe("Relay trusted HTTP backend", () => {
       text: "Who confirms payment?",
     });
     const officerPendingQuestion = requireString(officerPending.body.question, "Question");
+    expect((await request("/workspaces/questions/steps/revise", {
+      question: officerPendingQuestion,
+      answer: "Cannot revise an open Question",
+    })).status).toBe(404);
     await roleAccess.revokePermission({ role: officerRole, permission: "ANSWER_QUESTION" });
     expect((await request("/workspaces/questions/steps/answer", {
       question: officerPendingQuestion,
@@ -863,6 +932,11 @@ describe("Relay trusted HTTP backend", () => {
     expect((await memberRequest("/workspaces/questions/steps/answer", {
       question: memberQuestion,
       answer: "Members cannot answer",
+      user: hostConfig.officerUserId,
+    })).status).toBe(403);
+    expect((await memberRequest("/workspaces/questions/steps/revise", {
+      question: stepQuestion,
+      answer: "Members cannot revise answers",
       user: hostConfig.officerUserId,
     })).status).toBe(403);
     expect((await request("/workspaces/questions/steps/answer", {
