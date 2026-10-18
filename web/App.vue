@@ -15,6 +15,9 @@ const section = ref<Section>("overview");
 const focusedProcedure = ref("");
 const focusedContextStep = ref("");
 const focusedReviewId = ref("");
+const focusedQuestionId = ref("");
+const focusedQuestionKind = ref<"step" | "context" | "">("");
+const startNewPlaybook = ref(false);
 const authenticated = ref(false);
 const sessionChecked = ref(false);
 const workspace = ref("");
@@ -67,11 +70,14 @@ const navigation: { id: Section; label: string }[] = [
 
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
 
-function navigate(target: { section: Section; procedure?: string }) {
+function navigate(target: { section: Section; procedure?: string; review?: string; question?: string; questionKind?: "step" | "context"; createPlaybook?: boolean }) {
   clearMessages();
   focusedProcedure.value = target.procedure ?? "";
   focusedContextStep.value = "";
-  focusedReviewId.value = "";
+  focusedReviewId.value = target.review ?? "";
+  focusedQuestionId.value = target.question ?? "";
+  focusedQuestionKind.value = target.questionKind ?? "";
+  startNewPlaybook.value = target.createPlaybook ?? false;
   section.value = target.section;
 }
 
@@ -80,6 +86,9 @@ function clearWorkspaceState() {
   focusedProcedure.value = "";
   focusedContextStep.value = "";
   focusedReviewId.value = "";
+  focusedQuestionId.value = "";
+  focusedQuestionKind.value = "";
+  startNewPlaybook.value = false;
   authenticated.value = false;
   csrfToken.value = "";
   workspace.value = "";
@@ -167,6 +176,9 @@ async function acceptSession(session: SessionState) {
   focusedProcedure.value = "";
   focusedContextStep.value = "";
   focusedReviewId.value = "";
+  focusedQuestionId.value = "";
+  focusedQuestionKind.value = "";
+  startNewPlaybook.value = false;
   section.value = "overview";
   if (authenticated.value && workspace.value) await refreshData();
 }
@@ -222,8 +234,7 @@ async function createProcedure({ title, onSuccess }: { title: string; onSuccess:
 
 async function addStep({ procedure, text, onSuccess }: { procedure: Procedure; text: string; onSuccess: () => void }) {
   await runAction(`step-${procedure.procedure}`, async () => {
-    const createdStep = await api.addStep(procedure.procedure, text, csrfToken.value);
-    if (!procedure.steps.length) focusedContextStep.value = createdStep.step;
+    await api.addStep(procedure.procedure, text, csrfToken.value);
     onSuccess();
   }, "Step added.");
 }
@@ -416,11 +427,11 @@ onUnmounted(() => {
         <div class="content-area">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
-          <OverviewView v-if="section === 'overview'" :procedures="procedures" :contexts="contexts" :reviews="reviews" :unanswered-count="unansweredCount" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
-          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
+          <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
+          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />
-          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
+          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
           <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" @invite="inviteMember" @select="selectClub" />
         </div>
       </section>

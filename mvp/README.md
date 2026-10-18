@@ -1,5 +1,9 @@
 # Relay P2 Submission Deliverables
 
+> Historical P2 artifact index. Use the repository's
+> [P3 Beta submission map](../README.md#p3-beta-submission-map) for the current
+> implementation, journey, and verification evidence.
+
 This directory contains the three submission artifacts that accompany the
 working application. The application itself remains at the repository root so
 its normal source layout and startup commands stay intact.

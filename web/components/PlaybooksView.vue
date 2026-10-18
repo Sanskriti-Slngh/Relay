@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import type { ContextNote, PendingReview, Procedure, Step, StepQuestion } from "../api.ts";
 
-const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; canEditContext: boolean; focusProcedure?: string; focusContextStep?: string; review?: PendingReview }>();
+const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; canEditContext: boolean; focusProcedure?: string; focusContextStep?: string; startCreate?: boolean; review?: PendingReview }>();
 const emit = defineEmits<{
   create: [payload: { title: string; onSuccess: () => void }];
   addStep: [payload: { procedure: Procedure; text: string; onSuccess: () => void }];
@@ -45,6 +45,10 @@ watch(() => props.focusProcedure, (procedure) => {
   if (procedure && activeProcedures.value.some(({ procedure: id }) => id === procedure)) selectedProcedureId.value = procedure;
 }, { immediate: true });
 
+watch(() => props.startCreate, (start) => {
+  if (start && props.canEdit) showCreate.value = true;
+}, { immediate: true });
+
 watch(() => props.focusContextStep, (step) => {
   if (!step) return;
   contextComposer[step] = true;
@@ -77,8 +81,9 @@ function renameProcedure(procedure: Procedure) {
 function beginEditStep(step: Step) { stepEditDraft[step.step] = step.text; editingStep.value = step.step; }
 function editStep(procedure: Procedure, step: Step) {
   const text = (stepEditDraft[step.step] ?? "").trim(); if (!text) return;
-  emit("editStep", { procedure, step, text, onSuccess: () => { editingStep.value = ""; } });
+  emit("editStep", { procedure, step, text, onSuccess: () => { delete stepEditDraft[step.step]; editingStep.value = ""; } });
 }
+function cancelEditStep(step: Step) { delete stepEditDraft[step.step]; editingStep.value = ""; }
 function askQuestion(procedure: Procedure, step: Step) {
   const text = (questionDraft[step.step] ?? "").trim(); if (!text) return;
   emit("askQuestion", { procedure, step, text, onSuccess: () => { questionDraft[step.step] = ""; questionComposer[step.step] = false; } });
@@ -144,15 +149,14 @@ function recordStepContext(procedure: Procedure, step: Step) {
           <span class="step-index">{{ step.position }}</span>
           <div class="step-body">
             <form v-if="canEdit && editingStep === step.step" class="step-edit-form" @submit.prevent="editStep(selectedProcedure, step)">
-              <label class="sr-only" :for="`edit-${step.step}`">Edit step {{ step.position }}</label><textarea :id="`edit-${step.step}`" v-model="stepEditDraft[step.step]" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !stepEditDraft[step.step]?.trim()">{{ actionBusy === `edit-${step.step}` ? "Saving…" : "Save" }}</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="editingStep = ''">Cancel</button></div>
+              <label class="sr-only" :for="`edit-${step.step}`">Edit step {{ step.position }}</label><textarea :id="`edit-${step.step}`" v-model="stepEditDraft[step.step]" required maxlength="500" rows="3" autofocus></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !stepEditDraft[step.step]?.trim()">{{ actionBusy === `edit-${step.step}` ? "Saving…" : "Save" }}</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="cancelEditStep(step)">Cancel</button></div>
             </form>
             <template v-else>
               <p class="step-text">{{ step.text }}</p>
-              <div class="step-tools"><button v-if="canEditContext || notesForStep(selectedProcedure.procedure, step.step).length" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">Context{{ notesForStep(selectedProcedure.procedure, step.step).length ? ` (${notesForStep(selectedProcedure.procedure, step.step).length})` : "" }}</button><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">Questions{{ questionsForStep(step.step).length ? ` (${questionsForStep(step.step).length})` : "" }}</button><details v-if="canEdit" class="action-menu step-menu"><summary :aria-label="`Actions for step ${step.position}`">Actions</summary><div><button type="button" :disabled="!!actionBusy || step.position === 1" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position - 1 })">Move up</button><button type="button" :disabled="!!actionBusy || step.position === selectedProcedure.steps.length" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position + 1 })">Move down</button><button type="button" :disabled="!!actionBusy" @click="beginEditStep(step)">Edit step</button><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeStep', { procedure: selectedProcedure, step })">Remove step</button></div></details></div>
+              <div class="step-tools"><button v-if="notesForStep(selectedProcedure.procedure, step.step).length" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">Why this matters{{ notesForStep(selectedProcedure.procedure, step.step).length > 1 ? ` (${notesForStep(selectedProcedure.procedure, step.step).length})` : "" }}</button><button v-else-if="canEditContext" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">+ Add context</button><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">Questions{{ questionsForStep(step.step).length ? ` (${questionsForStep(step.step).length})` : "" }}</button></div>
             </template>
             <section v-if="contextComposer[step.step]" class="inline-disclosure step-context-disclosure" :aria-label="`Context for step ${step.position}`">
               <div v-if="notesForStep(selectedProcedure.procedure, step.step).length" class="step-context-list"><blockquote v-for="note in notesForStep(selectedProcedure.procedure, step.step)" :key="note.context">{{ note.text }}</blockquote></div>
-              <div v-else class="inline-empty-note">No context attached.</div>
               <div v-if="canEditContext" class="context-connect">
                 <div class="context-mode" role="group" :aria-label="`Add context to step ${step.position}`"><button type="button" :class="{ active: contextMode[step.step] !== 'new' }" @click="contextMode[step.step] = 'existing'">Use existing</button><button type="button" :class="{ active: contextMode[step.step] === 'new' }" @click="contextMode[step.step] = 'new'">Write new</button></div>
                 <form v-if="contextMode[step.step] !== 'new'" class="context-connect-form" @submit.prevent="attachExistingContext(selectedProcedure, step)"><label class="sr-only" :for="`context-for-${step.step}`">Choose existing context</label><select :id="`context-for-${step.step}`" v-model="contextSelection[step.step]" required><option value="" disabled>Choose a note…</option><option v-for="note in availableNotesForStep(selectedProcedure.procedure, step.step)" :key="note.context" :value="note.context">{{ note.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !contextSelection[step.step]">{{ actionBusy === `attach-step-${step.step}` ? "Attaching…" : "Attach" }}</button></form>
@@ -165,12 +169,17 @@ function recordStepContext(procedure: Procedure, step: Step) {
               <form class="question-form" @submit.prevent="askQuestion(selectedProcedure, step)"><label :for="`question-${step.step}`">Ask about this step</label><div class="form-row"><input :id="`question-${step.step}`" v-model="questionDraft[step.step]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(questionDraft[step.step] ?? '').trim()">{{ actionBusy === `ask-step-${step.step}` ? "Sending…" : "Ask" }}</button></div></form>
             </section>
           </div>
+          <div v-if="canEdit && editingStep !== step.step" class="step-action-toolbar" role="toolbar" :aria-label="`Edit step ${step.position}`">
+            <button type="button" :disabled="!!actionBusy || step.position === 1" :aria-label="`Move step ${step.position} up`" title="Move up" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position - 1 })"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M5 12.5 10 7l5 5.5" /></svg></button>
+            <button type="button" :disabled="!!actionBusy || step.position === selectedProcedure.steps.length" :aria-label="`Move step ${step.position} down`" title="Move down" @click="emit('moveStep', { procedure: selectedProcedure, step, position: step.position + 1 })"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m5 7.5 5 5.5 5-5.5" /></svg></button>
+            <button type="button" :disabled="!!actionBusy" :aria-label="`Edit step ${step.position}`" title="Edit step" @click="beginEditStep(step)"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14.8.6-3.4L13 3l4 4-8.4 8.4-3.4.6Z" /><path d="m11.8 4.2 4 4" /></svg></button>
+            <button class="danger" type="button" :disabled="!!actionBusy" :aria-label="`Remove step ${step.position}`" title="Remove step" @click="emit('removeStep', { procedure: selectedProcedure, step })"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M4 6h12M8 3.5h4M6 6l.7 10h6.6L14 6M8.5 9v4.5M11.5 9v4.5" /></svg></button>
+          </div>
         </li>
       </ol>
-      <p v-else class="document-empty">No steps yet. Add the first instruction to make this playbook useful.</p>
 
       <div v-if="canEdit" class="add-step-control">
-        <button v-if="!showAddStep" class="text-button" type="button" @click="showAddStep = true">Add a step</button>
+        <button v-if="!showAddStep" class="text-button" type="button" @click="showAddStep = true">+ Add step</button>
         <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div></form>
       </div>
 

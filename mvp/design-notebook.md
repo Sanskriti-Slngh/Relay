@@ -539,6 +539,39 @@ dialog, while destructive actions still ask for confirmation. Stable IDs key
 all new drafts and disclosures so the existing three-second refresh does not
 interrupt work in progress.
 
+## Overview hierarchy refinement — October 18
+
+The Overview now answers two questions only: which Playbook should I open,
+and what work needs attention? Playbooks occupy the larger desktop column and
+show at most six readable entries. The smaller Officer-only attention rail
+contains individual Questions and Reviews rather than summary counts; each row
+opens that exact item. Shared Context was removed from this page because it is
+supporting knowledge rather than a primary entry point.
+
+This hierarchy scales without turning the Overview into a second full index:
+larger clubs use the existing Playbooks and inbox pages after the short
+previews. On mobile, pending work precedes Playbooks only when it exists. Empty
+Officers see a direct create action, while Members receive a concise handoff.
+The change is limited to presentation and identity-preserving navigation; it
+does not alter concepts, permissions, persistence, or polling.
+
+## Direct Step editing — October 18
+
+The Playbook document now keeps its most routine Officer operations visible:
+move up, move down, edit, and remove occupy one aligned toolbar beside each
+Step. This trades the former generic Actions menu for controls that reveal the
+functionality without interrupting reading. Members receive the same document
+without that toolbar, and destructive removal still requires confirmation.
+
+Editing occurs in place and drafts remain keyed by stable Step identity, so a
+background refresh does not replace unsaved text. Cancel deletes only that
+local draft. Optional Context no longer produces an empty message or opens
+automatically after the first Step; attached notes appear under **Why this
+matters**, and Officers can deliberately choose **+ Add context** to reuse or
+create a shared note. The implementation continues to call existing Step and
+Context operations. Step edits do not generate Reviews, and an active Review
+remains the same Review until an Officer resolves it.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

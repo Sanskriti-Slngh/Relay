@@ -40,11 +40,15 @@ The four low-fidelity UI sketches are shown below:
 
 See the [P1 user journey](./user-journey.md) for the broader product direction
 and the [P2 MVP user journey](../mvp/p2-mvp-user-journey.md) for the narrower
-implemented recording walkthrough. The P2 policy example is explicitly
-fictional demonstration content.
+historical walkthrough. The implemented beta flow is documented in the
+[P3 Beta user journey](../mvp/p3-beta-user-journey.md). The policy examples are
+explicitly fictional demonstration content.
 
 ## P3 Beta visual system
 
 See the [P3 Beta visual design specification](./visual-design.md) for the UI
 audit, design tokens, page patterns, accessibility rules, and sources applied
 to the implemented interface.
+
+The assignment's separate two-slide visual design study is not currently
+tracked in this repository and must be added before P3 submission.

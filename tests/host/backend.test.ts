@@ -541,6 +541,12 @@ describe("Relay trusted HTTP backend", () => {
       step: createdSteps[2],
       position: 1,
     })).toEqual({ status: 200, body: { step: createdSteps[2], position: 1 } });
+    expect(await application.concepts.ContextTracking._attachments({ context })).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ subject: procedure }),
+        expect.objectContaining({ subject: procedure, anchor: createdSteps[1] }),
+      ]),
+    );
 
     const invalidMove = await request("/workspaces/procedures/steps/move", {
       procedure,
@@ -622,6 +628,13 @@ describe("Relay trusted HTTP backend", () => {
       step,
       text: "Follow the new guidance",
     })).status).toBe(200);
+    expect((await request("/workspaces/reviews/pending", {})).body.reviews).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ review: firstReview, procedure, status: "CHANGES_REQUIRED" }),
+      ]),
+    );
+    expect(((await request("/workspaces/reviews/pending", {})).body.reviews as { procedure: string }[])
+      .filter((entry) => entry.procedure === procedure)).toHaveLength(1);
     expect(await request("/workspaces/reviews/resolve", {
       review: firstReview,
       procedure,
