@@ -91,6 +91,10 @@ describe("ContextTracking concept", () => {
     expect(await concept._getAttachment({ attachment: firstAnchor.attachment })).toEqual([
       { context, subject: "procedure-1", anchor: "step-1" },
     ]);
+    expect(await concept._atAnchor({ anchor: "step-1" })).toEqual([
+      { attachment: firstAnchor.attachment, context, subject: "procedure-1" },
+    ]);
+    expect(await concept._atAnchor({ anchor: "missing-step" })).toEqual([]);
     const attachments = await concept._attachments({ context });
     expect(attachments).toEqual([
       { attachment: unanchored.attachment, subject: "procedure-1" },

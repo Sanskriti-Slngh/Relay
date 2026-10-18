@@ -148,6 +148,9 @@ export function createRelayHttpHandler(
       CONTEXT_PROCEDURE_OR_STEP_NOT_AVAILABLE: "NOT_FOUND",
       CONTEXT_NOT_AVAILABLE: "NOT_FOUND",
       REVIEW_NOT_AVAILABLE: "NOT_FOUND",
+      STEP_NOT_AVAILABLE: "NOT_FOUND",
+      QUESTION_SUBJECT_NOT_AVAILABLE: "NOT_FOUND",
+      QUESTION_NOT_AVAILABLE: "NOT_FOUND",
       PROCEDURE_NOT_FOUND: "NOT_FOUND",
       PROCEDURE_NOT_ACTIVE: "CONFLICT",
       STEP_NOT_FOUND: "NOT_FOUND",
@@ -157,6 +160,14 @@ export function createRelayHttpHandler(
       CHANGE_NOT_DIFFERENT: "INVALID_REQUEST",
       CONFIRM_REVIEW_NOT_FOUND: "NOT_FOUND",
       REVIEW_NOT_PENDING_FOR_CONFIRMATION: "CONFLICT",
+      REVIEW_NOT_PENDING_FOR_CHANGES: "CONFLICT",
+      REVIEW_NOT_AWAITING_CHANGES: "CONFLICT",
+      CANCEL_REVIEW_FINISHED: "CONFLICT",
+      REQUIRE_CHANGES_REVIEW_NOT_FOUND: "NOT_FOUND",
+      RESOLVE_REVIEW_NOT_FOUND: "NOT_FOUND",
+      CANCEL_REVIEW_NOT_FOUND: "NOT_FOUND",
+      QUESTION_NOT_FOUND: "NOT_FOUND",
+      QUESTION_NOT_OPEN: "CONFLICT",
       INVALID_POSITION: "INVALID_REQUEST",
     },
   });
@@ -253,7 +264,11 @@ export function createRelayHttpHandler(
     const body = await readJsonObject(request);
     if (body instanceof Response) return body;
     const response = await handler(injectTrustedIdentity(request, body, config));
-    if (pathname === "/api/workspaces/context/change" && response.ok) {
+    if (
+      response.ok &&
+      (pathname === "/api/workspaces/context/change" ||
+        pathname === "/api/workspaces/procedures/steps/remove")
+    ) {
       await application.whenIdle();
     }
     return response;

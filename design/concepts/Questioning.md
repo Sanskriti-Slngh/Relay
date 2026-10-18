@@ -1,0 +1,79 @@
+# Questioning
+
+## Purpose
+
+Preserve the resolution of uncertainty so the same ambiguity does not have to
+be rediscovered and resolved repeatedly.
+
+## Principle
+
+A question is raised about a particular subject. Once an answer is recorded,
+the original question and its resolution remain together for later readers.
+
+## Types
+
+```types
+external Subject
+  The item about which uncertainty is raised.
+
+QuestionStatus is OPEN or ANSWERED
+  The lifecycle status of a Question.
+```
+
+## State
+
+```state
+a set of Questions with
+  a subject Subject
+  a text String
+  a status QuestionStatus
+  an optional answer String
+
+Rule: every OPEN Question has no answer
+
+Rule: every ANSWERED Question has an answer
+```
+
+## Actions
+
+```actions
+ask (subject: Subject, text: String) : returns (question: Question)
+  where true
+  then
+    create a new Question with given subject and text
+    set question status to OPEN
+    set question answer to absent
+    returns question
+
+answer (question: Question, answer: String) : returns ()
+  where question does not exist
+  then
+    refuses QUESTION_NOT_FOUND "There is no such Question."
+  where question exists and question status is ANSWERED
+  then
+    refuses QUESTION_NOT_OPEN "Only an OPEN Question can be answered."
+  where question exists and question status is OPEN
+  then
+    associate answer with question
+    set question status to ANSWERED
+    returns
+```
+
+## Queries
+
+```queries
+_forSubject (subject: Subject) : many (question: Question, text: String, status: QuestionStatus, answer?: String)
+  answers all Questions about the Subject, including answered Questions
+  answers no rows when the Subject has no Questions
+  orders rows by stable Question identity
+_open () : many (question: Question, subject: Subject, text: String)
+  answers all OPEN Questions
+  answers no rows when there are no OPEN Questions
+  orders rows by stable Question identity
+_questions () : many (question: Question, subject: Subject, text: String, status: QuestionStatus, answer?: String)
+  answers all Questions, including answered Questions
+  answers no rows when there are no Questions
+  orders rows by stable Question identity
+_get (question: Question) : optional (subject: Subject, text: String, status: QuestionStatus, answer?: String)
+  answers no row for an unknown Question
+```

@@ -361,20 +361,92 @@ submitted clean-workspace journey leaves one Review pending. This limitation is
 recorded rather than hidden; a new narrated recording is required before
 submission.
 
+## P3 Questioning increment — October 17
+
+The first feedback-driven P3 addition implements the P1 `Questioning` concept
+once and instantiates it for both Steps and Context Notes. Questions store only
+a stable Subject identity, their original text, lifecycle status, and optional
+answer. Relay's composition—not the generic concept—checks workspace ownership
+and grants Members `ASK_QUESTION` while reserving `ANSWER_QUESTION` for
+Officers. At that increment, tests used separate trusted host sessions and role
+assignments to prove the Member policy without treating request-body identities
+as authentication; the later identity increment exposed that behavior through
+real accounts and invitations.
+
+The professor's concern that questions could disappear into the interface led
+to one clear officer Questions inbox rather than a notification subsystem.
+Every open Step and Context Question appears there with an actionable answer
+form, and navigation shows a live unanswered count. Questions and answers also
+appear beside active source content. The inbox retains answered history and
+can still resolve a removed Step's original text and `REMOVED` status, proving
+that reordering or removal does not break the Question's stable association.
+
 ## Remaining risks and P3 work
 
-- Browser sessions are in memory and expire on restart.
-- The shared local credential is not multi-user or production authentication.
 - Bun is outside the HTTP package's documented Node.js runtime contract.
 - Reaction tests do not establish exactly-once behavior across arbitrary
   process crashes.
-- Member questions, multiple clubs, general registration, invitations, and full
-  Review resolution remain outside P2.
 - Two existing published commits are both named `delete`. Rewriting published
   history was intentionally avoided; a descriptive final commit and this
   notebook should carry the final hardening evidence.
 - The current recording exceeds the two-minute limit and does not match the
   clean-workspace journey's final state; it must be replaced before submission.
+
+## P3 Beta identity and workspace increment — October 17
+
+Relay now uses ordinary email/password accounts because this is the smallest
+secure mechanism that works with the class's public deployment expectations
+without adding an external identity-provider dependency. Passwords use salted
+scrypt hashes. Opaque session tokens are stored only as SHA-256 digests in
+MongoDB, expire after eight hours, and remain protected by HttpOnly,
+SameSite=Strict cookies, an exact-origin check, and a per-session CSRF token.
+This also means a fresh server process can validate an existing browser session.
+
+Account registration deliberately grants nothing. Creating a club makes that
+verified account its Officer; accepting a one-time, email-bound invitation adds
+the verified account as a Member. Officers can invite Members, but neither the
+invitation request nor its acceptance accepts a role choice. This directly
+prevents the tempting body-field attack where a member asks to become an
+Officer. RoleBasedAccessing remains the permission authority, while the host
+owns only authentication, workspace selection, and onboarding state.
+
+Members use `ASK_QUESTION` as the shared knowledge-access permission: it allows
+workspace-scoped Playbook, Context, and Question reads as well as asking.
+Officer-only Review reads are omitted from Member refreshes, and mutation
+controls are hidden according to the permissions returned for the selected
+workspace. These interface checks improve clarity; the backend authorization
+checks remain decisive. The workspace name, role, and selector are always
+visible, so switching clubs cannot be mistaken for changing filters within one
+club.
+
+## P3 Beta deployment hardening — October 17
+
+The Fall 2026 deployment guide changed a few host-level choices without
+changing Relay's concepts. Production now reads the platform's
+`PUBLIC_ORIGIN`, honors its `HOST` and `PORT`, serves the Vite build from a
+path independent of the process working directory, and exposes a small
+`/health` route that checks the already-shared MongoDB client. The health route
+does not disclose the database name or connection details. Relay keeps one
+MongoClient for the process and calls `db()` without overriding the database
+encoded by the platform URI.
+
+Deployment hardening keeps the existing password and session boundary rather
+than adding another identity system. Passwords remain salted scrypt
+hashes; only digests of opaque, expiring session tokens are stored. Production
+cookies become Secure because the exact public origin is HTTPS, and mutations
+still require both the server-derived identity and per-session CSRF token.
+Platform settings and secrets belong in 6.1040 Apps, never in Vite variables or
+the repository.
+
+The sync-engine checker reports 26 non-fatal advisories. The 20 endpoint
+advisories are conservative: each operation starts with an authorization
+action whose refusal is converted by the HTTP policy, and every resource guard
+has tested unavailable branches; action-level domain refusals are likewise
+mapped to bounded public errors. The six former advisories are also reviewed:
+each repeated collection has an explicit `.arranged(...)` key, while the two
+optional `whether` selections can match at most one identity record. The
+invalid-action and concurrency tests exercise the risky paths, so no
+composition change was justified solely to silence the checker.
 
 ## Final Reflection
 

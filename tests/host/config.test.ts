@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { validateHostConfig } from "../../src/host/config.ts";
+import { validateDeploymentHostConfig, validateHostConfig } from "../../src/host/config.ts";
 
 const configuredIdentities = {
   CLUB_WORKSPACE_ID: "relay-club-workspace-v1",
@@ -121,5 +121,24 @@ describe("host configuration validation", () => {
     expect(first.clubWorkspaceId).toBe(configuredIdentities.CLUB_WORKSPACE_ID);
     expect(second.clubWorkspaceId).toBe(first.clubWorkspaceId);
     expect(second.officerUserId).toBe(first.officerUserId);
+  });
+});
+
+describe("deployment host configuration", () => {
+  test("accepts an exact origin and derives secure cookie policy", () => {
+    expect(validateDeploymentHostConfig({ MONGODB_URL: "mongodb://localhost/relay", PUBLIC_ORIGIN: "https://relay.example" })).toEqual({
+      mongodbUrl: "mongodb://localhost/relay",
+      appOrigin: "https://relay.example",
+      secureCookies: true,
+    });
+    expect(validateDeploymentHostConfig({ MONGODB_URL: "mongodb://localhost/relay", PUBLIC_ORIGIN: "http://127.0.0.1:5173" }).secureCookies).toBe(false);
+  });
+
+  test("requires the platform public origin", () => {
+    expect(() => validateDeploymentHostConfig({ MONGODB_URL: "mongodb://localhost/relay" })).toThrow("PUBLIC_ORIGIN is required");
+  });
+
+  test.each(["relay.example", "https://relay.example/path", "ftp://relay.example"])("rejects invalid deployment origin %s", (PUBLIC_ORIGIN) => {
+    expect(() => validateDeploymentHostConfig({ MONGODB_URL: "mongodb://localhost/relay", PUBLIC_ORIGIN })).toThrow("PUBLIC_ORIGIN");
   });
 });

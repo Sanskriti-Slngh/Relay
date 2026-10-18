@@ -124,6 +124,10 @@ _attachments (context: ContextNote) : many (attachment: Attachment, subject: Sub
   orders rows by stable Attachment identity
 _getAttachment (attachment: Attachment) : optional (context: ContextNote, subject: Subject, anchor?: Anchor)
   answers no row for an unknown Attachment
+_atAnchor (anchor: Anchor) : many (attachment: Attachment, context: ContextNote, subject: Subject)
+  answers Attachments located at the given Anchor
+  answers no rows when the Anchor has no Attachments
+  orders rows by stable Attachment identity
 _changes (context: ContextNote) : many (change: Change, before: String, after: String)
   answers the exact before and after text for each Change to the ContextNote
   answers no rows for an unknown ContextNote or a ContextNote with no Changes

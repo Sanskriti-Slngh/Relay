@@ -5,6 +5,12 @@ export interface HostConfig {
   readonly mongodbUrl: string;
 }
 
+export interface DeploymentHostConfig {
+  readonly mongodbUrl: string;
+  readonly appOrigin: string;
+  readonly secureCookies: boolean;
+}
+
 type HostEnvironment = Readonly<Record<string, string | undefined>>;
 
 const identityPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -86,4 +92,27 @@ export function validateHostConfig(environment: HostEnvironment): HostConfig {
   } satisfies HostConfig;
 
   return Object.freeze(config);
+}
+
+/** Configuration for the public, multi-user host. */
+export function validateDeploymentHostConfig(environment: HostEnvironment): DeploymentHostConfig {
+  const mongodbUrl = validateMongoUrl(requiredValue(environment, "MONGODB_URL"));
+  const rawOrigin = requiredValue(environment, "PUBLIC_ORIGIN");
+  let origin: URL;
+  try {
+    origin = new URL(rawOrigin);
+  } catch {
+    throw new Error("PUBLIC_ORIGIN must be an absolute http(s) origin without a path.");
+  }
+  if (
+    !["http:", "https:"].includes(origin.protocol) ||
+    origin.username || origin.password || origin.pathname !== "/" || origin.search || origin.hash
+  ) {
+    throw new Error("PUBLIC_ORIGIN must be an absolute http(s) origin without a path.");
+  }
+  return Object.freeze({
+    mongodbUrl,
+    appOrigin: origin.origin,
+    secureCookies: origin.protocol === "https:",
+  });
 }

@@ -67,6 +67,8 @@ describe("host Officer provisioning", () => {
 
     expect(await roleAccess._getRole({ role: result.role })).toEqual([{ name: "Officer" }]);
     expect(await roleAccess._permissions({ role: result.role })).toEqual([
+      { permission: "ANSWER_QUESTION" },
+      { permission: "ASK_QUESTION" },
       { permission: "COMPLETE_REVIEW" },
       { permission: "EDIT_CONTEXT" },
       { permission: "EDIT_PROCEDURE" },
@@ -141,6 +143,8 @@ describe("host Officer provisioning", () => {
     expect(assignmentIds.size).toBe(1);
     expect((await concurrentRoleAccess._roles()).filter(({ name }) => name === "Officer")).toHaveLength(1);
     expect(await concurrentRoleAccess._permissions({ role: results[0].role })).toEqual([
+      { permission: "ANSWER_QUESTION" },
+      { permission: "ASK_QUESTION" },
       { permission: "COMPLETE_REVIEW" },
       { permission: "EDIT_CONTEXT" },
       { permission: "EDIT_PROCEDURE" },
@@ -176,6 +180,8 @@ describe("host Officer provisioning", () => {
     await expect(provisionOfficer(hostConfig, roleAccess)).rejects
       .toBeInstanceOf(OfficerProvisioningConflict);
     expect(await roleAccess._permissions({ role })).toEqual([
+      { permission: "ANSWER_QUESTION" },
+      { permission: "ASK_QUESTION" },
       { permission: "COMPLETE_REVIEW" },
       { permission: "EDIT_CONTEXT" },
       { permission: "EDIT_PROCEDURE" },

@@ -20,10 +20,12 @@ concrete Command
   An opaque application command passed through authorization unchanged.
 ```
 
-The broader type inventory preserves the P1 question-related permission names,
-but the P2 host provisions only `EDIT_PROCEDURE`, `EDIT_CONTEXT`, and
-`COMPLETE_REVIEW`. No public P2 endpoint creates Roles, grants Permissions, or
-assigns Users.
+The P3 host provisions the Officer Role with `ASK_QUESTION`,
+`ANSWER_QUESTION`, `EDIT_PROCEDURE`, `EDIT_CONTEXT`, and `COMPLETE_REVIEW`.
+The Member Role has only `ASK_QUESTION`, which also authorizes workspace-scoped
+Procedure, ContextNote, and Question reads. Workspace creators receive Officer;
+accepted invitations receive Member. Relay exposes no public endpoint for
+choosing a Role, granting Permissions, or assigning Users.
 
 ```instances
 instantiate ProcedureMaintaining with
@@ -33,6 +35,12 @@ instantiate ContextTracking with
   Scope is ClubWorkspace
   Subject is ProcedureMaintaining.Procedure
   Anchor is ProcedureMaintaining.Step
+
+instantiate Questioning as StepQuestioning with
+  Subject is ProcedureMaintaining.Step
+
+instantiate Questioning as ContextQuestioning with
+  Subject is ContextTracking.ContextNote
 
 instantiate Reviewing with
   Item is ProcedureMaintaining.Procedure

@@ -68,6 +68,10 @@ async function ensureStorage(storage: ContextTrackingStorage): Promise<void> {
       { context: 1, _id: 1 },
       { name: "attachments_context_identity" },
     ),
+    storage.attachments.createIndex(
+      { anchor: 1, _id: 1 },
+      { name: "attachments_anchor_identity" },
+    ),
     storage.changes.createIndex(
       { context: 1, _id: 1 },
       { name: "changes_context_identity" },
@@ -299,6 +303,16 @@ export class ContextTrackingConcept {
             ...(found.anchor === undefined ? {} : { anchor: found.anchor }),
           },
         ];
+  }
+
+  async _atAnchor({
+    anchor,
+  }: {
+    anchor: string;
+  }): Promise<{ attachment: string; context: string; subject: string }[]> {
+    await ensureConnected(this.storage);
+    const found = await this.storage.attachments.find({ anchor }).sort({ _id: 1 }).toArray();
+    return found.map(({ _id, context, subject }) => ({ attachment: _id, context, subject }));
   }
 
   async _changes({
