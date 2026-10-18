@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { ContextQuestion, PendingReview, Procedure, StepQuestion } from "../api.ts";
+import type { ActivityEvent, ContextQuestion, PendingReview, Procedure, StepQuestion } from "../api.ts";
+import { activityDescription, activityProcedureTarget, formatActivityRelativeTime } from "../activity.ts";
 import { balancedAttentionItems } from "../attention.ts";
 
 type OverviewTarget = {
@@ -21,6 +22,7 @@ const props = defineProps<{
   reviews: PendingReview[];
   stepQuestions: StepQuestion[];
   contextQuestions: ContextQuestion[];
+  activity: ActivityEvent[];
   canEdit: boolean;
   canReview: boolean;
   canAnswer: boolean;
@@ -68,6 +70,10 @@ function openAttentionItem(item: AttentionItem) {
   }
   emit("navigate", { section: "questions", question: item.id, questionKind: item.questionKind });
 }
+
+function fullTimestamp(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeStyle: "long" }).format(new Date(value));
+}
 </script>
 
 <template>
@@ -76,14 +82,13 @@ function openAttentionItem(item: AttentionItem) {
     <button v-if="canEdit && !firstRun" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures', createPlaybook: true })">+ New playbook</button>
   </header>
 
-  <section v-if="firstRun" class="first-run">
-    <h2>{{ canEdit ? "Create your first playbook" : "No playbooks yet" }}</h2>
-    <p>{{ canEdit ? "Write the steps for one task your club does regularly." : "An Officer can add the first playbook." }}</p>
-    <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">Create your first playbook</button>
-  </section>
-
-  <div v-else class="overview-grid" :class="{ 'has-attention': hasAttention }">
-    <section class="overview-playbooks" aria-labelledby="overview-playbooks-title">
+  <div class="overview-grid" :class="{ 'has-attention': hasAttention }">
+    <section v-if="firstRun" class="first-run overview-first-run">
+      <h2>{{ canEdit ? "Create your first playbook" : "No playbooks yet" }}</h2>
+      <p>{{ canEdit ? "Write the steps for one task your club does regularly." : "An Officer can add the first playbook." }}</p>
+      <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">Create your first playbook</button>
+    </section>
+    <section v-else class="overview-playbooks" aria-labelledby="overview-playbooks-title">
       <header class="overview-section-header">
         <div><h2 id="overview-playbooks-title">Playbooks</h2><p>{{ activeProcedures.length }} active</p></div>
         <button class="text-button" type="button" @click="emit('navigate', { section: 'procedures' })">View all</button>
@@ -98,20 +103,45 @@ function openAttentionItem(item: AttentionItem) {
       <p v-if="activeProcedures.length > visiblePlaybooks.length" class="overview-list-note">{{ activeProcedures.length - visiblePlaybooks.length }} more in Playbooks</p>
     </section>
 
-    <aside class="overview-attention" :class="{ 'is-empty': !hasAttention }" aria-labelledby="overview-attention-title">
-      <header class="attention-panel-header"><h2 id="overview-attention-title">Needs attention</h2><span v-if="hasAttention">{{ reviewItems.length + questionItems.length }}</span></header>
-      <div v-if="hasAttention" class="attention-item-list">
-        <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" type="button" @click="openAttentionItem(item)">
-          <span class="attention-item-kind">{{ item.kind === "review" ? "Review" : "Question" }}</span>
-          <strong :class="{ 'clamped-copy': item.kind === 'question' }">{{ item.title }}</strong>
-          <small class="clamped-source">{{ item.detail }}</small>
-        </button>
-      </div>
-      <p v-else class="attention-clear"><span aria-hidden="true">✓</span> All caught up</p>
-      <footer v-if="hasAttention" class="attention-panel-links">
-        <button v-if="reviewItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'reviews' })">All reviews</button>
-        <button v-if="questionItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'questions' })">All questions</button>
-      </footer>
-    </aside>
+    <div class="overview-sidebar">
+      <aside class="overview-attention" :class="{ 'is-empty': !hasAttention }" aria-labelledby="overview-attention-title">
+        <header class="attention-panel-header"><h2 id="overview-attention-title">Needs attention</h2><span v-if="hasAttention">{{ reviewItems.length + questionItems.length }}</span></header>
+        <div v-if="hasAttention" class="attention-item-list">
+          <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" type="button" @click="openAttentionItem(item)">
+            <span class="attention-item-kind">{{ item.kind === "review" ? "Review" : "Question" }}</span>
+            <strong :class="{ 'clamped-copy': item.kind === 'question' }">{{ item.title }}</strong>
+            <small class="clamped-source">{{ item.detail }}</small>
+          </button>
+        </div>
+        <p v-else class="attention-clear"><span aria-hidden="true">✓</span> All caught up</p>
+        <footer v-if="hasAttention" class="attention-panel-links">
+          <button v-if="reviewItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'reviews' })">All reviews</button>
+          <button v-if="questionItems.length" class="text-button" type="button" @click="emit('navigate', { section: 'questions' })">All questions</button>
+        </footer>
+      </aside>
+
+      <section v-if="canEdit" class="recent-activity" aria-labelledby="recent-activity-title">
+        <header class="recent-activity-header"><h2 id="recent-activity-title">Recent activity</h2></header>
+        <div v-if="activity.length" class="activity-list">
+          <component
+            :is="activityProcedureTarget(event) ? 'button' : 'div'"
+            v-for="event in activity"
+            :key="event.event"
+            class="activity-row"
+            :type="activityProcedureTarget(event) ? 'button' : undefined"
+            :title="activityDescription(event)"
+            @click="activityProcedureTarget(event) && emit('navigate', { section: 'procedures', procedure: activityProcedureTarget(event) })"
+          >
+            <span class="activity-marker" aria-hidden="true"></span>
+            <span class="activity-copy">
+              <strong>{{ activityDescription(event) }}</strong>
+              <time :datetime="event.occurredAt" :title="fullTimestamp(event.occurredAt)">{{ formatActivityRelativeTime(event.occurredAt) }}</time>
+            </span>
+            <span v-if="activityProcedureTarget(event)" class="activity-arrow" aria-hidden="true">→</span>
+          </component>
+        </div>
+        <p v-else class="activity-empty">No activity yet</p>
+      </section>
+    </div>
   </div>
 </template>

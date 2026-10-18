@@ -113,6 +113,21 @@ Question text is clamped only in the preview and opens the exact full item.
 When no work is pending, the amber treatment falls away so the empty state does
 not compete with Playbooks.
 
+For Officers, a compact **Recent activity** ledger sits directly below **Needs
+attention** in the same rail. The distinction is deliberate: amber attention
+rows are unfinished work, while neutral activity rows answer who changed what
+and when. At most five server-recorded events appear, newest first. Playbook
+events retain their Procedure identity and open that exact Playbook; long
+labels truncate visually while the full activity sentence remains available
+as an accessible title. Relative times carry full machine-readable and hover
+timestamps. Members do not receive the activity projection. On narrow screens
+the two rail sections stay together, with pending work still taking priority.
+The ledger favors meaningful continuity over exhaustive telemetry: archives,
+new or attached Context, completed Review decisions, and initial Question
+answers appear, while reordering, wording corrections, answer revisions,
+navigation, and polling do not. Inline Context creation and attachment reads as
+one natural “added context” event rather than two implementation-level rows.
+
 ## First-use simplification
 
 The follow-up simplification pass removes page subtitles that repeated the

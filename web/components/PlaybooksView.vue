@@ -20,6 +20,7 @@ const emit = defineEmits<{
 const procedureTitle = ref("");
 const playbookSearch = ref("");
 const selectedProcedureId = ref("");
+const focusedArchivedId = ref("");
 const showCreate = ref(false);
 const showAddStep = ref(false);
 const stepDraft = reactive<Record<string, string>>({});
@@ -47,7 +48,13 @@ watch(activeProcedures, (procedures) => {
 }, { immediate: true });
 
 watch(() => props.focusProcedure, (procedure) => {
-  if (procedure && activeProcedures.value.some(({ procedure: id }) => id === procedure)) selectedProcedureId.value = procedure;
+  if (!procedure) return;
+  if (activeProcedures.value.some(({ procedure: id }) => id === procedure)) {
+    selectedProcedureId.value = procedure;
+    focusedArchivedId.value = "";
+  } else if (archivedProcedures.value.some(({ procedure: id }) => id === procedure)) {
+    focusedArchivedId.value = procedure;
+  }
 }, { immediate: true });
 
 watch(() => props.startCreate, (start) => {
@@ -62,6 +69,7 @@ watch(() => props.focusContextStep, (step) => {
 
 function selectProcedure(procedure: Procedure) {
   selectedProcedureId.value = procedure.procedure;
+  focusedArchivedId.value = "";
   editingTitle.value = "";
   editingStep.value = "";
   showAddStep.value = false;
@@ -199,5 +207,5 @@ function recordStepContext(procedure: Procedure, step: Step) {
     </article>
   </div>
 
-  <details v-if="archivedProcedures.length" class="quiet-history archived-playbooks"><summary>Archived playbooks <span>{{ archivedProcedures.length }}</span></summary><article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook"><header><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} steps</small></header><ol><li v-for="step in procedure.steps" :key="step.step"><span>{{ step.position }}</span>{{ step.text }}</li></ol></article></details>
+  <details v-if="archivedProcedures.length" class="quiet-history archived-playbooks" :open="!!focusedArchivedId"><summary>Archived playbooks <span>{{ archivedProcedures.length }}</span></summary><article v-for="procedure in archivedProcedures" :key="procedure.procedure" class="archived-playbook" :class="{ 'activity-target': procedure.procedure === focusedArchivedId }"><header><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} steps</small></header><ol><li v-for="step in procedure.steps" :key="step.step"><span>{{ step.position }}</span>{{ step.text }}</li></ol></article></details>
 </template>

@@ -53,6 +53,26 @@ export interface IssuedInvitation {
   reissued?: boolean;
 }
 
+export interface ActivityEvent {
+  event: string;
+  actor: string;
+  actorName: string;
+  type:
+    | "PLAYBOOK_CREATED" | "PLAYBOOK_RENAMED" | "PLAYBOOK_ARCHIVED"
+    | "STEP_ADDED" | "STEP_EDITED" | "STEP_REMOVED"
+    | "CONTEXT_CREATED" | "CONTEXT_ATTACHED" | "CONTEXT_CHANGED"
+    | "REVIEW_CONFIRMED" | "REVIEW_RESOLVED" | "QUESTION_ANSWERED";
+  occurredAt: string;
+  procedure?: string;
+  step?: string;
+  context?: string;
+  attachment?: string;
+  review?: string;
+  question?: string;
+  procedureTitle?: string;
+  stepPosition?: number;
+}
+
 export class RelayApiError extends Error {
   constructor(
     readonly status: number,
@@ -192,6 +212,9 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     },
     workspaceMembers(csrfToken: string) {
       return hostPost<{ members: WorkspaceMember[] }>("/workspaces/members", {}, csrfToken);
+    },
+    recentActivity(csrfToken: string) {
+      return hostPost<{ events: ActivityEvent[] }>("/workspaces/activity", {}, csrfToken);
     },
     pendingInvitations(csrfToken: string) {
       return hostPost<{ invitations: PendingInvitation[] }>("/invitations/pending", {}, csrfToken);

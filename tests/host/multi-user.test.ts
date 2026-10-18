@@ -17,6 +17,7 @@ const config: DeploymentHostConfig = { mongodbUrl: configuredUrl, appOrigin: ori
 type Browser = { cookie: string; csrf: string };
 let handler: (request: Request) => Promise<Response>;
 let application: ReturnType<typeof createApplication>["application"];
+let roleAccess: ReturnType<typeof createApplication>["roleAccess"];
 
 async function call(path: string, body?: Record<string, unknown>, browser?: Browser) {
   const headers = new Headers({ origin });
@@ -35,8 +36,7 @@ async function register(email: string): Promise<Browser> {
 describe("multi-user Relay host", () => {
   beforeAll(async () => {
     await client.connect();
-    ({ application } = createApplication(database, client));
-    const { roleAccess } = createApplication(database, client);
+    ({ application, roleAccess } = createApplication(database, client));
     const roles = await provisionApplicationRoles(roleAccess);
     handler = createMultiUserRelayHttpHandler(application, new AccountStore(database, roleAccess), config, roles);
   });
@@ -149,6 +149,213 @@ describe("multi-user Relay host", () => {
     expect((await call("/invitations/accept", { token: original.body.token }, replacementMember)).status).toBe(404);
     expect((await call("/invitations/accept", { token: replacement.body.token }, replacementMember)).status).toBe(200);
     expect((await call("/invitations/pending", {}, officer)).body.invitations).toEqual([]);
+  });
+
+  test("persists the five newest successful activities with Officer-only workspace isolation", async () => {
+    const officer = await register("activity-officer@example.org");
+    const club = await call("/workspaces/create", { name: "Activity Club" }, officer);
+    const startedAt = Date.now();
+    const created = await call("/api/workspaces/procedures/create", { title: "Book Rehearsal Space" }, officer);
+    expect(created.status).toBe(200);
+
+    const firstRead = await call("/workspaces/activity", {}, officer);
+    expect(firstRead.status).toBe(200);
+    expect(firstRead.body.events).toEqual([
+      expect.objectContaining({
+        actorName: "activity-officer",
+        type: "PLAYBOOK_CREATED",
+        procedure: created.body.procedure,
+        procedureTitle: "Book Rehearsal Space",
+      }),
+    ]);
+    expect(new Date(firstRead.body.events[0].occurredAt).getTime()).toBeGreaterThanOrEqual(startedAt);
+
+    await call("/api/workspaces/procedures/rename", { procedure: created.body.procedure, title: "Reserve Rehearsal Space" }, officer);
+    const added = await call("/api/workspaces/procedures/steps/add", { procedure: created.body.procedure, text: "Open the booking portal" }, officer);
+    await call("/api/workspaces/procedures/steps/edit", { procedure: created.body.procedure, step: added.body.step, text: "Open the campus booking portal" }, officer);
+    await call("/api/workspaces/procedures/steps/remove", { procedure: created.body.procedure, step: added.body.step }, officer);
+    const note = await call("/api/workspaces/context/notes", { text: "Bookings open on Mondays." }, officer);
+    const countAfterContextCreation = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    await call("/api/workspaces/context/attachments", { context: note.body.context, procedure: created.body.procedure }, officer);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(countAfterContextCreation);
+    await call("/api/workspaces/context/change", { context: note.body.context, text: "Bookings open on Tuesdays." }, officer);
+
+    const recent = await call("/workspaces/activity", {}, officer);
+    expect(recent.status).toBe(200);
+    expect(recent.body.events).toHaveLength(5);
+    expect(recent.body.events.map((event: Record<string, unknown>) => event.type)).toEqual([
+      "CONTEXT_CHANGED", "CONTEXT_ATTACHED", "STEP_REMOVED", "STEP_EDITED", "STEP_ADDED",
+    ]);
+    expect(recent.body.events[1]).toEqual(expect.objectContaining({ context: note.body.context, procedure: created.body.procedure }));
+    expect(recent.body.events[2]).toEqual(expect.objectContaining({ step: added.body.step, stepPosition: 1 }));
+
+    const beforeFailure = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    expect((await call("/api/workspaces/procedures/steps/edit", {
+      procedure: created.body.procedure,
+      step: added.body.step,
+      text: "This removed Step cannot be edited",
+    }, officer)).status).toBe(404);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailure);
+
+    const invitation = await call("/invitations/create", { email: "activity-member@example.org" }, officer);
+    const member = await register("activity-member@example.org");
+    await call("/invitations/accept", { token: invitation.body.token }, member);
+    expect((await call("/workspaces/activity", {}, member)).status).toBe(403);
+    expect((await call("/api/workspaces/procedures/rename", {
+      procedure: created.body.procedure,
+      title: "Forged member edit",
+    }, member)).status).toBe(403);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailure);
+
+    const outsider = await register("activity-outsider@example.org");
+    const otherClub = await call("/workspaces/create", { name: "Other Activity Club" }, outsider);
+    await call("/api/workspaces/procedures/create", { title: "Private Other Playbook" }, outsider);
+    const otherEvents = await call("/workspaces/activity", {}, outsider);
+    expect(otherEvents.body.events).toHaveLength(1);
+    expect(otherEvents.body.events[0].procedureTitle).toBe("Private Other Playbook");
+    expect(otherEvents.body.events.every((event: Record<string, unknown>) => event.procedureTitle !== "Reserve Rehearsal Space")).toBe(true);
+    expect(otherClub.body.workspace).not.toBe(club.body.workspace);
+
+    const roles = await provisionApplicationRoles(roleAccess);
+    handler = createMultiUserRelayHttpHandler(application, new AccountStore(database, roleAccess), config, roles);
+    const persisted = await call("/workspaces/activity", {}, officer);
+    expect(persisted.body.events.map((event: Record<string, unknown>) => event.event)).toEqual(
+      recent.body.events.map((event: Record<string, unknown>) => event.event),
+    );
+  });
+
+  test("records meaningful archive, Context, Review, and Question activity without workflow spam", async () => {
+    const officer = await register("expanded-activity@example.org");
+    const club = await call("/workspaces/create", { name: "Expanded Activity Club" }, officer);
+    const procedure = await call("/api/workspaces/procedures/create", { title: "Officer Handoff" }, officer);
+    const step = await call("/api/workspaces/procedures/steps/add", {
+      procedure: procedure.body.procedure,
+      text: "Review the handoff notes",
+    }, officer);
+
+    const standalone = await call("/api/workspaces/context/notes", { text: "This note remains shared." }, officer);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "CONTEXT_CREATED",
+      context: standalone.body.context,
+    }));
+
+    const inline = await call("/api/workspaces/context/notes", { text: "Use the current officer checklist." }, officer);
+    const countAfterInlineCreation = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    const inlineAttachment = await call("/api/workspaces/context/step-attachments", {
+      context: inline.body.context,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+    }, officer);
+    expect(inlineAttachment.status).toBe(200);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(countAfterInlineCreation);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "CONTEXT_ATTACHED",
+      context: inline.body.context,
+      attachment: inlineAttachment.body.attachment,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+      stepPosition: 1,
+    }));
+
+    const existing = await call("/api/workspaces/context/notes", { text: "Officers meet each semester." }, officer);
+    await database.collection("host_activity").updateOne(
+      { workspace: club.body.workspace, context: existing.body.context, type: "CONTEXT_CREATED" },
+      { $set: { occurredAt: new Date("2020-01-01T00:00:00Z") } },
+    );
+    const countBeforeExistingAttachment = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    expect((await call("/api/workspaces/context/attachments", {
+      context: existing.body.context,
+      procedure: procedure.body.procedure,
+    }, officer)).status).toBe(200);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(countBeforeExistingAttachment + 1);
+
+    const beforeFailedAttachment = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    expect((await call("/api/workspaces/context/attachments", {
+      context: "missing-context",
+      procedure: procedure.body.procedure,
+    }, officer)).status).toBe(404);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailedAttachment);
+
+    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each month." }, officer);
+    const firstReview = (await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews[0];
+    expect((await call("/api/workspaces/reviews/confirm", {
+      review: firstReview.review,
+      procedure: procedure.body.procedure,
+    }, officer)).status).toBe(200);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "REVIEW_CONFIRMED",
+      review: firstReview.review,
+      procedure: procedure.body.procedure,
+    }));
+
+    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each week." }, officer);
+    const secondReview = (await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews[0];
+    await call("/api/workspaces/reviews/require-changes", {
+      review: secondReview.review,
+      procedure: procedure.body.procedure,
+    }, officer);
+    expect((await call("/api/workspaces/reviews/resolve", {
+      review: secondReview.review,
+      procedure: procedure.body.procedure,
+    }, officer)).status).toBe(200);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "REVIEW_RESOLVED",
+      review: secondReview.review,
+      procedure: procedure.body.procedure,
+    }));
+
+    const contextQuestion = await call("/api/workspaces/questions/context/ask", {
+      procedure: procedure.body.procedure,
+      context: existing.body.context,
+      text: "Does this apply this week?",
+    }, officer);
+    expect((await call("/api/workspaces/questions/context/answer", {
+      question: contextQuestion.body.question,
+      answer: "Yes, use the weekly schedule.",
+    }, officer)).status).toBe(200);
+    const contextAnswerEvent = (await call("/workspaces/activity", {}, officer)).body.events[0];
+    expect(contextAnswerEvent).toEqual(expect.objectContaining({
+      type: "QUESTION_ANSWERED",
+      question: contextQuestion.body.question,
+      context: existing.body.context,
+      procedure: procedure.body.procedure,
+    }));
+    expect(contextAnswerEvent).not.toHaveProperty("answer");
+
+    const question = await call("/api/workspaces/questions/steps/ask", {
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+      text: "Which notes?",
+    }, officer);
+    expect((await call("/api/workspaces/questions/steps/answer", {
+      question: question.body.question,
+      answer: "Use the current handoff notes.",
+    }, officer)).status).toBe(200);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "QUESTION_ANSWERED",
+      question: question.body.question,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+    }));
+
+    const beforeNoise = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
+    expect((await call("/api/workspaces/procedures/steps/move", {
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+      position: 1,
+    }, officer)).status).toBe(200);
+    expect((await call("/api/workspaces/context/correct", {
+      context: standalone.body.context,
+      text: "This shared note remains available.",
+    }, officer)).status).toBe(200);
+    expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeNoise);
+
+    expect((await call("/api/workspaces/procedures/archive", { procedure: procedure.body.procedure }, officer)).status).toBe(200);
+    expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
+      type: "PLAYBOOK_ARCHIVED",
+      procedure: procedure.body.procedure,
+      procedureTitle: "Officer Handoff",
+    }));
   });
 
   test("rejects expired invitation tokens and omits them from pending administration", async () => {
