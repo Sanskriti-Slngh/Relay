@@ -43,6 +43,16 @@ live on a dedicated Workspace page. The main column uses one consistent title
 edge and a bounded reading width. On narrow screens the sidebar becomes a
 compact header and the navigation remains reachable without hover.
 
+Workspace management follows the club's state rather than presenting a generic
+settings form: club identity and the viewer's Role lead, followed by joined
+Members, Officer-only pending invitations, the invitation form, and other club
+memberships. Joined users and pending invitations remain separate. Member
+rows expose names and Roles to the club; email and invitation administration
+appear only to Officers. A newly issued code is a temporary success surface
+with Copy and expiry information. Reissue clearly states that the replacement
+invalidates the previous code, and the plaintext value is never persisted in
+the browser.
+
 Playbooks use a master-detail layout: a scannable title index and one focused,
 document-like procedure. Steps retain stable identity and order but read as a
 continuous numbered document. Each Officer sees a consistent right-hand Step
@@ -96,6 +106,12 @@ another dense index. On mobile the columns stack, and the attention list moves
 first only when pending work exists. Members never receive Officer task
 controls. Empty Officers receive one create action, while empty Members get a
 short role-appropriate explanation.
+
+The attention preview alternates unfinished Reviews and unanswered Questions
+when both exist, preventing either inbox from occupying every preview row.
+Question text is clamped only in the preview and opens the exact full item.
+When no work is pending, the amber treatment falls away so the empty state does
+not compete with Playbooks.
 
 ## First-use simplification
 

@@ -170,11 +170,26 @@ export function createMultiUserRelayHttpHandler(
         const refreshed = await accounts.authenticate(tokenOf(request)!);
         return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
       }
+      if (pathname === "/workspaces/members") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        return response(200, { members: await accounts.workspaceMembers(session.user, session.workspace) });
+      }
+      if (pathname === "/invitations/pending") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const invitations = await accounts.pendingInvitations(session.user, session.workspace);
+        return response(200, { invitations: invitations.map((invitation) => ({ ...invitation, expiresAt: invitation.expiresAt.toISOString() })) });
+      }
       if (pathname === "/invitations/create") {
         if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
         const values = strings(body, ["email"]); if (!values) return errorResponse(400, "INVALID_INPUT");
         const invite = await accounts.createInvitation(session.user, session.workspace, values[0]);
-        return response(200, { token: invite.token, expiresAt: invite.expiresAt.toISOString() });
+        return response(200, { ...invite, expiresAt: invite.expiresAt.toISOString() });
+      }
+      if (pathname === "/invitations/reissue") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const values = strings(body, ["invitation"]); if (!values) return errorResponse(400, "INVALID_INPUT");
+        const invite = await accounts.reissueInvitation(session.user, session.workspace, values[0]);
+        return response(200, { ...invite, expiresAt: invite.expiresAt.toISOString() });
       }
       if (pathname === "/invitations/accept") {
         const values = strings(body, ["token"]); if (!values) return errorResponse(400, "INVALID_INPUT");

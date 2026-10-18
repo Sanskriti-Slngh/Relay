@@ -18,6 +18,7 @@ const emit = defineEmits<{
 }>();
 
 const procedureTitle = ref("");
+const playbookSearch = ref("");
 const selectedProcedureId = ref("");
 const showCreate = ref(false);
 const showAddStep = ref(false);
@@ -34,6 +35,10 @@ const editingTitle = ref("");
 const editingStep = ref("");
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
 const archivedProcedures = computed(() => props.procedures.filter(({ status }) => status === "RETIRED"));
+const filteredProcedures = computed(() => {
+  const query = playbookSearch.value.trim().toLocaleLowerCase();
+  return query ? activeProcedures.value.filter(({ title }) => title.toLocaleLowerCase().includes(query)) : activeProcedures.value;
+});
 const selectedProcedure = computed(() => activeProcedures.value.find(({ procedure }) => procedure === selectedProcedureId.value));
 
 watch(activeProcedures, (procedures) => {
@@ -61,7 +66,12 @@ function selectProcedure(procedure: Procedure) {
   editingStep.value = "";
   showAddStep.value = false;
 }
-function notesForProcedure(procedureId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId && !attachment.anchor)); }
+function notesForProcedure(procedure: Procedure) {
+  const stepIds = new Set(procedure.steps.map(({ step }) => step));
+  return props.contexts.filter((note) =>
+    note.attachments.some((attachment) => attachment.subject === procedure.procedure && !attachment.anchor) &&
+    !note.attachments.some((attachment) => attachment.subject === procedure.procedure && !!attachment.anchor && stepIds.has(attachment.anchor)));
+}
 function notesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
 function availableNotesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => !note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
 function questionsForStep(step: string) { return props.stepQuestions.filter((question) => question.step === step); }
@@ -123,9 +133,11 @@ function recordStepContext(procedure: Procedure, step: Step) {
 
   <div v-else class="playbook-workspace">
     <aside class="playbook-index" aria-label="Active playbooks">
-      <button v-for="procedure in activeProcedures" :key="procedure.procedure" class="playbook-index-row" :class="{ selected: procedure.procedure === selectedProcedureId }" type="button" :aria-pressed="procedure.procedure === selectedProcedureId" @click="selectProcedure(procedure)">
+      <div v-if="activeProcedures.length > 6" class="playbook-search"><label class="sr-only" for="playbook-search">Find a playbook</label><input id="playbook-search" v-model="playbookSearch" type="search" placeholder="Find a playbook…"></div>
+      <button v-for="procedure in filteredProcedures" :key="procedure.procedure" class="playbook-index-row" :class="{ selected: procedure.procedure === selectedProcedureId }" type="button" :aria-pressed="procedure.procedure === selectedProcedureId" @click="selectProcedure(procedure)">
         <span>{{ procedure.title }}</span><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small>
       </button>
+      <p v-if="!filteredProcedures.length" class="playbook-search-empty">No matching playbooks.</p>
     </aside>
 
     <article v-if="selectedProcedure" class="playbook-document">
@@ -183,7 +195,7 @@ function recordStepContext(procedure: Procedure, step: Step) {
         <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div></form>
       </div>
 
-      <details v-if="notesForProcedure(selectedProcedure.procedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure.procedure).length }}</span></summary><div class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure.procedure)" :key="note.context">{{ note.text }}</blockquote></div></details>
+      <details v-if="notesForProcedure(selectedProcedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure).length }}</span></summary><div class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure)" :key="note.context">{{ note.text }}</blockquote></div></details>
     </article>
   </div>
 

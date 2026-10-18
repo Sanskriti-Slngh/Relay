@@ -22,6 +22,7 @@ const attachmentProcedure = reactive<Record<string, string>>({});
 const attachmentStep = reactive<Record<string, string>>({});
 const questionDraft = reactive<Record<string, string>>({});
 const questionComposer = reactive<Record<string, boolean>>({});
+const expandedNote = reactive<Record<string, boolean>>({});
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
 
 watch(() => props.procedures, () => {
@@ -90,7 +91,7 @@ function askQuestion(note: ContextNote) {
   <div v-else class="context-ledger">
     <article v-for="note in contexts" :key="note.context" class="context-entry">
       <header class="context-entry-header">
-        <div><p class="context-current-text">{{ note.text }}</p></div>
+        <div><p class="context-current-text" :class="{ 'is-collapsed': note.text.length > 420 && !expandedNote[note.context] }">{{ note.text }}</p><button v-if="note.text.length > 420" class="note-read-toggle" type="button" :aria-expanded="!!expandedNote[note.context]" @click="expandedNote[note.context] = !expandedNote[note.context]">{{ expandedNote[note.context] ? "Show less" : "Read more" }}</button></div>
         <button v-if="canEdit" class="button button-small button-secondary" type="button" @click="updateOpen === note.context ? updateOpen = '' : openUpdate(note)">{{ updateOpen === note.context ? "Close" : "Update" }}</button>
       </header>
 

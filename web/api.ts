@@ -31,6 +31,28 @@ export interface WorkspaceMembership {
   permissions: string[];
 }
 
+export interface WorkspaceMember {
+  user: string;
+  name: string;
+  role: string;
+  email?: string;
+}
+
+export interface PendingInvitation {
+  invitation: string;
+  email: string;
+  status: "PENDING";
+  expiresAt: string;
+}
+
+export interface IssuedInvitation {
+  invitation: string;
+  email: string;
+  token: string;
+  expiresAt: string;
+  reissued?: boolean;
+}
+
 export class RelayApiError extends Error {
   constructor(
     readonly status: number,
@@ -168,8 +190,17 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     selectWorkspace(workspace: string, csrfToken: string) {
       return hostPost<SessionState>("/workspaces/select", { workspace }, csrfToken);
     },
+    workspaceMembers(csrfToken: string) {
+      return hostPost<{ members: WorkspaceMember[] }>("/workspaces/members", {}, csrfToken);
+    },
+    pendingInvitations(csrfToken: string) {
+      return hostPost<{ invitations: PendingInvitation[] }>("/invitations/pending", {}, csrfToken);
+    },
     createInvitation(email: string, csrfToken: string) {
-      return hostPost<{ token: string; expiresAt: string }>("/invitations/create", { email }, csrfToken);
+      return hostPost<IssuedInvitation>("/invitations/create", { email }, csrfToken);
+    },
+    reissueInvitation(invitation: string, csrfToken: string) {
+      return hostPost<IssuedInvitation>("/invitations/reissue", { invitation }, csrfToken);
     },
     acceptInvitation(token: string, csrfToken: string) {
       return hostPost<SessionState>("/invitations/accept", { token }, csrfToken);

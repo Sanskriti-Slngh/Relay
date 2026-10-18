@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { ContextQuestion, PendingReview, Procedure, StepQuestion } from "../api.ts";
+import { balancedAttentionItems } from "../attention.ts";
 
 type OverviewTarget = {
   section: "procedures" | "reviews" | "questions";
@@ -56,7 +57,7 @@ const questionItems = computed<AttentionItem[]>(() => props.canAnswer
     })),
   ]
   : []);
-const attentionItems = computed(() => [...reviewItems.value, ...questionItems.value].slice(0, 4));
+const attentionItems = computed(() => balancedAttentionItems(reviewItems.value, questionItems.value, 4));
 const hasAttention = computed(() => attentionItems.value.length > 0);
 const visiblePlaybooks = computed(() => activeProcedures.value.slice(0, 6));
 
@@ -97,7 +98,7 @@ function openAttentionItem(item: AttentionItem) {
       <p v-if="activeProcedures.length > visiblePlaybooks.length" class="overview-list-note">{{ activeProcedures.length - visiblePlaybooks.length }} more in Playbooks</p>
     </section>
 
-    <aside class="overview-attention" aria-labelledby="overview-attention-title">
+    <aside class="overview-attention" :class="{ 'is-empty': !hasAttention }" aria-labelledby="overview-attention-title">
       <header class="attention-panel-header"><h2 id="overview-attention-title">Needs attention</h2><span v-if="hasAttention">{{ reviewItems.length + questionItems.length }}</span></header>
       <div v-if="hasAttention" class="attention-item-list">
         <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" type="button" @click="openAttentionItem(item)">
