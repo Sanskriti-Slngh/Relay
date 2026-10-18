@@ -1,5 +1,6 @@
-import type { ClientSession, Collection, Db, Document, Filter, MongoClient } from "mongodb";
+import type { Collection, Db, Document, Filter, MongoClient } from "mongodb";
 import { connectToDatabase, db, mongoClient } from "../db.ts";
+import { runAtomically, type OptionalMongoSession } from "../mongoAtomic.ts";
 
 type ProcedureStatus = "ACTIVE" | "RETIRED";
 type StepStatus = "ACTIVE" | "REMOVED";
@@ -66,27 +67,16 @@ async function ensureStorage(storage: ProcedureStorage): Promise<void> {
 
 async function inTransaction<T>(
   storage: ProcedureStorage,
-  work: (session: ClientSession) => Promise<T>,
+  work: (session: OptionalMongoSession) => Promise<T>,
 ): Promise<T> {
   await ensureStorage(storage);
-  const session = storage.mongoClient.startSession();
-  try {
-    const result = await session.withTransaction(async () => ({
-      value: await work(session),
-    }));
-    if (result === undefined) {
-      throw new Error("MongoDB transaction completed without a result.");
-    }
-    return result.value;
-  } finally {
-    await session.endSession();
-  }
+  return runAtomically(storage.db, storage.mongoClient, work);
 }
 
 async function requireActiveProcedure(
   storage: ProcedureStorage,
   procedure: string,
-  session: ClientSession,
+  session: OptionalMongoSession,
 ): Promise<void> {
   const result = await storage.procedures.updateOne(
     { _id: procedure, status: "ACTIVE" },
@@ -106,7 +96,7 @@ async function requireActiveProcedure(
 async function requireActiveStepsAreContiguous(
   storage: ProcedureStorage,
   procedure: string,
-  session: ClientSession,
+  session: OptionalMongoSession,
 ): Promise<StepDocument[]> {
   const activeSteps = await storage.steps
     .find({ procedure, status: "ACTIVE" }, { session })
@@ -127,7 +117,7 @@ async function moveAllToTemporaryPositions(
   storage: ProcedureStorage,
   activeSteps: StepDocument[],
   offset: number,
-  session: ClientSession,
+  session: OptionalMongoSession,
 ): Promise<void> {
   if (activeSteps.length === 0) return;
   const positionedSteps = activeSteps.map((step) => {
@@ -153,7 +143,7 @@ async function moveAllToTemporaryPositions(
 async function setPositions(
   storage: ProcedureStorage,
   activeSteps: StepDocument[],
-  session: ClientSession,
+  session: OptionalMongoSession,
 ): Promise<void> {
   if (activeSteps.length === 0) return;
   const result = await storage.steps.bulkWrite(
@@ -325,35 +315,39 @@ export class ProcedureMaintainingConcept {
     procedure: string;
     title: string;
   }) {
-    await ensureStorage(this.storage);
-    const result = await this.storage.procedures.updateOne(
-      { _id: procedure, status: "ACTIVE" },
-      { $set: { title } },
-    );
-    if (result.matchedCount === 1) return {};
+    return inTransaction(this.storage, async (session) => {
+      const result = await this.storage.procedures.updateOne(
+        { _id: procedure, status: "ACTIVE" },
+        { $set: { title } },
+        { session },
+      );
+      if (result.matchedCount === 1) return {};
 
-    const found = await this.storage.procedures.findOne(
-      { _id: procedure },
-      { projection: { _id: 1 } },
-    );
-    if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
-    throw new ProcedureNotActive("The Procedure is retired.");
+      const found = await this.storage.procedures.findOne(
+        { _id: procedure },
+        { session, projection: { _id: 1 } },
+      );
+      if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
+      throw new ProcedureNotActive("The Procedure is retired.");
+    });
   }
 
   async retire({ procedure }: { procedure: string }) {
-    await ensureStorage(this.storage);
-    const result = await this.storage.procedures.updateOne(
-      { _id: procedure, status: "ACTIVE" },
-      { $set: { status: "RETIRED" } },
-    );
-    if (result.matchedCount === 1) return {};
+    return inTransaction(this.storage, async (session) => {
+      const result = await this.storage.procedures.updateOne(
+        { _id: procedure, status: "ACTIVE" },
+        { $set: { status: "RETIRED" } },
+        { session },
+      );
+      if (result.matchedCount === 1) return {};
 
-    const found = await this.storage.procedures.findOne(
-      { _id: procedure },
-      { projection: { _id: 1 } },
-    );
-    if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
-    throw new ProcedureNotActive("The Procedure is already retired.");
+      const found = await this.storage.procedures.findOne(
+        { _id: procedure },
+        { session, projection: { _id: 1 } },
+      );
+      if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
+      throw new ProcedureNotActive("The Procedure is already retired.");
+    });
   }
 
   async _procedures({

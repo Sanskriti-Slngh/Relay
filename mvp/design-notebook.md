@@ -448,6 +448,15 @@ optional `whether` selections can match at most one identity record. The
 invalid-action and concurrency tests exercise the risky paths, so no
 composition change was justified solely to silence the checker.
 
+The first deployed club-creation attempt exposed one platform difference the
+replica-set development database had hidden: 6.1040 Apps MongoDB rejects
+transaction numbers. Registration succeeded because it is a single insert, but
+assigning the first Officer Role returned MongoDB error 20. Relay now detects
+the server topology. Replica sets keep real transactions; the platform's
+single-process deployment serializes the same guarded operations without a
+session. Running the complete suite against an actual standalone MongoDB, not
+only a mock, verifies the alternate path across onboarding and every concept.
+
 ## Final Reflection
 
 **1. Why is a meaningful change modeled separately from a wording correction?**

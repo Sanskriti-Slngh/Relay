@@ -25,10 +25,16 @@ All commands below completed on Bun 1.4.0:
 
 ```text
 $ bun test
-129 pass
+131 pass
 0 fail
-723 expect() calls
-Ran 129 tests across 11 files. [3.61s]
+727 expect() calls
+Ran 131 tests across 12 files. [3.80s on the development replica set]
+
+$ MONGODB_URL=mongodb://127.0.0.1:27019/relay_standalone bun test
+131 pass
+0 fail
+730 expect() calls
+Ran 131 tests across 12 files. [2.13s on standalone MongoDB 8]
 
 $ bun run typecheck
 $ tsc --noEmit && vue-tsc --noEmit -p tsconfig.web.json
@@ -91,3 +97,14 @@ secret, deploy key, deployment, live URL, or deployed test data was created in
 this run. Real-browser Officer/Member verification remains pending until the
 authorized browser policy is available. The immutable application name also
 still requires an owner choice before project creation.
+
+## Deployment-specific MongoDB regression
+
+The first deployed `POST /workspaces/create` returned 500. Reproduction against
+a local standalone MongoDB produced MongoDB code 20: transaction numbers are
+only accepted by replica-set members or `mongos`. Relay now detects the
+topology and uses real transactions on replica sets or serialized guarded
+operations on standalone MongoDB. The complete suite passes against both the
+development replica set and a standalone MongoDB 8 container. The unrelated
+browser-console message `No Listener: tabs:outgoing.message.ready` originates
+from the browser controller/extension rather than a Relay route.
