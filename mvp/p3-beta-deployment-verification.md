@@ -64,6 +64,14 @@ commit and complete Officer/Member browser journey therefore remain manual
 verification items; this record does not claim they were independently
 confirmed.
 
+After pushing the release candidate, a direct public check returned
+`200 {"status":"ok"}` from `/health`. The live HTML still referenced
+`index-De747IX2.js` and `index-Ci8KLxLR.css`, while the verified local build
+produced `index-HJQ_6TZY.js` and `index-pjuGeR9K.css`. The public service is
+therefore healthy, but that evidence does **not** establish that the release
+candidate is the deployed commit. Select the pushed commit explicitly in
+6.1040 Apps, deploy it, and then repeat the browser journey.
+
 The platform log showed an existing process receive `SIGTERM` after running for
 about nine minutes, followed two seconds later by a new `bun src/main.ts`
 process. This is consistent with the documented 6.1040 Apps behavior: saving an
