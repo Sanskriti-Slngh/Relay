@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <style>
+      @font-face { font-family: Inter; src: url('../web/assets/Inter-Latin.woff2'); }
+      text { font-family: Inter, Arial, sans-serif; fill: #202522; }
+      .muted { fill: #59665E; }
+      .caption { font-size: 18px; }
+      .label { font-size: 19px; font-weight: 600; }
+      .light { fill: #FFFFFF; }
+      .light-muted { fill: #E8EEEA; }
+    </style>
+    <clipPath id="archiveClip"><rect x="1130" y="174" width="710" height="430" rx="6"/></clipPath>
+    <clipPath id="radixClip"><rect x="1130" y="798" width="710" height="142" rx="6"/></clipPath>
+  </defs>
+  <rect width="1920" height="1080" fill="#FAFAF8"/>
+  <text x="80" y="88" font-size="22" font-weight="600" fill="#285D4B">RELAY VISUAL STUDY · 02</text>
+  <text x="80" y="158" font-size="54" font-weight="600">Color</text>
+  <text x="80" y="202" font-size="24" class="muted">Warm paper, evergreen actions, and status colors reserved for meaning.</text>
+
+  <text x="80" y="278" class="caption muted" font-weight="600">FOUNDATION</text>
+  <rect x="80" y="310" width="300" height="150" rx="8" fill="#FAFAF8" stroke="#E5E8E3"/>
+  <text x="104" y="354" class="label">Canvas</text><text x="104" y="392" font-size="26">#FAFAF8</text><text x="104" y="428" class="caption muted">warm reading field</text>
+  <rect x="400" y="310" width="300" height="150" rx="8" fill="#FFFFFF" stroke="#E5E8E3"/>
+  <text x="424" y="354" class="label">Surface</text><text x="424" y="392" font-size="26">#FFFFFF</text><text x="424" y="428" class="caption muted">focused documents</text>
+  <rect x="720" y="310" width="328" height="150" rx="8" fill="#202522"/>
+  <text x="744" y="354" class="label light">Primary text</text><text x="744" y="392" font-size="26" class="light">#202522</text><text x="744" y="428" class="caption light-muted">calm, high contrast</text>
+
+  <rect x="80" y="480" width="300" height="150" rx="8" fill="#59665E"/>
+  <text x="104" y="524" class="label light">Secondary</text><text x="104" y="562" font-size="26" class="light">#59665E</text><text x="104" y="598" class="caption light-muted">supporting information</text>
+  <rect x="400" y="480" width="300" height="150" rx="8" fill="#285D4B"/>
+  <text x="424" y="524" class="label light">Primary accent</text><text x="424" y="562" font-size="26" class="light">#285D4B</text><text x="424" y="598" class="caption light-muted">actions and continuity</text>
+  <rect x="720" y="480" width="328" height="150" rx="8" fill="#E5E8E3"/>
+  <text x="744" y="524" class="label">Border</text><text x="744" y="562" font-size="26">#E5E8E3</text><text x="744" y="598" class="caption muted">quiet grouping</text>
+
+  <text x="80" y="694" class="caption muted" font-weight="600">STATUS — USED SPARINGLY</text>
+  <rect x="80" y="724" width="300" height="112" rx="8" fill="#FFF4DF"/>
+  <text x="104" y="768" class="label" fill="#8A5216">Pending</text><text x="104" y="802" class="caption" fill="#8A5216">#8A5216 on #FFF4DF</text>
+  <rect x="400" y="724" width="300" height="112" rx="8" fill="#ECF6EF"/>
+  <text x="424" y="768" class="label" fill="#25684D">Complete</text><text x="424" y="802" class="caption" fill="#25684D">#25684D on #ECF6EF</text>
+  <rect x="720" y="724" width="328" height="112" rx="8" fill="#FFF1F2"/>
+  <text x="744" y="768" class="label" fill="#A72C38">Error</text><text x="744" y="802" class="caption" fill="#A72C38">#A72C38 + clear text</text>
+
+  <rect x="80" y="874" width="968" height="80" rx="8" fill="#FFFFFF" stroke="#E5E8E3"/>
+  <text x="108" y="910" font-size="20">Applied rule</text>
+  <text x="108" y="938" class="caption muted">Green indicates action; amber indicates work waiting; red is never decoration. Every state also has a text label.</text>
+
+  <text x="1130" y="130" class="caption muted" font-weight="600">INSPIRATION → APPLICATION</text>
+  <image x="1130" y="174" width="710" height="430" preserveAspectRatio="xMidYMid slice" xlink:href="sources/catalog.jpg" clip-path="url(#archiveClip)"/>
+  <rect x="1130" y="174" width="710" height="430" rx="6" fill="none" stroke="#E5E8E3"/>
+  <rect x="1130" y="500" width="710" height="104" fill="#202522" opacity="0.88"/>
+  <text x="1156" y="540" font-size="22" class="light">Archival systems inspired Relay’s paper-like canvas</text>
+  <text x="1156" y="570" class="caption light-muted">Knowledge feels durable; controls remain secondary to content.</text>
+
+  <rect x="1130" y="636" width="710" height="130" rx="8" fill="#FFFFFF" stroke="#E5E8E3"/>
+  <circle cx="1176" cy="682" r="15" fill="#285D4B"/><text x="1210" y="690" font-size="21">Evergreen carries the primary action.</text>
+  <circle cx="1176" cy="726" r="15" fill="#FFF4DF" stroke="#E5E8E3"/><text x="1210" y="734" font-size="21">Warm amber belongs only to work requiring attention.</text>
+
+  <image x="1130" y="798" width="710" height="142" preserveAspectRatio="xMidYMid slice" xlink:href="sources/radix.png" clip-path="url(#radixClip)"/>
+  <rect x="1130" y="798" width="710" height="142" rx="6" fill="none" stroke="#E5E8E3"/>
+  <rect x="1130" y="894" width="710" height="46" fill="#202522" opacity="0.84"/>
+  <text x="1154" y="924" class="caption light">Radix Themes: semantic palettes and legible state contrast.</text>
+
+  <line x1="80" y1="1012" x2="1840" y2="1012" stroke="#E5E8E3"/>
+  <text x="80" y="1046" class="caption muted">Applied in Relay: no gradients, minimal shadows, subtle separators, WCAG-aware text contrast, and status meaning never encoded by color alone.</text>
+  <text x="1840" y="1046" class="caption muted" text-anchor="end">Sources: epitome.hypotheses.org · radix-ui.com/themes</text>
+</svg>

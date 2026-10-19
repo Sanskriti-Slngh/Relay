@@ -50,5 +50,9 @@ See the [P3 Beta visual design specification](./visual-design.md) for the UI
 audit, design tokens, page patterns, accessibility rules, and sources applied
 to the implemented interface.
 
-The assignment's separate two-slide visual design study is not currently
-tracked in this repository and must be added before P3 submission.
+The two-slide visual design study is available as rendered
+[typography](../slide-catalog/typography-slide.png) and
+[color](../slide-catalog/color-slide.png) slides, with editable
+[typography](../slide-catalog/typography-slide.svg) and
+[color](../slide-catalog/color-slide.svg) source files. Each slide identifies
+its sources and the corresponding choices applied in Relay.
