@@ -367,23 +367,30 @@ same-origin session cookie, and `X-Relay-CSRF` header. The host supplies
 User-authored text is nonblank and bounded at the same limits as the UI:
 Procedure titles are at most 160 characters, Step text at most 500, and
 Context Note text for record, correction, or meaningful change at most 4,000.
+Every mutation of already-loaded collaborative state also accepts a positive
+`expectedVersion`. The host refuses a missing version, and a stale version
+returns `VERSION_CONFLICT` without applying the mutation or recording activity.
+Read formers return the current version beside each Playbook, Step, Context
+Note, Question, and Review. The complete action matrix and migration behavior
+are specified in [version-control.md](../version-control.md).
 
 - `/workspaces/procedures/create` accepts `{ title }` and returns
   `{ procedure }`; `/workspaces/procedures/steps/add` accepts
-  `{ procedure, text }` and returns `{ procedure, step }`;
-  rename accepts `{ procedure, title }`; Step edit accepts
-  `{ procedure, step, text }`; Step move accepts
-  `{ procedure, step, position }`; and Step removal accepts
-  `{ procedure, step }`. Step mutations return the affected Step identity;
+  `{ procedure, text, expectedVersion }` and returns `{ procedure, step }`;
+  rename accepts `{ procedure, title, expectedVersion }`; Step edit accepts
+  `{ procedure, step, text, expectedVersion }`; Step move accepts
+  `{ procedure, step, position, expectedVersion }`; and Step removal accepts
+  `{ procedure, step, expectedVersion }`. Step mutations return the affected Step identity;
   moving also returns its requested position.
-  `/workspaces/procedures/archive` accepts `{ procedure }` and returns
+  `/workspaces/procedures/archive` accepts `{ procedure, expectedVersion }` and returns
   `{ procedure, status: "RETIRED" }`.
 - `/workspaces/procedures` accepts `{}` and returns `{ procedures }`, where
-  each Procedure has `procedure`, `title`, `status`, and ordered `steps`.
+  each Procedure has `procedure`, `title`, `status`, `version`, and ordered
+  `steps`, each with its own text `version`.
 - `/workspaces/context/notes` accepts `{ text }` and returns `{ context }`.
   Attachment routes accept `{ context, procedure }` or
   `{ context, procedure, step }` and return `{ attachment }`.
-  Correction accepts `{ context, text }` and returns `{ context }`; meaningful
+  Correction accepts `{ context, text, expectedVersion }` and returns `{ context }`; meaningful
   change accepts the same fields and returns `{ context, change }`.
 - `/workspaces/context` accepts `{}` and returns `{ contexts }`, including each
   note's current text, attachment identities/subjects/optional anchors, and

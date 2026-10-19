@@ -6,6 +6,7 @@ import {
   ChangeNotDifferent,
   ContextNotFound,
   ContextTrackingConcept,
+  VersionConflict,
 } from "./ContextTracking.ts";
 
 export const contextTracking = registerConcept({
@@ -16,5 +17,6 @@ export const contextTracking = registerConcept({
     ATTACHMENT_ALREADY_EXISTS: AttachmentAlreadyExists,
     ATTACHMENT_NOT_FOUND: AttachmentNotFound,
     CHANGE_NOT_DIFFERENT: ChangeNotDifferent,
+    VERSION_CONFLICT: VersionConflict,
   },
 });

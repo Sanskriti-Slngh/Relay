@@ -62,7 +62,7 @@ function moveStepInput() {
     ["user", "workspace", "procedure", "step"],
   );
   return {
-    input: { required: [...strings.input.required, "position"] },
+    input: { required: [...strings.input.required, "position", "expectedVersion"] },
     validators: {
       input(value: unknown) {
         const stringResult = strings.validators.input(value);
@@ -70,6 +70,27 @@ function moveStepInput() {
         const fields = value as Record<string, unknown>;
         if (typeof fields.position !== "number" || !Number.isFinite(fields.position)) {
           return { ok: false as const, detail: "Field position must be a finite number." };
+        }
+        if (!Number.isInteger(fields.expectedVersion) || (fields.expectedVersion as number) < 0) {
+          return { ok: false as const, detail: "Field expectedVersion must be a non-negative integer." };
+        }
+        return { ok: true as const };
+      },
+    },
+  };
+}
+
+function versionedStringInput(required: string[], nonEmpty: string[] = [], maxLengths: Record<string, number> = {}) {
+  const strings = stringInput(required, nonEmpty, maxLengths);
+  return {
+    input: { required: [...strings.input.required, "expectedVersion"] },
+    validators: {
+      input(value: unknown) {
+        const stringResult = strings.validators.input(value);
+        if (!stringResult.ok) return stringResult;
+        const expectedVersion = (value as Record<string, unknown>).expectedVersion;
+        if (!Number.isInteger(expectedVersion) || (expectedVersion as number) < 0) {
+          return { ok: false as const, detail: "Field expectedVersion must be a non-negative integer." };
         }
         return { ok: true as const };
       },
@@ -115,27 +136,32 @@ const DetachRemovedStepContext = reaction(({ step, attachment }) =>
 
 const WorkspaceProcedures = former(
   "Relay.Reads.WorkspaceProcedures",
-  ({ workspace }, { procedure, title, status, step, text, position }) =>
+  ({ workspace }, { procedure, title, status, version, step, text, position, stepVersion }) =>
     each(ProcedureMaintaining._procedures({ space: workspace }).is({ procedure, title, status }))
       .arranged(procedure)
+      .where(ProcedureMaintaining._getVersion({ procedure }).is({ version }))
       .form({
         procedure,
         title,
         status,
+        version,
         steps: each(ProcedureMaintaining._steps({ procedure }).is({ step, text, position }))
           .arranged(position)
-          .form({ step, text, position }),
+          .where(ProcedureMaintaining._getStepVersion({ step }).is({ version: stepVersion }))
+          .form({ step, text, position, version: stepVersion }),
       }),
 );
 
 const WorkspaceContextHistory = former(
   "Relay.Reads.WorkspaceContextHistory",
-  ({ workspace }, { context, text, attachment, subject, anchor, change, before, after }) =>
+  ({ workspace }, { context, text, version, attachment, subject, anchor, change, before, after }) =>
     each(ContextTracking._notes({ scope: workspace }).is({ context, text }))
       .arranged(context)
+      .where(ContextTracking._getVersion({ context }).is({ version }))
       .form({
         context,
         text,
+        version,
         attachments: each(ContextTracking._attachments({ context }).is({ attachment, subject }))
           .arranged(attachment)
           .where(whether(ContextTracking._getAttachment({ attachment }).is({ anchor })))
@@ -148,15 +174,16 @@ const WorkspaceContextHistory = former(
 
 const PendingReviews = former(
   "Relay.Reads.PendingReviews",
-  ({ workspace }, { review, procedure, status, title, cause, before, after }) =>
+  ({ workspace }, { review, procedure, status, version, title, cause, before, after }) =>
     each(Reviewing._unfinished({}).is({ review, item: procedure, status }))
       .arranged(review)
-      .where(ProcedureMaintaining._get({ procedure }).is({ space: workspace, title }))
+      .where(ProcedureMaintaining._get({ procedure }).is({ space: workspace, title }), Reviewing._getVersion({ review }).is({ version }))
       .form({
         review,
         procedure,
         title,
         status,
+        version,
         causes: each(Reviewing._causes({ review }).is({ cause }))
           .arranged(cause)
           .where(ContextTracking._getChange({ change: cause }).is({ before, after }))
@@ -166,7 +193,7 @@ const PendingReviews = former(
 
 const WorkspaceReviewHistory = former(
   "Relay.Reads.WorkspaceReviewHistory",
-  ({ workspace }, { procedure, title, review, status, cause, before, after }) =>
+  ({ workspace }, { procedure, title, review, status, version, cause, before, after }) =>
     each(ProcedureMaintaining._procedures({ space: workspace }).is({ procedure, title }))
       .arranged(procedure)
       .form({
@@ -174,9 +201,11 @@ const WorkspaceReviewHistory = former(
         title,
         reviews: each(Reviewing._forItem({ item: procedure }).is({ review, status }))
           .arranged(review)
+          .where(Reviewing._getVersion({ review }).is({ version }))
           .form({
             review,
             status,
+            version,
             causes: each(Reviewing._causes({ review }).is({ cause }))
               .arranged(cause)
               .where(ContextTracking._getChange({ change: cause }).is({ before, after }))
@@ -200,6 +229,7 @@ const WorkspaceStepQuestions = former(
       title,
       stepText,
       stepStatus,
+      version,
     },
   ) =>
     each(
@@ -220,6 +250,7 @@ const WorkspaceStepQuestions = former(
         ProcedureMaintaining._get({ procedure }).is({ space: workspace, title }),
         whether(StepQuestioning._get({ question }).is({ answer })),
         whether(StepQuestioning._get({ question }).is({ answerer })),
+        StepQuestioning._getVersion({ question }).is({ version }),
       )
       .form({
         question,
@@ -232,12 +263,13 @@ const WorkspaceStepQuestions = former(
         title,
         subjectText: stepText,
         subjectStatus: stepStatus,
+        version,
       }),
 );
 
 const WorkspaceContextQuestions = former(
   "Relay.Reads.WorkspaceContextQuestions",
-  ({ workspace }, { question, context, questionText, questionStatus, answer, answerer, contextText }) =>
+  ({ workspace }, { question, context, questionText, questionStatus, answer, answerer, contextText, version }) =>
     each(
       ContextQuestioning._questions({}).is({
         question,
@@ -251,6 +283,7 @@ const WorkspaceContextQuestions = former(
         ContextTracking._get({ context }).is({ scope: workspace, text: contextText }),
         whether(ContextQuestioning._get({ question }).is({ answer })),
         whether(ContextQuestioning._get({ question }).is({ answerer })),
+        ContextQuestioning._getVersion({ question }).is({ version }),
       )
       .form({
         question,
@@ -260,6 +293,7 @@ const WorkspaceContextQuestions = former(
         answer,
         answerer,
         subjectText: contextText,
+        version,
       }),
 );
 
@@ -286,8 +320,8 @@ const CreateProcedure = endpoint(
 
 const AddStep = endpoint(
   "/workspaces/procedures/steps/add",
-  ({ user, workspace, procedure, text, step }) =>
-    receive({ user, workspace, procedure, text })
+  ({ user, workspace, procedure, text, expectedVersion, step }) =>
+    receive({ user, workspace, procedure, text, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -301,14 +335,14 @@ const AddStep = endpoint(
           ProcedureMaintaining._get({ procedure })
             .is({ space: workspace, status: "ACTIVE" }),
         )
-          .then(ProcedureMaintaining.addStep({ procedure, text }).responds({ step }))
+          .then(ProcedureMaintaining.addStep({ procedure, text, expectedVersion }).responds({ step }))
           .then(respond({ procedure, step }))
           .named("procedure-available"),
         where(no(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" })))
           .then(respond({ error: "PROCEDURE_NOT_AVAILABLE" }))
           .named("procedure-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "procedure", "text"],
     ["user", "workspace", "procedure", "text"],
     { text: 500 },
@@ -317,8 +351,8 @@ const AddStep = endpoint(
 
 const RenameProcedure = endpoint(
   "/workspaces/procedures/rename",
-  ({ user, workspace, procedure, title }) =>
-    receive({ user, workspace, procedure, title })
+  ({ user, workspace, procedure, title, expectedVersion }) =>
+    receive({ user, workspace, procedure, title, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -329,14 +363,14 @@ const RenameProcedure = endpoint(
       )
       .then(
         where(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }))
-          .then(ProcedureMaintaining.rename({ procedure, title }))
+          .then(ProcedureMaintaining.rename({ procedure, title, expectedVersion }))
           .then(respond({ procedure, title }))
           .named("procedure-available"),
         where(no(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" })))
           .then(respond({ error: "PROCEDURE_NOT_AVAILABLE" }))
           .named("procedure-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "procedure", "title"],
     ["user", "workspace", "procedure", "title"],
     { title: 160 },
@@ -345,8 +379,8 @@ const RenameProcedure = endpoint(
 
 const EditStep = endpoint(
   "/workspaces/procedures/steps/edit",
-  ({ user, workspace, procedure, step, text }) =>
-    receive({ user, workspace, procedure, step, text })
+  ({ user, workspace, procedure, step, text, expectedVersion }) =>
+    receive({ user, workspace, procedure, step, text, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -360,7 +394,7 @@ const EditStep = endpoint(
           ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
           ProcedureMaintaining._getStep({ step }).is({ procedure, status: "ACTIVE" }),
         )
-          .then(ProcedureMaintaining.editStep({ step, text }))
+          .then(ProcedureMaintaining.editStep({ step, text, expectedVersion }))
           .then(respond({ step }))
           .named("step-available"),
         where(
@@ -375,7 +409,7 @@ const EditStep = endpoint(
           .then(respond({ error: "STEP_NOT_AVAILABLE" }))
           .named("step-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "procedure", "step", "text"],
     ["user", "workspace", "procedure", "step", "text"],
     { text: 500 },
@@ -384,8 +418,8 @@ const EditStep = endpoint(
 
 const MoveStep = endpoint(
   "/workspaces/procedures/steps/move",
-  ({ user, workspace, procedure, step, position }) =>
-    receive({ user, workspace, procedure, step, position })
+  ({ user, workspace, procedure, step, position, expectedVersion }) =>
+    receive({ user, workspace, procedure, step, position, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -399,7 +433,7 @@ const MoveStep = endpoint(
           ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
           ProcedureMaintaining._getStep({ step }).is({ procedure, status: "ACTIVE" }),
         )
-          .then(ProcedureMaintaining.moveStep({ step, position }))
+          .then(ProcedureMaintaining.moveStep({ step, position, expectedVersion }))
           .then(respond({ step, position }))
           .named("step-available"),
         where(
@@ -419,8 +453,8 @@ const MoveStep = endpoint(
 
 const RemoveStep = endpoint(
   "/workspaces/procedures/steps/remove",
-  ({ user, workspace, procedure, step }) =>
-    receive({ user, workspace, procedure, step })
+  ({ user, workspace, procedure, step, expectedVersion }) =>
+    receive({ user, workspace, procedure, step, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -434,7 +468,7 @@ const RemoveStep = endpoint(
           ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
           ProcedureMaintaining._getStep({ step }).is({ procedure, status: "ACTIVE" }),
         )
-          .then(ProcedureMaintaining.removeStep({ step }))
+          .then(ProcedureMaintaining.removeStep({ step, expectedVersion }))
           .then(respond({ step }))
           .named("step-available"),
         where(
@@ -449,7 +483,7 @@ const RemoveStep = endpoint(
           .then(respond({ error: "STEP_NOT_AVAILABLE" }))
           .named("step-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "procedure", "step"],
     ["user", "workspace", "procedure", "step"],
   ),
@@ -457,8 +491,8 @@ const RemoveStep = endpoint(
 
 const ArchiveProcedure = endpoint(
   "/workspaces/procedures/archive",
-  ({ user, workspace, procedure }) =>
-    receive({ user, workspace, procedure })
+  ({ user, workspace, procedure, expectedVersion }) =>
+    receive({ user, workspace, procedure, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -472,14 +506,14 @@ const ArchiveProcedure = endpoint(
           ProcedureMaintaining._get({ procedure })
             .is({ space: workspace, status: "ACTIVE" }),
         )
-          .then(ProcedureMaintaining.retire({ procedure }))
+          .then(ProcedureMaintaining.retire({ procedure, expectedVersion }))
           .then(respond({ procedure, status: "RETIRED" }))
           .named("procedure-available"),
         where(no(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" })))
           .then(respond({ error: "PROCEDURE_NOT_AVAILABLE" }))
           .named("procedure-unavailable"),
       ),
-  stringInput(["user", "workspace", "procedure"], ["user", "workspace", "procedure"]),
+  versionedStringInput(["user", "workspace", "procedure"], ["user", "workspace", "procedure"]),
 );
 
 const RecordContextNote = endpoint(
@@ -586,8 +620,8 @@ const AttachContextNoteAtStep = endpoint(
 
 const CorrectContextNote = endpoint(
   "/workspaces/context/correct",
-  ({ user, workspace, context, text }) =>
-    receive({ user, workspace, context, text })
+  ({ user, workspace, context, text, expectedVersion }) =>
+    receive({ user, workspace, context, text, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -598,14 +632,14 @@ const CorrectContextNote = endpoint(
       )
       .then(
         where(ContextTracking._get({ context }).is({ scope: workspace }))
-          .then(ContextTracking.correct({ context, text }))
+          .then(ContextTracking.correct({ context, text, expectedVersion }))
           .then(respond({ context }))
           .named("context-available"),
         where(no(ContextTracking._get({ context }).is({ scope: workspace })))
           .then(respond({ error: "CONTEXT_NOT_AVAILABLE" }))
           .named("context-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "context", "text"],
     ["user", "workspace", "context", "text"],
     { text: 4_000 },
@@ -614,8 +648,8 @@ const CorrectContextNote = endpoint(
 
 const ChangeContextNote = endpoint(
   "/workspaces/context/change",
-  ({ user, workspace, context, text, change }) =>
-    receive({ user, workspace, context, text })
+  ({ user, workspace, context, text, expectedVersion, change }) =>
+    receive({ user, workspace, context, text, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -626,14 +660,14 @@ const ChangeContextNote = endpoint(
       )
       .then(
         where(ContextTracking._get({ context }).is({ scope: workspace }))
-          .then(ContextTracking.change({ context, text }).responds({ change }))
+          .then(ContextTracking.change({ context, text, expectedVersion }).responds({ change }))
           .then(respond({ context, change }))
           .named("context-available"),
         where(no(ContextTracking._get({ context }).is({ scope: workspace })))
           .then(respond({ error: "CONTEXT_NOT_AVAILABLE" }))
           .named("context-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "context", "text"],
     ["user", "workspace", "context", "text"],
     { text: 4_000 },
@@ -726,8 +760,8 @@ const AskContextQuestion = endpoint(
 
 const AnswerStepQuestion = endpoint(
   "/workspaces/questions/steps/answer",
-  ({ user, workspace, question, step, procedure, answer }) =>
-    receive({ user, workspace, question, answer })
+  ({ user, workspace, question, step, procedure, answer, expectedVersion }) =>
+    receive({ user, workspace, question, answer, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -742,7 +776,7 @@ const AnswerStepQuestion = endpoint(
           ProcedureMaintaining._getStep({ step }).is({ procedure }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
         )
-          .then(StepQuestioning.answer({ question, answer, answerer: user }))
+          .then(StepQuestioning.answer({ question, answer, answerer: user, expectedVersion }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("question-in-workspace"),
         where(no(StepQuestioning._get({ question }).is({ status: "OPEN" })))
@@ -756,7 +790,7 @@ const AnswerStepQuestion = endpoint(
           .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
           .named("question-outside-workspace"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "question", "answer"],
     ["user", "workspace", "question", "answer"],
     { answer: 2_000 },
@@ -765,8 +799,8 @@ const AnswerStepQuestion = endpoint(
 
 const AnswerContextQuestion = endpoint(
   "/workspaces/questions/context/answer",
-  ({ user, workspace, question, context, answer }) =>
-    receive({ user, workspace, question, answer })
+  ({ user, workspace, question, context, answer, expectedVersion }) =>
+    receive({ user, workspace, question, answer, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -780,7 +814,7 @@ const AnswerContextQuestion = endpoint(
           ContextQuestioning._get({ question }).is({ subject: context, status: "OPEN" }),
           ContextTracking._get({ context }).is({ scope: workspace }),
         )
-          .then(ContextQuestioning.answer({ question, answer, answerer: user }))
+          .then(ContextQuestioning.answer({ question, answer, answerer: user, expectedVersion }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("question-in-workspace"),
         where(no(ContextQuestioning._get({ question }).is({ status: "OPEN" })))
@@ -793,7 +827,7 @@ const AnswerContextQuestion = endpoint(
           .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
           .named("question-outside-workspace"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "question", "answer"],
     ["user", "workspace", "question", "answer"],
     { answer: 2_000 },
@@ -802,8 +836,8 @@ const AnswerContextQuestion = endpoint(
 
 const ReviseStepQuestionAnswer = endpoint(
   "/workspaces/questions/steps/revise",
-  ({ user, workspace, question, step, procedure, answer }) =>
-    receive({ user, workspace, question, answer })
+  ({ user, workspace, question, step, procedure, answer, expectedVersion }) =>
+    receive({ user, workspace, question, answer, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -818,7 +852,7 @@ const ReviseStepQuestionAnswer = endpoint(
           ProcedureMaintaining._getStep({ step }).is({ procedure }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
         )
-          .then(StepQuestioning.reviseAnswer({ question, answer, answerer: user }))
+          .then(StepQuestioning.reviseAnswer({ question, answer, answerer: user, expectedVersion }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("answered-question-in-workspace"),
         where(no(StepQuestioning._get({ question }).is({ status: "ANSWERED" })))
@@ -832,7 +866,7 @@ const ReviseStepQuestionAnswer = endpoint(
           .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
           .named("question-outside-workspace"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "question", "answer"],
     ["user", "workspace", "question", "answer"],
     { answer: 2_000 },
@@ -841,8 +875,8 @@ const ReviseStepQuestionAnswer = endpoint(
 
 const ReviseContextQuestionAnswer = endpoint(
   "/workspaces/questions/context/revise",
-  ({ user, workspace, question, context, answer }) =>
-    receive({ user, workspace, question, answer })
+  ({ user, workspace, question, context, answer, expectedVersion }) =>
+    receive({ user, workspace, question, answer, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -856,7 +890,7 @@ const ReviseContextQuestionAnswer = endpoint(
           ContextQuestioning._get({ question }).is({ subject: context, status: "ANSWERED" }),
           ContextTracking._get({ context }).is({ scope: workspace }),
         )
-          .then(ContextQuestioning.reviseAnswer({ question, answer, answerer: user }))
+          .then(ContextQuestioning.reviseAnswer({ question, answer, answerer: user, expectedVersion }))
           .then(respond({ question, status: "ANSWERED" }))
           .named("answered-question-in-workspace"),
         where(no(ContextQuestioning._get({ question }).is({ status: "ANSWERED" })))
@@ -869,7 +903,7 @@ const ReviseContextQuestionAnswer = endpoint(
           .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
           .named("question-outside-workspace"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "question", "answer"],
     ["user", "workspace", "question", "answer"],
     { answer: 2_000 },
@@ -963,8 +997,8 @@ const GetQuestions = endpoint(
 
 const ConfirmReview = endpoint(
   "/workspaces/reviews/confirm",
-  ({ user, workspace, review, procedure }) =>
-    receive({ user, workspace, review, procedure })
+  ({ user, workspace, review, procedure, expectedVersion }) =>
+    receive({ user, workspace, review, procedure, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -978,7 +1012,7 @@ const ConfirmReview = endpoint(
           Reviewing._get({ review }).is({ item: procedure, status: "PENDING" }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
         )
-          .then(Reviewing.confirm({ review }))
+          .then(Reviewing.confirm({ review, expectedVersion }))
           .then(respond({ review, status: "COMPLETE" }))
           .named("review-in-workspace"),
         where(
@@ -991,7 +1025,7 @@ const ConfirmReview = endpoint(
           .then(respond({ error: "REVIEW_NOT_AVAILABLE" }))
           .named("review-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "review", "procedure"],
     ["user", "workspace", "review", "procedure"],
   ),
@@ -999,8 +1033,8 @@ const ConfirmReview = endpoint(
 
 const RequireReviewChanges = endpoint(
   "/workspaces/reviews/require-changes",
-  ({ user, workspace, review, procedure }) =>
-    receive({ user, workspace, review, procedure })
+  ({ user, workspace, review, procedure, expectedVersion }) =>
+    receive({ user, workspace, review, procedure, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -1014,7 +1048,7 @@ const RequireReviewChanges = endpoint(
           Reviewing._get({ review }).is({ item: procedure, status: "PENDING" }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
         )
-          .then(Reviewing.requireChanges({ review }))
+          .then(Reviewing.requireChanges({ review, expectedVersion }))
           .then(respond({ review, status: "CHANGES_REQUIRED" }))
           .named("review-in-workspace"),
         where(
@@ -1027,7 +1061,7 @@ const RequireReviewChanges = endpoint(
           .then(respond({ error: "REVIEW_NOT_AVAILABLE" }))
           .named("review-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "review", "procedure"],
     ["user", "workspace", "review", "procedure"],
   ),
@@ -1035,8 +1069,8 @@ const RequireReviewChanges = endpoint(
 
 const ResolveReview = endpoint(
   "/workspaces/reviews/resolve",
-  ({ user, workspace, review, procedure }) =>
-    receive({ user, workspace, review, procedure })
+  ({ user, workspace, review, procedure, expectedVersion }) =>
+    receive({ user, workspace, review, procedure, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -1050,7 +1084,7 @@ const ResolveReview = endpoint(
           Reviewing._get({ review }).is({ item: procedure, status: "CHANGES_REQUIRED" }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
         )
-          .then(Reviewing.resolve({ review }))
+          .then(Reviewing.resolve({ review, expectedVersion }))
           .then(respond({ review, status: "COMPLETE" }))
           .named("review-in-workspace"),
         where(
@@ -1063,7 +1097,7 @@ const ResolveReview = endpoint(
           .then(respond({ error: "REVIEW_NOT_AVAILABLE" }))
           .named("review-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "review", "procedure"],
     ["user", "workspace", "review", "procedure"],
   ),
@@ -1071,8 +1105,8 @@ const ResolveReview = endpoint(
 
 const CancelReview = endpoint(
   "/workspaces/reviews/cancel",
-  ({ user, workspace, review, procedure }) =>
-    receive({ user, workspace, review, procedure })
+  ({ user, workspace, review, procedure, expectedVersion }) =>
+    receive({ user, workspace, review, procedure, expectedVersion })
       .then(
         RoleBasedAccessing.authorize({
           user,
@@ -1086,7 +1120,7 @@ const CancelReview = endpoint(
           Reviewing._unfinished({}).is({ review, item: procedure }),
           ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
         )
-          .then(Reviewing.cancel({ review }))
+          .then(Reviewing.cancel({ review, expectedVersion }))
           .then(respond({ review, status: "CANCELLED" }))
           .named("review-in-workspace"),
         where(
@@ -1099,7 +1133,7 @@ const CancelReview = endpoint(
           .then(respond({ error: "REVIEW_NOT_AVAILABLE" }))
           .named("review-unavailable"),
       ),
-  stringInput(
+  versionedStringInput(
     ["user", "workspace", "review", "procedure"],
     ["user", "workspace", "review", "procedure"],
   ),

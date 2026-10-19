@@ -74,11 +74,96 @@ describe("multi-user Relay host", () => {
     expect(selectForeign).toEqual(expect.objectContaining({ status: 404 }));
   });
 
+  test("creates and joins additional clubs from an active workspace without leaking club data", async () => {
+    const member = await register("multi-workspace-member@example.org");
+    const firstClub = await call("/workspaces/create", { name: "First Workspace" }, member);
+    const firstProcedure = await call("/api/workspaces/procedures/create", { title: "First private playbook" }, member);
+    expect(firstProcedure.status).toBe(200);
+
+    const secondClub = await call("/workspaces/create", { name: "Second Workspace" }, member);
+    expect(secondClub.status).toBe(200);
+    expect(secondClub.body).toEqual(expect.objectContaining({
+      workspace: expect.any(String),
+      workspaceName: "Second Workspace",
+      role: "Owner",
+    }));
+    expect(secondClub.body.workspace).not.toBe(firstClub.body.workspace);
+    expect(secondClub.body.workspaces).toEqual(expect.arrayContaining([
+      expect.objectContaining({ workspace: firstClub.body.workspace, role: "Owner" }),
+      expect.objectContaining({ workspace: secondClub.body.workspace, role: "Owner" }),
+    ]));
+    expect((await call("/api/workspaces/procedures", {}, member)).body.procedures).toEqual([]);
+
+    expect((await call("/workspaces/select", { workspace: firstClub.body.workspace }, member)).status).toBe(200);
+    expect((await call("/api/workspaces/procedures", {}, member)).body.procedures).toEqual([
+      expect.objectContaining({ procedure: firstProcedure.body.procedure, title: "First private playbook" }),
+    ]);
+
+    const inviter = await register("multi-workspace-owner@example.org");
+    const joinedClub = await call("/workspaces/create", { name: "Joined Workspace" }, inviter);
+    const joinedProcedure = await call("/api/workspaces/procedures/create", { title: "Joined private playbook" }, inviter);
+    const invitation = await call("/invitations/create", { email: "multi-workspace-member@example.org" }, inviter);
+
+    const accepted = await call("/invitations/accept", { token: invitation.body.token }, member);
+    expect(accepted.status).toBe(200);
+    expect(accepted.body).toEqual(expect.objectContaining({
+      workspace: joinedClub.body.workspace,
+      workspaceName: "Joined Workspace",
+      role: "Member",
+    }));
+    expect(accepted.body.workspaces).toEqual(expect.arrayContaining([
+      expect.objectContaining({ workspace: firstClub.body.workspace, role: "Owner" }),
+      expect.objectContaining({ workspace: secondClub.body.workspace, role: "Owner" }),
+      expect.objectContaining({ workspace: joinedClub.body.workspace, role: "Member" }),
+    ]));
+    expect((await call("/api/workspaces/procedures", {}, member)).body.procedures).toEqual([
+      expect.objectContaining({ procedure: joinedProcedure.body.procedure, title: "Joined private playbook" }),
+    ]);
+    expect((await call("/api/workspaces/procedures/rename", {
+      procedure: joinedProcedure.body.procedure,
+      title: "Forbidden rename",
+      expectedVersion: 1,
+    }, member)).status).toBe(403);
+
+    expect((await call("/workspaces/select", { workspace: secondClub.body.workspace }, member)).status).toBe(200);
+    expect((await call("/api/workspaces/procedures", {}, member)).body.procedures).toEqual([]);
+    expect((await call("/invitations/accept", { token: "invalid-invitation-token" }, member)).status).toBe(404);
+    expect((await call("/session", undefined, member)).body.workspace).toBe(secondClub.body.workspace);
+  });
+
+  test("rejects missing and stale collaborative versions without changing state or activity", async () => {
+    const officer = await register("versioned-officer@example.org");
+    await call("/workspaces/create", { name: "Versioned Club" }, officer);
+    const procedure = await call("/api/workspaces/procedures/create", { title: "Original title" }, officer);
+    const missingVersion = await call("/api/workspaces/procedures/rename", {
+      procedure: procedure.body.procedure,
+      title: "Missing version",
+    }, officer);
+    expect(missingVersion).toEqual(expect.objectContaining({ status: 400, body: { error: "INVALID_INPUT" } }));
+
+    const step = await call("/api/workspaces/procedures/steps/add", {
+      procedure: procedure.body.procedure,
+      text: "First instruction",
+      expectedVersion: 1,
+    }, officer);
+    expect(step.status).toBe(200);
+    const activityBeforeConflict = (await call("/workspaces/activity", {}, officer)).body.events;
+    const staleRename = await call("/api/workspaces/procedures/rename", {
+      procedure: procedure.body.procedure,
+      title: "Stale overwrite",
+      expectedVersion: 1,
+    }, officer);
+    expect(staleRename).toEqual(expect.objectContaining({ status: 409, body: { error: "VERSION_CONFLICT" } }));
+    const current = await call("/api/workspaces/procedures", {}, officer);
+    expect(current.body.procedures[0]).toEqual(expect.objectContaining({ title: "Original title", version: 2 }));
+    expect((await call("/workspaces/activity", {}, officer)).body.events).toEqual(activityBeforeConflict);
+  });
+
   test("supports one-time member invitations and enforces Member and Officer permissions", async () => {
     const officer = await register("leader@example.org");
     const club = await call("/workspaces/create", { name: "Robotics" }, officer);
     const procedure = await call("/api/workspaces/procedures/create", { title: "Competition setup" }, officer);
-    const step = await call("/api/workspaces/procedures/steps/add", { procedure: procedure.body.procedure, text: "Charge batteries" }, officer);
+    const step = await call("/api/workspaces/procedures/steps/add", { procedure: procedure.body.procedure, text: "Charge batteries", expectedVersion: 1 }, officer);
     const invitation = await call("/invitations/create", { email: "member@example.org", role: "Officer" }, officer);
     expect(invitation.status).toBe(200);
     expect(invitation.body).toEqual(expect.objectContaining({
@@ -122,17 +207,17 @@ describe("multi-user Relay host", () => {
     const read = await call("/api/workspaces/procedures", {}, member);
     expect(read.status).toBe(200);
     expect(read.body.procedures[0].title).toBe("Competition setup");
-    const forbiddenEdit = await call("/api/workspaces/procedures/rename", { procedure: procedure.body.procedure, title: "Forged edit", user: accepted.body.user?.id }, member);
+    const forbiddenEdit = await call("/api/workspaces/procedures/rename", { procedure: procedure.body.procedure, title: "Forged edit", expectedVersion: 2, user: accepted.body.user?.id }, member);
     expect(forbiddenEdit.status).toBe(403);
     const question = await call("/api/workspaces/questions/steps/ask", { procedure: procedure.body.procedure, step: step.body.step, text: "Which charger?" }, member);
     expect(question.status).toBe(200);
-    const forbiddenAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Mine" }, member);
+    const forbiddenAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Mine", expectedVersion: 1 }, member);
     expect(forbiddenAnswer.status).toBe(403);
-    const officerAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Use the labeled charger." }, officer);
+    const officerAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Use the labeled charger.", expectedVersion: 1 }, officer);
     expect(officerAnswer.status).toBe(200);
-    const forbiddenRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Forged revision", user: club.body.user?.id }, member);
+    const forbiddenRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Forged revision", expectedVersion: 2, user: club.body.user?.id }, member);
     expect(forbiddenRevision.status).toBe(403);
-    const officerRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Use the blue labeled charger." }, officer);
+    const officerRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Use the blue labeled charger.", expectedVersion: 2 }, officer);
     expect(officerRevision.status).toBe(200);
     const questionHistory = await call("/api/workspaces/questions", {}, member);
     expect(questionHistory.body.stepQuestions).toContainEqual(expect.objectContaining({
@@ -284,15 +369,15 @@ describe("multi-user Relay host", () => {
     ]);
     expect(new Date(firstRead.body.events[0].occurredAt).getTime()).toBeGreaterThanOrEqual(startedAt);
 
-    await call("/api/workspaces/procedures/rename", { procedure: created.body.procedure, title: "Reserve Rehearsal Space" }, officer);
-    const added = await call("/api/workspaces/procedures/steps/add", { procedure: created.body.procedure, text: "Open the booking portal" }, officer);
-    await call("/api/workspaces/procedures/steps/edit", { procedure: created.body.procedure, step: added.body.step, text: "Open the campus booking portal" }, officer);
-    await call("/api/workspaces/procedures/steps/remove", { procedure: created.body.procedure, step: added.body.step }, officer);
+    await call("/api/workspaces/procedures/rename", { procedure: created.body.procedure, title: "Reserve Rehearsal Space", expectedVersion: 1 }, officer);
+    const added = await call("/api/workspaces/procedures/steps/add", { procedure: created.body.procedure, text: "Open the booking portal", expectedVersion: 2 }, officer);
+    await call("/api/workspaces/procedures/steps/edit", { procedure: created.body.procedure, step: added.body.step, text: "Open the campus booking portal", expectedVersion: 1 }, officer);
+    await call("/api/workspaces/procedures/steps/remove", { procedure: created.body.procedure, step: added.body.step, expectedVersion: 3 }, officer);
     const note = await call("/api/workspaces/context/notes", { text: "Bookings open on Mondays." }, officer);
     const countAfterContextCreation = await database.collection("host_activity").countDocuments({ workspace: club.body.workspace });
     await call("/api/workspaces/context/attachments", { context: note.body.context, procedure: created.body.procedure }, officer);
     expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(countAfterContextCreation);
-    await call("/api/workspaces/context/change", { context: note.body.context, text: "Bookings open on Tuesdays." }, officer);
+    await call("/api/workspaces/context/change", { context: note.body.context, text: "Bookings open on Tuesdays.", expectedVersion: 1 }, officer);
 
     const recent = await call("/workspaces/activity", {}, officer);
     expect(recent.status).toBe(200);
@@ -308,6 +393,7 @@ describe("multi-user Relay host", () => {
       procedure: created.body.procedure,
       step: added.body.step,
       text: "This removed Step cannot be edited",
+      expectedVersion: 2,
     }, officer)).status).toBe(404);
     expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailure);
 
@@ -318,6 +404,7 @@ describe("multi-user Relay host", () => {
     expect((await call("/api/workspaces/procedures/rename", {
       procedure: created.body.procedure,
       title: "Forged member edit",
+      expectedVersion: 4,
     }, member)).status).toBe(403);
     expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailure);
 
@@ -345,6 +432,7 @@ describe("multi-user Relay host", () => {
     const step = await call("/api/workspaces/procedures/steps/add", {
       procedure: procedure.body.procedure,
       text: "Review the handoff notes",
+      expectedVersion: 1,
     }, officer);
 
     const standalone = await call("/api/workspaces/context/notes", { text: "This note remains shared." }, officer);
@@ -390,11 +478,12 @@ describe("multi-user Relay host", () => {
     }, officer)).status).toBe(404);
     expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeFailedAttachment);
 
-    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each month." }, officer);
+    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each month.", expectedVersion: 1 }, officer);
     const firstReview = (await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews[0];
     expect((await call("/api/workspaces/reviews/confirm", {
       review: firstReview.review,
       procedure: procedure.body.procedure,
+      expectedVersion: 1,
     }, officer)).status).toBe(200);
     expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
       type: "REVIEW_CONFIRMED",
@@ -402,15 +491,17 @@ describe("multi-user Relay host", () => {
       procedure: procedure.body.procedure,
     }));
 
-    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each week." }, officer);
+    await call("/api/workspaces/context/change", { context: existing.body.context, text: "Officers meet each week.", expectedVersion: 2 }, officer);
     const secondReview = (await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews[0];
     await call("/api/workspaces/reviews/require-changes", {
       review: secondReview.review,
       procedure: procedure.body.procedure,
+      expectedVersion: 1,
     }, officer);
     expect((await call("/api/workspaces/reviews/resolve", {
       review: secondReview.review,
       procedure: procedure.body.procedure,
+      expectedVersion: 2,
     }, officer)).status).toBe(200);
     expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
       type: "REVIEW_RESOLVED",
@@ -426,6 +517,7 @@ describe("multi-user Relay host", () => {
     expect((await call("/api/workspaces/questions/context/answer", {
       question: contextQuestion.body.question,
       answer: "Yes, use the weekly schedule.",
+      expectedVersion: 1,
     }, officer)).status).toBe(200);
     const contextAnswerEvent = (await call("/workspaces/activity", {}, officer)).body.events[0];
     expect(contextAnswerEvent).toEqual(expect.objectContaining({
@@ -444,6 +536,7 @@ describe("multi-user Relay host", () => {
     expect((await call("/api/workspaces/questions/steps/answer", {
       question: question.body.question,
       answer: "Use the current handoff notes.",
+      expectedVersion: 1,
     }, officer)).status).toBe(200);
     expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
       type: "QUESTION_ANSWERED",
@@ -457,14 +550,16 @@ describe("multi-user Relay host", () => {
       procedure: procedure.body.procedure,
       step: step.body.step,
       position: 1,
+      expectedVersion: 2,
     }, officer)).status).toBe(200);
     expect((await call("/api/workspaces/context/correct", {
       context: standalone.body.context,
       text: "This shared note remains available.",
+      expectedVersion: 1,
     }, officer)).status).toBe(200);
     expect(await database.collection("host_activity").countDocuments({ workspace: club.body.workspace })).toBe(beforeNoise);
 
-    expect((await call("/api/workspaces/procedures/archive", { procedure: procedure.body.procedure }, officer)).status).toBe(200);
+    expect((await call("/api/workspaces/procedures/archive", { procedure: procedure.body.procedure, expectedVersion: 2 }, officer)).status).toBe(200);
     expect((await call("/workspaces/activity", {}, officer)).body.events[0]).toEqual(expect.objectContaining({
       type: "PLAYBOOK_ARCHIVED",
       procedure: procedure.body.procedure,

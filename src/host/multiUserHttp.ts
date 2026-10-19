@@ -38,6 +38,24 @@ const ACTIVITY_PATHS = new Map<string, ActivityEventType>([
   ["/api/workspaces/questions/steps/answer", "QUESTION_ANSWERED"],
   ["/api/workspaces/questions/context/answer", "QUESTION_ANSWERED"],
 ]);
+const VERSIONED_PATHS = new Set([
+  "/api/workspaces/procedures/rename",
+  "/api/workspaces/procedures/archive",
+  "/api/workspaces/procedures/steps/add",
+  "/api/workspaces/procedures/steps/edit",
+  "/api/workspaces/procedures/steps/move",
+  "/api/workspaces/procedures/steps/remove",
+  "/api/workspaces/context/correct",
+  "/api/workspaces/context/change",
+  "/api/workspaces/questions/steps/answer",
+  "/api/workspaces/questions/context/answer",
+  "/api/workspaces/questions/steps/revise",
+  "/api/workspaces/questions/context/revise",
+  "/api/workspaces/reviews/confirm",
+  "/api/workspaces/reviews/require-changes",
+  "/api/workspaces/reviews/resolve",
+  "/api/workspaces/reviews/cancel",
+]);
 
 type ProcedureProjection = {
   procedure: string;
@@ -125,6 +143,7 @@ export function createMultiUserRelayHttpHandler(
         REVIEW_NOT_AWAITING_CHANGES: "CONFLICT", CANCEL_REVIEW_FINISHED: "CONFLICT", REQUIRE_CHANGES_REVIEW_NOT_FOUND: "NOT_FOUND",
         RESOLVE_REVIEW_NOT_FOUND: "NOT_FOUND", CANCEL_REVIEW_NOT_FOUND: "NOT_FOUND", QUESTION_NOT_FOUND: "NOT_FOUND",
         QUESTION_NOT_OPEN: "CONFLICT", QUESTION_ANSWER_NOT_EDITABLE: "FORBIDDEN", INVALID_POSITION: "INVALID_REQUEST",
+        VERSION_CONFLICT: "CONFLICT",
       },
     }),
   });
@@ -278,6 +297,9 @@ export function createMultiUserRelayHttpHandler(
       }
       if (!pathname.startsWith("/api/")) return errorResponse(404, "NOT_FOUND");
       if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+      if (VERSIONED_PATHS.has(pathname) && (!Number.isInteger(body.expectedVersion) || (body.expectedVersion as number) < 1)) {
+        return errorResponse(400, "INVALID_INPUT");
+      }
       const membership = (await accounts.memberships(session.user)).some(({ workspace }) => workspace === session.workspace);
       if (!membership) return errorResponse(403, "FORBIDDEN");
       const activityType = ACTIVITY_PATHS.get(pathname);
@@ -291,6 +313,7 @@ export function createMultiUserRelayHttpHandler(
         ? await projection<QuestionProjection>(request, session, "/workspaces/questions")
         : undefined;
       const result = await conceptHandler(inject(request, body, session));
+      if (result.status === 409 && VERSIONED_PATHS.has(pathname)) return errorResponse(409, "VERSION_CONFLICT");
       if (result.ok && (pathname === "/api/workspaces/context/change" || pathname === "/api/workspaces/procedures/steps/remove")) await application.whenIdle();
       if (result.ok && activityType) {
         try {

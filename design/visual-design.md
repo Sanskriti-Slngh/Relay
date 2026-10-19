@@ -53,6 +53,13 @@ with Copy and expiry information. Reissue clearly states that the replacement
 invalidates the previous code, and the plaintext value is never persisted in
 the browser.
 
+The Workspace page also keeps multi-club navigation available after onboarding.
+Every authenticated user can switch among joined clubs, create another club as
+its Owner, or enter an invitation to join another club as a Member. These
+account-level actions are separate from Officer-only membership administration.
+Workspace transitions clear the prior club's projections before loading the
+new club, while failed submissions keep the current club and local form input.
+
 Role management stays compact within Member rows. Officers see only Member
 promotion/removal actions; Owners can additionally demote Officers and open a
 separate, explicit ownership-transfer form. The transfer form states the sole-
@@ -96,10 +103,41 @@ removes the need for a second browser confirmation. Confirming or resolving a
 Review is likewise a direct task action; destructive removal, archiving, and
 Review cancellation retain confirmation.
 
+After a meaningful update, Relay now waits for the refreshed Review projection
+before naming an outcome. It matches the successful Change identity to the
+Causes returned by that projection, then shows the exact affected Playbook
+count and names with a direct **Review affected Playbooks** action. If refresh
+cannot confirm that state, Relay says so and offers no inferred list. Wording
+corrections retain their explicit no-Review confirmation.
+
 Questions and Reviews are inboxes. Open work is first, with source and status
 visible before expansion. The primary next action appears in the expanded row;
 less common alternatives sit under a plainly labeled disclosure. Completed
 history remains accessible with quieter typography and spacing.
+
+An open Review presents three intentionally distinct regions: exact changed
+Context as evidence, the Playbook's current ordered instructions, and the
+decision. The scope note says that Context may apply to the whole Playbook or
+to a particular Step, avoiding the false implication that every displayed Step
+is attached to that Context. Both legitimate pending decisions—**Still
+correct** and **Needs updating**—remain visible together. The existing
+edit-and-return path and resolve action remain unchanged for Reviews awaiting
+changes.
+
+Routine action labels use a readable 14px scale, while genuinely secondary
+metadata remains smaller. Evergreen identifies actions and current approved
+information; amber remains reserved for unfinished attention. Separators and
+spacing distinguish evidence, instructions, and decisions without adding
+cards, shadows, gradients, or decorative symbols.
+
+Concurrent-edit recovery uses the same selective hierarchy. An amber inline
+panel appears only after the server refuses a stale save. It names the conflict
+in plain language, places the current saved text beside the preserved local
+draft, and offers consequence-based actions: use the saved version or save the
+local version against the newly observed state. The server checks again on the
+second action. On narrow screens the comparison stacks into one column. Answer
+conflicts respect original-answer ownership rather than presenting an action
+the server would refuse.
 
 The Overview uses a deliberate 70/30 hierarchy on desktop. A dominant
 Playbooks column shows up to six substantial, readable rows, while an Officer

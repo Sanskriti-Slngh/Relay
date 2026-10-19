@@ -30,6 +30,7 @@ external Anchor
 a set of ContextNotes with
   a scope Scope
   a text String
+  a version Number
 
 a set of Attachments with
   a context ContextNote
@@ -51,6 +52,7 @@ record (scope: Scope, text: String) : returns (context: ContextNote)
   where true
   then
     create a new ContextNote with given scope and text
+    set context version to 1
     returns context
 
 attach (context: ContextNote, subject: Subject) : returns (attachment: Attachment)
@@ -86,19 +88,26 @@ detach (attachment: Attachment) : returns ()
     remove attachment
     returns
 
-correct (context: ContextNote, text: String) : returns ()
+correct (context: ContextNote, text: String, expectedVersion?: Number) : returns ()
   where context is unknown
   then
     refuses CONTEXT_NOT_FOUND "There is no such ContextNote."
+  where context is known and context version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The ContextNote changed after it was loaded."
   where context is known
   then
     replace context text with text
+    increment context version
     returns
 
-change (context: ContextNote, text: String) : returns (change: Change)
+change (context: ContextNote, text: String, expectedVersion?: Number) : returns (change: Change)
   where context is unknown
   then
     refuses CONTEXT_NOT_FOUND "There is no such ContextNote."
+  where context is known and context version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The ContextNote changed after it was loaded."
   where context is known and text is context's current text
   then
     refuses CHANGE_NOT_DIFFERENT "The new text must differ from the current text."
@@ -106,6 +115,7 @@ change (context: ContextNote, text: String) : returns (change: Change)
   then
     create a new Change with context, before set to context's current text, and after set to text
     replace context text with text
+    increment context version
     returns change
 ```
 
@@ -118,6 +128,8 @@ _notes (scope: Scope) : many (context: ContextNote, text: String)
   orders rows by stable ContextNote identity
 _get (context: ContextNote) : optional (scope: Scope, text: String)
   answers no row for an unknown ContextNote
+_getVersion (context: ContextNote) : optional (version: Number)
+  answers the current version of a known ContextNote
 _attachments (context: ContextNote) : many (attachment: Attachment, subject: Subject, anchor?: Anchor)
   answers Attachments for the ContextNote, including whether each has an Anchor
   answers no rows for an unknown ContextNote or a ContextNote with no Attachments

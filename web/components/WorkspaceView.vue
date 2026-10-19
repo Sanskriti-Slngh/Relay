@@ -16,6 +16,8 @@ const props = defineProps<{
   ownershipConfigured: boolean;
 }>();
 const emit = defineEmits<{
+  createClub: [payload: { name: string; onSuccess: () => void }];
+  joinClub: [payload: { token: string; onSuccess: () => void }];
   invite: [payload: { email: string; onSuccess: () => void }];
   reissue: [invitation: PendingInvitation];
   select: [workspace: string];
@@ -25,6 +27,10 @@ const emit = defineEmits<{
   transferOwnership: [payload: { member: WorkspaceMember; formerOwnerRole: "Officer" | "Member"; onSuccess: () => void }];
 }>();
 const inviteEmail = ref("");
+const newClubName = ref("");
+const invitationToken = ref("");
+const showCreateClub = ref(false);
+const showJoinClub = ref(false);
 const copyStatus = ref("");
 const transferTarget = ref("");
 const formerOwnerRole = ref<"Officer" | "Member">("Officer");
@@ -36,6 +42,26 @@ watch(() => props.createdInvite?.token, () => { copyStatus.value = ""; });
 function invite() {
   const email = inviteEmail.value.trim(); if (!email) return;
   emit("invite", { email, onSuccess: () => { inviteEmail.value = ""; } });
+}
+
+function createClub() {
+  const name = newClubName.value.trim(); if (!name) return;
+  emit("createClub", { name, onSuccess: () => { newClubName.value = ""; showCreateClub.value = false; } });
+}
+
+function joinClub() {
+  const token = invitationToken.value.trim(); if (!token) return;
+  emit("joinClub", { token, onSuccess: () => { invitationToken.value = ""; showJoinClub.value = false; } });
+}
+
+function toggleCreateClub() {
+  showCreateClub.value = !showCreateClub.value;
+  if (showCreateClub.value) showJoinClub.value = false;
+}
+
+function toggleJoinClub() {
+  showJoinClub.value = !showJoinClub.value;
+  if (showJoinClub.value) showCreateClub.value = false;
 }
 
 async function copyCode() {
@@ -74,6 +100,34 @@ function transfer() {
   <section class="workspace-identity" aria-labelledby="club-name">
     <div><h2 id="club-name">{{ workspaceName }}</h2><p>{{ user?.name }}</p></div>
     <span>{{ role }}</span>
+  </section>
+
+  <section class="workspace-settings-section workspace-access" aria-labelledby="your-clubs-title">
+    <header class="workspace-access-header">
+      <div><h2 id="your-clubs-title">Your clubs</h2><p>Switch clubs or add another workspace.</p></div>
+      <div class="workspace-access-actions">
+        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" :aria-expanded="showCreateClub" aria-controls="create-club-form" @click="toggleCreateClub">Create club</button>
+        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" :aria-expanded="showJoinClub" aria-controls="join-club-form" @click="toggleJoinClub">Join another club</button>
+      </div>
+    </header>
+
+    <form v-if="showCreateClub" id="create-club-form" class="workspace-access-form disclosure-form" @submit.prevent="createClub">
+      <label for="additional-club-name">Club name</label>
+      <div class="form-row"><input id="additional-club-name" v-model="newClubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !newClubName.trim()">{{ actionBusy === "create-workspace" ? "Creating…" : "Create as Owner" }}</button></div>
+    </form>
+
+    <form v-if="showJoinClub" id="join-club-form" class="workspace-access-form disclosure-form" @submit.prevent="joinClub">
+      <label for="additional-invite-token">One-time invitation code</label>
+      <div class="form-row"><input id="additional-invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false" autocomplete="off"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join as Member" }}</button></div>
+    </form>
+
+    <div class="club-switch-list" aria-label="Club workspaces">
+      <div v-for="club in workspaces" :key="club.workspace" class="club-switch-row" :class="{ current: club.workspace === workspace }">
+        <div><strong>{{ club.name }}</strong><small>{{ club.role }}</small></div>
+        <span v-if="club.workspace === workspace">Current</span>
+        <button v-else class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Switch to ${club.name}`" @click="emit('select', club.workspace)">{{ actionBusy === "select-workspace" ? "Switching…" : "Switch" }}</button>
+      </div>
+    </div>
   </section>
 
   <section class="workspace-settings-section" aria-labelledby="members-title">
@@ -134,8 +188,4 @@ function transfer() {
     </output>
   </section>
 
-  <section v-if="workspaces.length > 1" class="workspace-settings-section" aria-labelledby="other-clubs-title">
-    <h2 id="other-clubs-title">Other clubs</h2>
-    <div class="editorial-list"><button v-for="club in workspaces.filter(({ workspace: id }) => id !== workspace)" :key="club.workspace" type="button" :disabled="!!actionBusy" @click="emit('select', club.workspace)"><strong>{{ club.name }}</strong><span>{{ club.role }}</span></button></div>
-  </section>
 </template>

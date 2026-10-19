@@ -14,6 +14,7 @@ import {
   ReviewNotPendingForChanges,
   ReviewNotPendingForConfirmation,
   ReviewingConcept,
+  VersionConflict,
 } from "./Reviewing.ts";
 
 export const reviewing = registerConcept({
@@ -32,5 +33,6 @@ export const reviewing = registerConcept({
     REVIEW_NOT_AWAITING_CHANGES: ReviewNotAwaitingChanges,
     CANCEL_REVIEW_NOT_FOUND: CancelReviewNotFound,
     CANCEL_REVIEW_FINISHED: CancelReviewFinished,
+    VERSION_CONFLICT: VersionConflict,
   },
 });

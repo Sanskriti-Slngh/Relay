@@ -31,6 +31,7 @@ a set of Reviews with
   an item Item
   a causes set of Cause
   a status ReviewStatus
+  a version Number
 
 Rule: for each Item, at most one Review has status PENDING or CHANGES_REQUIRED
 ```
@@ -47,6 +48,7 @@ request (item: Item, cause: Cause) : returns (review: Review)
     create a new Review for item
     set review causes to {cause}
     set review status to PENDING
+    set review version to 1
     returns review
 
 addCause (review: Review, cause: Cause) : returns ()
@@ -62,54 +64,71 @@ addCause (review: Review, cause: Cause) : returns ()
   where review exists and its status is either PENDING or CHANGES_REQUIRED, and cause is not already in review causes
   then
     add cause to review causes
+    increment review version
     returns
 
-confirm (review: Review) : returns ()
+confirm (review: Review, expectedVersion?: Number) : returns ()
   where review does not exist
   then
     refuses CONFIRM_REVIEW_NOT_FOUND "There is no such Review."
   where review exists and review status is not PENDING
   then
     refuses REVIEW_NOT_PENDING_FOR_CONFIRMATION "Only a PENDING Review can be confirmed."
+  where review exists and review status is PENDING and review version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The Review changed after it was loaded."
   where review exists and review status is PENDING
   then
     set review status to COMPLETE
+    increment review version
     returns
 
-requireChanges (review: Review) : returns ()
+requireChanges (review: Review, expectedVersion?: Number) : returns ()
   where review does not exist
   then
     refuses REQUIRE_CHANGES_REVIEW_NOT_FOUND "There is no such Review."
   where review exists and review status is not PENDING
   then
     refuses REVIEW_NOT_PENDING_FOR_CHANGES "Only a PENDING Review can be marked as requiring changes."
+  where review exists and review status is PENDING and review version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The Review changed after it was loaded."
   where review exists and review status is PENDING
   then
     set review status to CHANGES_REQUIRED
+    increment review version
     returns
 
-resolve (review: Review) : returns ()
+resolve (review: Review, expectedVersion?: Number) : returns ()
   where review does not exist
   then
     refuses RESOLVE_REVIEW_NOT_FOUND "There is no such Review."
   where review exists and review status is not CHANGES_REQUIRED
   then
     refuses REVIEW_NOT_AWAITING_CHANGES "Only a Review requiring changes can be resolved."
+  where review exists and review status is CHANGES_REQUIRED and review version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The Review changed after it was loaded."
   where review exists and review status is CHANGES_REQUIRED
   then
     set review status to COMPLETE
+    increment review version
     returns
 
-cancel (review: Review) : returns ()
+cancel (review: Review, expectedVersion?: Number) : returns ()
   where review does not exist
   then
     refuses CANCEL_REVIEW_NOT_FOUND "There is no such Review."
   where review exists and review status is COMPLETE or CANCELLED
   then
     refuses CANCEL_REVIEW_FINISHED "Only an unfinished Review can be cancelled."
+  where review exists, review is unfinished, and review version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The Review changed after it was loaded."
   where review exists and its status is either PENDING or CHANGES_REQUIRED
   then
     set review status to CANCELLED
+    increment review version
     returns
 ```
 
@@ -126,6 +145,8 @@ _forItem (item: Item) : many (review: Review, status: ReviewStatus)
   orders rows by stable Review identity
 _get (review: Review) : optional (item: Item, status: ReviewStatus)
   answers no row for an unknown Review
+_getVersion (review: Review) : optional (version: Number)
+  answers the current version of a known Review
 _causes (review: Review) : many (cause: Cause)
   answers the distinct causes associated with the Review
   answers no rows for an unknown Review or a Review with no causes

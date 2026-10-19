@@ -118,6 +118,7 @@ function messageFor(code: string): string {
     CSRF_REJECTED: "Your session verification failed. Sign in again.",
     MEMBERSHIP_CONFLICT: "That membership changed or the requested role change is not allowed.",
     OWNERSHIP_REQUIRED: "Set the workspace Owner before managing roles.",
+    VERSION_CONFLICT: "Someone changed this while you were working. Your draft is still here—compare it with the latest version before saving again.",
   };
   return messages[code] ?? "Relay could not complete the request. Please try again.";
 }
@@ -280,41 +281,46 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     createProcedure(title: string, csrfToken: string) {
       return post<{ procedure: string }>("/workspaces/procedures/create", { title }, csrfToken);
     },
-    addStep(procedure: string, text: string, csrfToken: string) {
+    addStep(procedure: string, text: string, expectedVersion: number, csrfToken: string) {
       return post<{ procedure: string; step: string }>("/workspaces/procedures/steps/add", {
         procedure,
         text,
+        expectedVersion,
       }, csrfToken);
     },
-    renameProcedure(procedure: string, title: string, csrfToken: string) {
+    renameProcedure(procedure: string, title: string, expectedVersion: number, csrfToken: string) {
       return post<{ procedure: string; title: string }>("/workspaces/procedures/rename", {
         procedure,
         title,
+        expectedVersion,
       }, csrfToken);
     },
-    editStep(procedure: string, step: string, text: string, csrfToken: string) {
+    editStep(procedure: string, step: string, text: string, expectedVersion: number, csrfToken: string) {
       return post<{ step: string }>("/workspaces/procedures/steps/edit", {
         procedure,
         step,
         text,
+        expectedVersion,
       }, csrfToken);
     },
-    moveStep(procedure: string, step: string, position: number, csrfToken: string) {
+    moveStep(procedure: string, step: string, position: number, expectedVersion: number, csrfToken: string) {
       return post<{ step: string; position: number }>(
         "/workspaces/procedures/steps/move",
-        { procedure, step, position },
+        { procedure, step, position, expectedVersion },
         csrfToken,
       );
     },
-    removeStep(procedure: string, step: string, csrfToken: string) {
+    removeStep(procedure: string, step: string, expectedVersion: number, csrfToken: string) {
       return post<{ step: string }>("/workspaces/procedures/steps/remove", {
         procedure,
         step,
+        expectedVersion,
       }, csrfToken);
     },
-    archiveProcedure(procedure: string, csrfToken: string) {
+    archiveProcedure(procedure: string, expectedVersion: number, csrfToken: string) {
       return post<{ procedure: string; status: string }>("/workspaces/procedures/archive", {
         procedure,
+        expectedVersion,
       }, csrfToken);
     },
     recordContextNote(text: string, csrfToken: string) {
@@ -333,37 +339,42 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         step,
       }, csrfToken);
     },
-    correctContextNote(context: string, text: string, csrfToken: string) {
-      return post<{ context: string }>("/workspaces/context/correct", { context, text }, csrfToken);
+    correctContextNote(context: string, text: string, expectedVersion: number, csrfToken: string) {
+      return post<{ context: string }>("/workspaces/context/correct", { context, text, expectedVersion }, csrfToken);
     },
-    changeContextNote(context: string, text: string, csrfToken: string) {
+    changeContextNote(context: string, text: string, expectedVersion: number, csrfToken: string) {
       return post<{ context: string; change: string }>("/workspaces/context/change", {
         context,
         text,
+        expectedVersion,
       }, csrfToken);
     },
-    confirmReview(review: string, procedure: string, csrfToken: string) {
+    confirmReview(review: string, procedure: string, expectedVersion: number, csrfToken: string) {
       return post<{ review: string; status: string }>("/workspaces/reviews/confirm", {
         review,
         procedure,
+        expectedVersion,
       }, csrfToken);
     },
-    requireReviewChanges(review: string, procedure: string, csrfToken: string) {
+    requireReviewChanges(review: string, procedure: string, expectedVersion: number, csrfToken: string) {
       return post<{ review: string; status: string }>("/workspaces/reviews/require-changes", {
         review,
         procedure,
+        expectedVersion,
       }, csrfToken);
     },
-    resolveReview(review: string, procedure: string, csrfToken: string) {
+    resolveReview(review: string, procedure: string, expectedVersion: number, csrfToken: string) {
       return post<{ review: string; status: string }>("/workspaces/reviews/resolve", {
         review,
         procedure,
+        expectedVersion,
       }, csrfToken);
     },
-    cancelReview(review: string, procedure: string, csrfToken: string) {
+    cancelReview(review: string, procedure: string, expectedVersion: number, csrfToken: string) {
       return post<{ review: string; status: string }>("/workspaces/reviews/cancel", {
         review,
         procedure,
+        expectedVersion,
       }, csrfToken);
     },
     askStepQuestion(procedure: string, step: string, text: string, csrfToken: string) {
@@ -380,28 +391,32 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         text,
       }, csrfToken);
     },
-    answerStepQuestion(question: string, answer: string, csrfToken: string) {
+    answerStepQuestion(question: string, answer: string, expectedVersion: number, csrfToken: string) {
       return post<{ question: string; status: string }>("/workspaces/questions/steps/answer", {
         question,
         answer,
+        expectedVersion,
       }, csrfToken);
     },
-    answerContextQuestion(question: string, answer: string, csrfToken: string) {
+    answerContextQuestion(question: string, answer: string, expectedVersion: number, csrfToken: string) {
       return post<{ question: string; status: string }>("/workspaces/questions/context/answer", {
         question,
         answer,
+        expectedVersion,
       }, csrfToken);
     },
-    reviseStepQuestionAnswer(question: string, answer: string, csrfToken: string) {
+    reviseStepQuestionAnswer(question: string, answer: string, expectedVersion: number, csrfToken: string) {
       return post<{ question: string; status: string }>("/workspaces/questions/steps/revise", {
         question,
         answer,
+        expectedVersion,
       }, csrfToken);
     },
-    reviseContextQuestionAnswer(question: string, answer: string, csrfToken: string) {
+    reviseContextQuestionAnswer(question: string, answer: string, expectedVersion: number, csrfToken: string) {
       return post<{ question: string; status: string }>("/workspaces/questions/context/revise", {
         question,
         answer,
+        expectedVersion,
       }, csrfToken);
     },
   };

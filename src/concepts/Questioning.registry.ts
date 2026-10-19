@@ -5,6 +5,7 @@ import {
   QuestioningConcept,
   QuestionNotFound,
   QuestionNotOpen,
+  VersionConflict,
 } from "./Questioning.ts";
 
 export const questioning = registerConcept({
@@ -14,5 +15,6 @@ export const questioning = registerConcept({
     QUESTION_NOT_FOUND: QuestionNotFound,
     QUESTION_NOT_OPEN: QuestionNotOpen,
     QUESTION_ANSWER_NOT_EDITABLE: QuestionAnswerNotEditable,
+    VERSION_CONFLICT: VersionConflict,
   },
 });

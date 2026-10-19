@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import type { ContextNote, ContextQuestion, Procedure } from "../api.ts";
+import type { ContextChangeResult } from "../context-change-result.ts";
+import VersionConflict from "./VersionConflict.vue";
 
-const props = defineProps<{ contexts: ContextNote[]; procedures: Procedure[]; contextQuestions: ContextQuestion[]; actionBusy: string; canEdit: boolean }>();
+const props = defineProps<{ contexts: ContextNote[]; procedures: Procedure[]; contextQuestions: ContextQuestion[]; actionBusy: string; canEdit: boolean; changeResult?: ContextChangeResult }>();
 const emit = defineEmits<{
   record: [payload: { text: string; onSuccess: () => void }];
   attach: [payload: { note: ContextNote; procedure: string; step: string; onSuccess: () => void }];
-  correct: [payload: { note: ContextNote; text: string; onSuccess: () => void }];
-  change: [payload: { note: ContextNote; text: string; onSuccess: () => void }];
+  correct: [payload: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }];
+  change: [payload: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }];
   askQuestion: [payload: { note: ContextNote; procedure: string; text: string; onSuccess: () => void }];
   validationError: [message: string];
+  reviewAffected: [review: string];
+  dismissChangeResult: [];
 }>();
 
 const contextDraft = ref("");
@@ -23,6 +27,7 @@ const attachmentStep = reactive<Record<string, string>>({});
 const questionDraft = reactive<Record<string, string>>({});
 const questionComposer = reactive<Record<string, boolean>>({});
 const expandedNote = reactive<Record<string, boolean>>({});
+const updateVersion = reactive<Record<string, number>>({});
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
 
 watch(() => props.procedures, () => {
@@ -44,6 +49,7 @@ function openUpdate(note: ContextNote) {
   updateMode[note.context] ??= "correct";
   correctionDraft[note.context] = note.text;
   changeDraft[note.context] = note.text;
+  updateVersion[note.context] = note.version;
 }
 function recordContext() {
   const text = contextDraft.value.trim(); if (!text) return;
@@ -59,12 +65,19 @@ function attachContext(note: ContextNote) {
 }
 function correctContext(note: ContextNote) {
   const text = (correctionDraft[note.context] ?? "").trim(); if (!text) return;
-  emit("correct", { note, text, onSuccess: () => { correctionDraft[note.context] = ""; updateOpen.value = ""; } });
+  emit("correct", { note, text, expectedVersion: updateVersion[note.context] ?? note.version, onSuccess: () => { correctionDraft[note.context] = ""; delete updateVersion[note.context]; updateOpen.value = ""; } });
 }
 function changeContext(note: ContextNote) {
   const text = (changeDraft[note.context] ?? "").trim(); if (!text) return;
   if (text === note.text) { emit("validationError", "A meaningful change must differ from the current note."); return; }
-  emit("change", { note, text, onSuccess: () => { changeDraft[note.context] = ""; updateOpen.value = ""; } });
+  emit("change", { note, text, expectedVersion: updateVersion[note.context] ?? note.version, onSuccess: () => { changeDraft[note.context] = ""; delete updateVersion[note.context]; updateOpen.value = ""; } });
+}
+function useSavedContext(note: ContextNote) {
+  delete correctionDraft[note.context]; delete changeDraft[note.context]; delete updateVersion[note.context]; updateOpen.value = "";
+}
+function saveMyContext(note: ContextNote) {
+  updateVersion[note.context] = note.version;
+  if (updateMode[note.context] === "change") changeContext(note); else correctContext(note);
 }
 function askQuestion(note: ContextNote) {
   const text = (questionDraft[note.context] ?? "").trim(); const procedure = activeAttachedProcedure(note);
@@ -101,8 +114,21 @@ function askQuestion(note: ContextNote) {
           <label><input v-model="updateMode[note.context]" type="radio" value="correct"> <span><strong>Fix wording</strong><small>For typos or clearer phrasing. No Review.</small></span></label>
           <label><input v-model="updateMode[note.context]" type="radio" value="change"> <span><strong>Information changed</strong><small>Keeps both versions and may create Reviews.</small></span></label>
         </fieldset>
-        <form v-if="updateMode[note.context] === 'correct'" @submit.prevent="correctContext(note)"><label :for="`correct-${note.context}`">Revised note</label><textarea :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" required maxlength="4000" rows="3"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">Save wording</button></div></form>
-        <form v-else @submit.prevent="changeContext(note)"><label :for="`change-${note.context}`">New information</label><textarea :id="`change-${note.context}`" v-model="changeDraft[note.context]" required maxlength="4000" rows="3"></textarea><p class="form-guidance pending-guidance"><template v-if="affectedActivePlaybookCount(note)">This will create or update {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "playbook review" : "playbook reviews" }}.</template><template v-else>No active playbooks are attached, so this will not create a review.</template></p><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : "Save change" }}</button></div></form>
+        <form v-if="updateMode[note.context] === 'correct'" @submit.prevent="correctContext(note)"><label :for="`correct-${note.context}`">Revised note</label><textarea :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" required maxlength="4000" rows="3"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">Save wording</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved note" :saved-value="note.text" draft-label="Your unsaved wording" :draft-value="correctionDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
+        <form v-else @submit.prevent="changeContext(note)"><label :for="`change-${note.context}`">New information</label><textarea :id="`change-${note.context}`" v-model="changeDraft[note.context]" required maxlength="4000" rows="3"></textarea><p class="form-guidance pending-guidance"><template v-if="affectedActivePlaybookCount(note)">This will create or update {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "playbook review" : "playbook reviews" }}.</template><template v-else>No active playbooks are attached, so this will not create a review.</template></p><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : "Save change" }}</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved information" :saved-value="note.text" draft-label="Your unsaved information" :draft-value="changeDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
+      </section>
+
+      <section v-if="changeResult?.context === note.context" class="context-change-result">
+        <div role="status" aria-live="polite">
+          <h3 v-if="changeResult.affectedPlaybooks.length">{{ changeResult.affectedPlaybooks.length }} {{ changeResult.affectedPlaybooks.length === 1 ? "playbook needs" : "playbooks need" }} review</h3>
+          <h3 v-else>Information updated</h3>
+          <p v-if="changeResult.affectedPlaybooks.length">Affected: {{ changeResult.affectedPlaybooks.map(({ title }) => title).join(", ") }}.</p>
+          <p v-else>No active Playbooks required a Review.</p>
+        </div>
+        <div class="context-result-actions">
+          <button v-if="changeResult.affectedPlaybooks.length" class="button button-primary" type="button" @click="emit('reviewAffected', changeResult.affectedPlaybooks[0].review)">Review affected Playbooks</button>
+          <button class="button button-quiet" type="button" @click="emit('dismissChangeResult')">Dismiss</button>
+        </div>
       </section>
 
       <details class="secondary-disclosure context-dependencies"><summary>Used by {{ attachmentPlaybookCount(note) }} {{ attachmentPlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</summary><section aria-label="Playbook dependencies"><div v-if="note.attachments.length" class="dependency-list"><span v-for="(attachment, index) in note.attachments" :key="`${attachment.subject}-${attachment.anchor ?? 'whole'}-${index}`"><strong>{{ titleForProcedure(attachment.subject) }}</strong><small v-if="attachment.anchor">Step {{ stepsForProcedure(attachment.subject).find((step) => step.step === attachment.anchor)?.position ?? "" }}</small><small v-else>Whole playbook</small></span></div><p v-else>Not connected yet.</p><form v-if="canEdit && activeProcedures.length" class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure">{{ procedure.title }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="">Whole playbook</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></section></details>

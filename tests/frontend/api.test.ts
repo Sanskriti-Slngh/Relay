@@ -88,7 +88,7 @@ describe("Relay browser API client", () => {
       return Response.json({ procedure: "archived-procedure", status: "RETIRED" });
     });
 
-    await expect(api.archiveProcedure("archived-procedure", "session-csrf")).resolves.toEqual({
+    await expect(api.archiveProcedure("archived-procedure", 4, "session-csrf")).resolves.toEqual({
       procedure: "archived-procedure",
       status: "RETIRED",
     });
@@ -97,6 +97,7 @@ describe("Relay browser API client", () => {
     expect(new Headers(calls[0].init?.headers).get("X-Relay-CSRF")).toBe("session-csrf");
     expect(JSON.parse(String(calls[0].init?.body))).toEqual({
       procedure: "archived-procedure",
+      expectedVersion: 4,
     });
   });
 
@@ -107,13 +108,13 @@ describe("Relay browser API client", () => {
       return Response.json({});
     });
 
-    await api.renameProcedure("procedure", "Renamed", "csrf");
-    await api.editStep("procedure", "step", "Edited", "csrf");
-    await api.moveStep("procedure", "step", 2, "csrf");
-    await api.removeStep("procedure", "step", "csrf");
-    await api.requireReviewChanges("review", "procedure", "csrf");
-    await api.resolveReview("review", "procedure", "csrf");
-    await api.cancelReview("review", "procedure", "csrf");
+    await api.renameProcedure("procedure", "Renamed", 3, "csrf");
+    await api.editStep("procedure", "step", "Edited", 7, "csrf");
+    await api.moveStep("procedure", "step", 2, 3, "csrf");
+    await api.removeStep("procedure", "step", 3, "csrf");
+    await api.requireReviewChanges("review", "procedure", 2, "csrf");
+    await api.resolveReview("review", "procedure", 3, "csrf");
+    await api.cancelReview("review", "procedure", 2, "csrf");
 
     expect(calls.map(({ input }) => input)).toEqual([
       "/api/workspaces/procedures/rename",
@@ -125,13 +126,13 @@ describe("Relay browser API client", () => {
       "/api/workspaces/reviews/cancel",
     ]);
     expect(calls.map(({ init }) => JSON.parse(String(init?.body)))).toEqual([
-      { procedure: "procedure", title: "Renamed" },
-      { procedure: "procedure", step: "step", text: "Edited" },
-      { procedure: "procedure", step: "step", position: 2 },
-      { procedure: "procedure", step: "step" },
-      { review: "review", procedure: "procedure" },
-      { review: "review", procedure: "procedure" },
-      { review: "review", procedure: "procedure" },
+      { procedure: "procedure", title: "Renamed", expectedVersion: 3 },
+      { procedure: "procedure", step: "step", text: "Edited", expectedVersion: 7 },
+      { procedure: "procedure", step: "step", position: 2, expectedVersion: 3 },
+      { procedure: "procedure", step: "step", expectedVersion: 3 },
+      { review: "review", procedure: "procedure", expectedVersion: 2 },
+      { review: "review", procedure: "procedure", expectedVersion: 3 },
+      { review: "review", procedure: "procedure", expectedVersion: 2 },
     ]);
     expect(calls.every(({ init }) => new Headers(init?.headers).get("X-Relay-CSRF") === "csrf"))
       .toBe(true);
@@ -147,10 +148,10 @@ describe("Relay browser API client", () => {
     await api.questions("csrf");
     await api.askStepQuestion("procedure", "step", "Step question?", "csrf");
     await api.askContextQuestion("procedure", "context", "Context question?", "csrf");
-    await api.answerStepQuestion("step-question", "Step answer.", "csrf");
-    await api.answerContextQuestion("context-question", "Context answer.", "csrf");
-    await api.reviseStepQuestionAnswer("step-question", "Revised step answer.", "csrf");
-    await api.reviseContextQuestionAnswer("context-question", "Revised context answer.", "csrf");
+    await api.answerStepQuestion("step-question", "Step answer.", 1, "csrf");
+    await api.answerContextQuestion("context-question", "Context answer.", 1, "csrf");
+    await api.reviseStepQuestionAnswer("step-question", "Revised step answer.", 2, "csrf");
+    await api.reviseContextQuestionAnswer("context-question", "Revised context answer.", 2, "csrf");
 
     expect(calls.map(({ input }) => input)).toEqual([
       "/api/workspaces/questions",
@@ -165,10 +166,10 @@ describe("Relay browser API client", () => {
       {},
       { procedure: "procedure", step: "step", text: "Step question?" },
       { procedure: "procedure", context: "context", text: "Context question?" },
-      { question: "step-question", answer: "Step answer." },
-      { question: "context-question", answer: "Context answer." },
-      { question: "step-question", answer: "Revised step answer." },
-      { question: "context-question", answer: "Revised context answer." },
+      { question: "step-question", answer: "Step answer.", expectedVersion: 1 },
+      { question: "context-question", answer: "Context answer.", expectedVersion: 1 },
+      { question: "step-question", answer: "Revised step answer.", expectedVersion: 2 },
+      { question: "context-question", answer: "Revised context answer.", expectedVersion: 2 },
     ]);
     expect(calls.every(({ init }) => !String(init?.body).includes("user"))).toBe(true);
   });
@@ -201,6 +202,15 @@ describe("Relay browser API client", () => {
   });
 
   test("surfaces actionable messages for guarded failure paths", async () => {
+    const staleApi = createRelayApi(async () =>
+      Response.json({ error: "VERSION_CONFLICT" }, { status: 409 }),
+    );
+    await expect(staleApi.editStep("procedure", "step", "My preserved draft", 2, "csrf"))
+      .rejects.toMatchObject({
+        code: "VERSION_CONFLICT",
+        message: "Someone changed this while you were working. Your draft is still here—compare it with the latest version before saving again.",
+      });
+
     const conflictApi = createRelayApi(async () =>
       Response.json({ error: "CONFLICT" }, { status: 409 }),
     );
@@ -209,18 +219,18 @@ describe("Relay browser API client", () => {
         code: "ATTACHMENT_ALREADY_EXISTS",
         message: "That context note is already attached to the selected target.",
       });
-    await expect(conflictApi.confirmReview("review", "procedure", "csrf"))
+    await expect(conflictApi.confirmReview("review", "procedure", 1, "csrf"))
       .rejects.toMatchObject({
         code: "REVIEW_NOT_PENDING_FOR_CONFIRMATION",
         message: "That review is no longer pending and cannot be confirmed again.",
       });
-    await expect(conflictApi.requireReviewChanges("review", "procedure", "csrf"))
+    await expect(conflictApi.requireReviewChanges("review", "procedure", 1, "csrf"))
       .rejects.toMatchObject({ code: "REVIEW_NOT_PENDING_FOR_CHANGES" });
-    await expect(conflictApi.resolveReview("review", "procedure", "csrf"))
+    await expect(conflictApi.resolveReview("review", "procedure", 1, "csrf"))
       .rejects.toMatchObject({ code: "REVIEW_NOT_AWAITING_CHANGES" });
-    await expect(conflictApi.cancelReview("review", "procedure", "csrf"))
+    await expect(conflictApi.cancelReview("review", "procedure", 1, "csrf"))
       .rejects.toMatchObject({ code: "CANCEL_REVIEW_FINISHED" });
-    await expect(conflictApi.answerStepQuestion("question", "answer", "csrf"))
+    await expect(conflictApi.answerStepQuestion("question", "answer", 1, "csrf"))
       .rejects.toMatchObject({
         code: "QUESTION_NOT_OPEN",
         message: "That question has already been answered.",
@@ -229,20 +239,20 @@ describe("Relay browser API client", () => {
     const completedApi = createRelayApi(async () =>
       Response.json({ error: "NOT_FOUND" }, { status: 404 }),
     );
-    await expect(completedApi.confirmReview("review", "procedure", "csrf"))
+    await expect(completedApi.confirmReview("review", "procedure", 1, "csrf"))
       .rejects.toMatchObject({
         code: "REVIEW_NOT_AVAILABLE",
         message: "That review is no longer pending or available in this workspace.",
       });
     await expect(completedApi.askStepQuestion("procedure", "step", "question", "csrf"))
       .rejects.toMatchObject({ code: "QUESTION_SUBJECT_NOT_AVAILABLE" });
-    await expect(completedApi.answerContextQuestion("question", "answer", "csrf"))
+    await expect(completedApi.answerContextQuestion("question", "answer", 1, "csrf"))
       .rejects.toMatchObject({ code: "QUESTION_NOT_AVAILABLE" });
 
     const unchangedApi = createRelayApi(async () =>
       Response.json({ error: "INVALID_REQUEST" }, { status: 400 }),
     );
-    await expect(unchangedApi.changeContextNote("context", "same", "csrf"))
+    await expect(unchangedApi.changeContextNote("context", "same", 1, "csrf"))
       .rejects.toMatchObject({
         code: "CHANGE_NOT_DIFFERENT",
         message: "A meaningful change must differ from the current note.",
