@@ -98,7 +98,10 @@ Requirements: Bun 1.4.0 and Podman with Compose.
    RELAY_DEMO_DATABASE=relay_demo_fresh bun run dev
    ```
 
-## Demonstration journey
+## Extended manual verification workflow
+
+This workflow exercises Relay's complete functionality. It is intentionally
+broader than the two-minute narrated demonstration linked above.
 
 1. Create a club and a Playbook, then add ordered Steps.
 2. Add optional Context to a Step or reuse an existing shared Context Note.
