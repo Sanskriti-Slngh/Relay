@@ -3,7 +3,7 @@ import { computed } from "vue";
 import type { PendingReview, Procedure, ProcedureReviewHistory } from "../api.ts";
 
 const props = defineProps<{ reviews: PendingReview[]; reviewHistory: ProcedureReviewHistory[]; procedures: Procedure[]; actionBusy: string; focusReview?: string }>();
-const emit = defineEmits<{ confirm: [review: PendingReview]; requireChanges: [review: PendingReview]; resolve: [review: PendingReview]; cancel: [review: PendingReview]; editPlaybook: [review: PendingReview]; browseContext: [] }>();
+const emit = defineEmits<{ confirm: [review: PendingReview]; requireChanges: [review: PendingReview]; resolve: [review: PendingReview]; cancel: [review: PendingReview]; editPlaybook: [review: PendingReview] }>();
 const finishedReviews = computed(() => props.reviewHistory.flatMap((procedure) => procedure.reviews.filter((review) => review.status === "COMPLETE" || review.status === "CANCELLED").map((review) => ({ ...review, procedure: procedure.procedure, title: procedure.title }))));
 function procedureIsActive(procedure: string) { return props.procedures.some((entry) => entry.procedure === procedure && entry.status === "ACTIVE"); }
 function currentProcedure(procedure: string) { return props.procedures.find((entry) => entry.procedure === procedure); }
@@ -12,7 +12,7 @@ function currentProcedure(procedure: string) { return props.procedures.find((ent
 <template>
   <header class="page-heading heading-with-action"><h1>Reviews</h1><span class="status-count" :class="{ attention: reviews.length }">{{ reviews.length }} open</span></header>
 
-  <div v-if="!reviews.length" class="empty-page-state"><h2>No reviews</h2><button class="button button-secondary" type="button" @click="emit('browseContext')">View context</button></div>
+  <div v-if="!reviews.length" class="empty-page-state"><h2>All caught up</h2><p>No Playbooks need review right now. When shared information changes, affected Playbooks will appear here.</p></div>
   <div v-else class="inbox-list">
     <details v-for="review in reviews" :key="review.review" class="inbox-row" :open="review.review === focusReview">
       <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ review.title }}</strong><small>{{ review.causes.length }} {{ review.causes.length === 1 ? "context change" : "context changes" }}</small></span><span class="row-status pending">{{ review.status === "PENDING" ? "Review" : "Changes required" }}</span></summary>

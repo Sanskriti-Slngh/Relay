@@ -115,6 +115,14 @@ visible before expansion. The primary next action appears in the expanded row;
 less common alternatives sit under a plainly labeled disclosure. Completed
 history remains accessible with quieter typography and spacing.
 
+Within a Playbook Step, opening **Why this matters** prioritizes the attached
+Context Notes as reading material. When Context already exists, the reuse and
+creation controls remain behind a quieter **Add another context** disclosure;
+an empty Step still reveals the first-add controls directly. The Reviews empty
+state says **All caught up** and explains that meaningful shared-information
+changes will place affected Playbooks there, without presenting an unrelated
+navigation action.
+
 An open Review presents three intentionally distinct regions: exact changed
 Context as evidence, the Playbook's current ordered instructions, and the
 decision. The scope note says that Context may apply to the whole Playbook or

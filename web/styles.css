@@ -193,6 +193,10 @@ input::placeholder, textarea::placeholder { color: #68736c; }
 .inline-disclosure { margin-top: 16px; border-left: 2px solid var(--line-strong); padding: 2px 0 2px 16px; }
 .step-context-list { display: grid; gap: 8px; }
 .step-context-list blockquote { margin: 0; padding: 10px 12px; color: var(--muted); background: #f4f6f2; font-size: 14px; line-height: 1.55; }
+.context-add-disclosure { margin-top: 12px; }
+.context-add-disclosure > summary { width: fit-content; padding: 4px 0; color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 600; list-style-position: inside; }
+.context-add-disclosure > summary:hover { color: var(--accent-hover); }
+.context-add-disclosure .context-connect { margin-top: 8px; border-top: 0; padding-top: 0; }
 .context-connect { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
 .step-context-disclosure > .context-connect:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
 .context-mode { display: flex; gap: 14px; margin-bottom: 10px; }
