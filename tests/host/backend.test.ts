@@ -579,15 +579,17 @@ describe("Relay trusted HTTP backend", () => {
       procedure: string;
       title: string;
       status: string;
-      steps: { step: string; text: string; position: number }[];
+      version: number;
+      steps: { step: string; text: string; position: number; version: number }[];
     }[];
     expect(listed.find((entry) => entry.procedure === procedure)).toEqual({
       procedure,
       title: "Procedure editing complete",
       status: "ACTIVE",
+      version: 7,
       steps: [
-        { step: createdSteps[2], text: "Charlie", position: 1 },
-        { step: createdSteps[0], text: "Alpha", position: 2 },
+        { step: createdSteps[2], text: "Charlie", position: 1, version: 1 },
+        { step: createdSteps[0], text: "Alpha", position: 2, version: 1 },
       ],
     });
   });

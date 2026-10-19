@@ -30,8 +30,9 @@ export type RelayP2MVPWire = {
           "before": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["before"]>>;
           "change": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["change"]>>;
         }[];
-        "context": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["context"]>>;
+        "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getVersion"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["context"]>]>>;
         "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["text"]>>;
+        "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getVersion"]>>>, ["version"]>>;
       })[];
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" };
@@ -51,6 +52,7 @@ export type RelayP2MVPWire = {
   "/workspaces/context/change": {
     input: {
       "context": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["change"]>[0], ["context"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["change"]>[0], ["expectedVersion"]>>;
       "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["change"]>[0], ["text"]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -59,11 +61,12 @@ export type RelayP2MVPWire = {
       "change": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["change"]>>, ["change"]>>;
       "context": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["change"]>[0], ["context"]>>;
     };
-    error: { error: AppWideError | "ADD_CAUSE_REVIEW_FINISHED" | "ADD_CAUSE_REVIEW_NOT_FOUND" | "CAUSE_ALREADY_PRESENT" | "CHANGE_NOT_DIFFERENT" | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REQUEST_ALREADY_UNFINISHED" };
+    error: { error: AppWideError | "ADD_CAUSE_REVIEW_FINISHED" | "ADD_CAUSE_REVIEW_NOT_FOUND" | "CAUSE_ALREADY_PRESENT" | "CHANGE_NOT_DIFFERENT" | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REQUEST_ALREADY_UNFINISHED" | "VERSION_CONFLICT" };
   };
   "/workspaces/context/correct": {
     input: {
       "context": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["correct"]>[0], ["context"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["correct"]>[0], ["expectedVersion"]>>;
       "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["correct"]>[0], ["text"]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -71,7 +74,7 @@ export type RelayP2MVPWire = {
     output: {
       "context": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["correct"]>[0], ["context"]>>;
     };
-    error: { error: AppWideError | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" };
+    error: { error: AppWideError | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "VERSION_CONFLICT" };
   };
   "/workspaces/context/notes": {
     input: {
@@ -104,20 +107,23 @@ export type RelayP2MVPWire = {
     };
     output: {
       "procedures": {
-        "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_procedures"]>>>, ["procedure"]>>;
+        "procedure": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getVersion"]>[0], ["procedure"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_procedures"]>>>, ["procedure"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_procedures"]>>>, ["status"]>>;
         "steps": {
           "position": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_steps"]>>>, ["position"]>>;
-          "step": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_steps"]>>>, ["step"]>>;
+          "step": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStepVersion"]>[0], ["step"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_steps"]>>>, ["step"]>]>>;
           "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_steps"]>>>, ["text"]>>;
+          "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStepVersion"]>>>, ["version"]>>;
         }[];
         "title": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_procedures"]>>>, ["title"]>>;
+        "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getVersion"]>>>, ["version"]>>;
       }[];
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" };
   };
   "/workspaces/procedures/archive": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["retire"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["retire"]>[0], ["procedure"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -126,7 +132,7 @@ export type RelayP2MVPWire = {
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["retire"]>[0], ["procedure"]>>;
       "status": "RETIRED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/procedures/create": {
     input: {
@@ -141,6 +147,7 @@ export type RelayP2MVPWire = {
   };
   "/workspaces/procedures/rename": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["rename"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["rename"]>[0], ["procedure"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>]>>;
       "title": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["rename"]>[0], ["title"]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -150,10 +157,11 @@ export type RelayP2MVPWire = {
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["rename"]>[0], ["procedure"]>>;
       "title": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["rename"]>[0], ["title"]>>;
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/procedures/steps/add": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["addStep"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["addStep"]>[0], ["procedure"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>]>>;
       "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["addStep"]>[0], ["text"]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -163,10 +171,11 @@ export type RelayP2MVPWire = {
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["addStep"]>[0], ["procedure"]>>;
       "step": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["addStep"]>>, ["step"]>>;
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_AVAILABLE" | "PROCEDURE_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/procedures/steps/edit": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["editStep"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>>;
       "step": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["editStep"]>[0], ["step"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>[0], ["step"]>]>>;
       "text": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["editStep"]>[0], ["text"]>>;
@@ -176,10 +185,11 @@ export type RelayP2MVPWire = {
     output: {
       "step": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["editStep"]>[0], ["step"]>>;
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/procedures/steps/move": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["moveStep"]>[0], ["expectedVersion"]>>;
       "position": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["moveStep"]>[0], ["position"]>>;
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>>;
       "step": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["moveStep"]>[0], ["step"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>[0], ["step"]>]>>;
@@ -190,10 +200,11 @@ export type RelayP2MVPWire = {
       "position": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["moveStep"]>[0], ["position"]>>;
       "step": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["moveStep"]>[0], ["step"]>>;
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "INVALID_POSITION" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "INVALID_POSITION" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/procedures/steps/remove": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["removeStep"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>>;
       "step": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["removeStep"]>[0], ["step"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>[0], ["step"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -202,7 +213,7 @@ export type RelayP2MVPWire = {
     output: {
       "step": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["removeStep"]>[0], ["step"]>>;
     };
-    error: { error: AppWideError | "ATTACHMENT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" };
+    error: { error: AppWideError | "ATTACHMENT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "PROCEDURE_NOT_ACTIVE" | "PROCEDURE_NOT_FOUND" | "STEP_NOT_ACTIVE" | "STEP_NOT_AVAILABLE" | "STEP_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions": {
     input: {
@@ -214,22 +225,24 @@ export type RelayP2MVPWire = {
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answer"]>> | null;
         "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answerer"]>> | null;
         "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["subject"]>]>>;
-        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["question"]>]>>;
+        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["status"]>>;
         "subjectText": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>>>, ["text"]>>;
         "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["text"]>>;
+        "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getVersion"]>>>, ["version"]>>;
       })[];
       "stepQuestions": ({
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answer"]>> | null;
         "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answerer"]>> | null;
         "procedure": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["procedure"]>]>>;
-        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["question"]>]>>;
+        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["status"]>>;
         "step": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>[0], ["step"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["subject"]>]>>;
         "subjectStatus": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["status"]>>;
         "subjectText": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["text"]>>;
         "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["text"]>>;
         "title": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>>>, ["title"]>>;
+        "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getVersion"]>>>, ["version"]>>;
       })[];
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" };
@@ -237,6 +250,7 @@ export type RelayP2MVPWire = {
   "/workspaces/questions/context/answer": {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["answer"]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["expectedVersion"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>]>>;
       "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -245,7 +259,7 @@ export type RelayP2MVPWire = {
       "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["answer"]>[0], ["question"]>>;
       "status": "ANSWERED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "QUESTION_NOT_OPEN" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "QUESTION_NOT_OPEN" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions/context/ask": {
     input: {
@@ -264,6 +278,7 @@ export type RelayP2MVPWire = {
   "/workspaces/questions/context/revise": {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["answer"]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["expectedVersion"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>]>>;
       "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -272,11 +287,12 @@ export type RelayP2MVPWire = {
       "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["reviseAnswer"]>[0], ["question"]>>;
       "status": "ANSWERED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions/steps/answer": {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["answer"]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["expectedVersion"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>]>>;
       "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -285,7 +301,7 @@ export type RelayP2MVPWire = {
       "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["answer"]>[0], ["question"]>>;
       "status": "ANSWERED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "QUESTION_NOT_OPEN" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "QUESTION_NOT_OPEN" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions/steps/ask": {
     input: {
@@ -304,6 +320,7 @@ export type RelayP2MVPWire = {
   "/workspaces/questions/steps/revise": {
     input: {
       "answer": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["answer"]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["expectedVersion"]>>;
       "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>]>>;
       "user": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["answerer"]>]>>;
       "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
@@ -312,7 +329,7 @@ export type RelayP2MVPWire = {
       "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["reviseAnswer"]>[0], ["question"]>>;
       "status": "ANSWERED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_ANSWER_NOT_EDITABLE" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/reviews": {
     input: {
@@ -328,8 +345,9 @@ export type RelayP2MVPWire = {
             "before": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>>>, ["before"]>>;
             "cause": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>[0], ["change"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_causes"]>>>, ["cause"]>]>>;
           }[];
-          "review": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_forItem"]>>>, ["review"]>>;
+          "review": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_getVersion"]>[0], ["review"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_forItem"]>>>, ["review"]>]>>;
           "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_forItem"]>>>, ["status"]>>;
+          "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_getVersion"]>>>, ["version"]>>;
         }[];
         "title": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_procedures"]>>>, ["title"]>>;
       }[];
@@ -338,6 +356,7 @@ export type RelayP2MVPWire = {
   };
   "/workspaces/reviews/cancel": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["cancel"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["item"]>>;
       "review": Jsonify<OneOf<[AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["review"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["cancel"]>[0], ["review"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -347,10 +366,11 @@ export type RelayP2MVPWire = {
       "review": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["cancel"]>[0], ["review"]>>;
       "status": "CANCELLED";
     };
-    error: { error: AppWideError | "CANCEL_REVIEW_FINISHED" | "CANCEL_REVIEW_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REVIEW_NOT_AVAILABLE" };
+    error: { error: AppWideError | "CANCEL_REVIEW_FINISHED" | "CANCEL_REVIEW_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REVIEW_NOT_AVAILABLE" | "VERSION_CONFLICT" };
   };
   "/workspaces/reviews/confirm": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["confirm"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>>>, ["item"]>>;
       "review": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>[0], ["review"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["confirm"]>[0], ["review"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -360,7 +380,7 @@ export type RelayP2MVPWire = {
       "review": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["confirm"]>[0], ["review"]>>;
       "status": "COMPLETE";
     };
-    error: { error: AppWideError | "CONFIRM_REVIEW_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_PENDING_FOR_CONFIRMATION" };
+    error: { error: AppWideError | "CONFIRM_REVIEW_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_PENDING_FOR_CONFIRMATION" | "VERSION_CONFLICT" };
   };
   "/workspaces/reviews/pending": {
     input: {
@@ -375,15 +395,17 @@ export type RelayP2MVPWire = {
           "cause": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>[0], ["change"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_causes"]>>>, ["cause"]>]>>;
         }[];
         "procedure": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["item"]>]>>;
-        "review": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["review"]>>;
+        "review": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_getVersion"]>[0], ["review"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["review"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_unfinished"]>>>, ["status"]>>;
         "title": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>>>, ["title"]>>;
+        "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_getVersion"]>>>, ["version"]>>;
       }[];
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" };
   };
   "/workspaces/reviews/require-changes": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["requireChanges"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>>>, ["item"]>>;
       "review": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>[0], ["review"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["requireChanges"]>[0], ["review"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -393,10 +415,11 @@ export type RelayP2MVPWire = {
       "review": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["requireChanges"]>[0], ["review"]>>;
       "status": "CHANGES_REQUIRED";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REQUIRE_CHANGES_REVIEW_NOT_FOUND" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_PENDING_FOR_CHANGES" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "REQUIRE_CHANGES_REVIEW_NOT_FOUND" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_PENDING_FOR_CHANGES" | "VERSION_CONFLICT" };
   };
   "/workspaces/reviews/resolve": {
     input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["resolve"]>[0], ["expectedVersion"]>>;
       "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>>>, ["item"]>>;
       "review": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["_get"]>[0], ["review"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["resolve"]>[0], ["review"]>]>>;
       "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
@@ -406,6 +429,6 @@ export type RelayP2MVPWire = {
       "review": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["Reviewing"]["resolve"]>[0], ["review"]>>;
       "status": "COMPLETE";
     };
-    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "RESOLVE_REVIEW_NOT_FOUND" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_AWAITING_CHANGES" };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "RESOLVE_REVIEW_NOT_FOUND" | "REVIEW_NOT_AVAILABLE" | "REVIEW_NOT_AWAITING_CHANGES" | "VERSION_CONFLICT" };
   };
 };

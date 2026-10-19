@@ -7,6 +7,7 @@ import {
   ProcedureNotFound,
   StepNotActive,
   StepNotFound,
+  VersionConflict,
 } from "./ProcedureMaintaining.ts";
 
 export const procedureMaintaining = registerConcept({
@@ -18,5 +19,6 @@ export const procedureMaintaining = registerConcept({
     STEP_NOT_FOUND: StepNotFound,
     STEP_NOT_ACTIVE: StepNotActive,
     INVALID_POSITION: InvalidPosition,
+    VERSION_CONFLICT: VersionConflict,
   },
 });

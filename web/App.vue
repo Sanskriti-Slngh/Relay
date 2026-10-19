@@ -7,6 +7,7 @@ import PlaybooksView from "./components/PlaybooksView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import QuestionsView from "./components/QuestionsView.vue";
 import WorkspaceView from "./components/WorkspaceView.vue";
+import { confirmedAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
 
 type Section = "overview" | "procedures" | "context" | "reviews" | "questions" | "workspace";
 
@@ -48,6 +49,7 @@ const contextQuestions = ref<ContextQuestion[]>([]);
 const workspaceMembers = ref<WorkspaceMember[]>([]);
 const pendingInvitations = ref<PendingInvitation[]>([]);
 const recentActivity = ref<ActivityEvent[]>([]);
+const contextChangeResult = ref<ContextChangeResult>();
 let refreshSequence = 0;
 let refreshTimer: number | undefined;
 
@@ -85,22 +87,13 @@ function navigate(target: { section: Section; procedure?: string; review?: strin
   section.value = target.section;
 }
 
-function clearWorkspaceState() {
-  refreshSequence += 1;
+function clearWorkspaceUiState() {
   focusedProcedure.value = "";
   focusedContextStep.value = "";
   focusedReviewId.value = "";
   focusedQuestionId.value = "";
   focusedQuestionKind.value = "";
   startNewPlaybook.value = false;
-  authenticated.value = false;
-  csrfToken.value = "";
-  workspace.value = "";
-  workspaceName.value = "";
-  currentUser.value = undefined;
-  role.value = "";
-  permissions.value = [];
-  workspaces.value = [];
   createdInvite.value = undefined;
   procedures.value = [];
   contexts.value = [];
@@ -111,6 +104,21 @@ function clearWorkspaceState() {
   workspaceMembers.value = [];
   pendingInvitations.value = [];
   recentActivity.value = [];
+  contextChangeResult.value = undefined;
+  section.value = "overview";
+}
+
+function clearWorkspaceState() {
+  refreshSequence += 1;
+  clearWorkspaceUiState();
+  authenticated.value = false;
+  csrfToken.value = "";
+  workspace.value = "";
+  workspaceName.value = "";
+  currentUser.value = undefined;
+  role.value = "";
+  permissions.value = [];
+  workspaces.value = [];
 }
 
 function showError(error: unknown) {
@@ -143,17 +151,8 @@ async function refreshData(announce = false, background = false): Promise<boolea
     permissions.value = latestSession.permissions ?? [];
     workspaceName.value = latestSession.workspaceName ?? "";
     if (latestSession.workspace !== workspace.value) {
+      clearWorkspaceUiState();
       workspace.value = latestSession.workspace ?? "";
-      procedures.value = [];
-      contexts.value = [];
-      reviews.value = [];
-      reviewHistory.value = [];
-      stepQuestions.value = [];
-      contextQuestions.value = [];
-      workspaceMembers.value = [];
-      pendingInvitations.value = [];
-      recentActivity.value = [];
-      section.value = "overview";
       return true;
     }
     const officerReads = canReview.value
@@ -203,12 +202,16 @@ async function runAction(label: string, action: () => Promise<void>, success: st
     await action();
     const refreshed = await refreshData();
     successMessage.value = refreshed ? success : "The action completed, but the workspace could not refresh. Try Refresh.";
-  } catch (error) { showError(error); }
+  } catch (error) {
+    showError(error);
+    if (error instanceof RelayApiError && error.code === "VERSION_CONFLICT") await refreshData(false, true);
+  }
   finally { actionBusy.value = ""; }
 }
 
 async function acceptSession(session: SessionState) {
-  createdInvite.value = undefined;
+  refreshSequence += 1;
+  clearWorkspaceUiState();
   authenticated.value = session.authenticated;
   csrfToken.value = session.csrfToken ?? "";
   workspace.value = session.workspace ?? "";
@@ -217,13 +220,6 @@ async function acceptSession(session: SessionState) {
   role.value = session.role ?? "";
   permissions.value = session.permissions ?? [];
   workspaces.value = session.workspaces ?? [];
-  focusedProcedure.value = "";
-  focusedContextStep.value = "";
-  focusedReviewId.value = "";
-  focusedQuestionId.value = "";
-  focusedQuestionKind.value = "";
-  startNewPlaybook.value = false;
-  section.value = "overview";
   if (authenticated.value && workspace.value) await refreshData();
 }
 
@@ -239,9 +235,12 @@ async function signIn() {
   finally { loginBusy.value = false; }
 }
 
-async function createClub() {
-  const name = clubName.value.trim(); if (!name) return;
-  await runAction("create-workspace", async () => { await acceptSession(await api.createWorkspace(name, csrfToken.value)); clubName.value = ""; }, "Club workspace created.");
+async function createClub(payload?: { name: string; onSuccess: () => void }) {
+  const name = (payload?.name ?? clubName.value).trim(); if (!name) return;
+  await runAction("create-workspace", async () => {
+    await acceptSession(await api.createWorkspace(name, csrfToken.value));
+    if (payload) payload.onSuccess(); else clubName.value = "";
+  }, "Club workspace created. You are its Owner.");
 }
 
 async function selectClub(id: string) {
@@ -249,9 +248,12 @@ async function selectClub(id: string) {
   await runAction("select-workspace", async () => { await acceptSession(await api.selectWorkspace(id, csrfToken.value)); }, "Workspace selected.");
 }
 
-async function acceptInvitation() {
-  const token = invitationToken.value.trim(); if (!token) return;
-  await runAction("accept-invitation", async () => { await acceptSession(await api.acceptInvitation(token, csrfToken.value)); invitationToken.value = ""; }, "Invitation accepted.");
+async function acceptInvitation(payload?: { token: string; onSuccess: () => void }) {
+  const token = (payload?.token ?? invitationToken.value).trim(); if (!token) return;
+  await runAction("accept-invitation", async () => {
+    await acceptSession(await api.acceptInvitation(token, csrfToken.value));
+    if (payload) payload.onSuccess(); else invitationToken.value = "";
+  }, "Invitation accepted. You joined as a Member.");
 }
 
 async function inviteMember({ email: address, onSuccess }: { email: string; onSuccess: () => void }) {
@@ -310,33 +312,33 @@ async function createProcedure({ title, onSuccess }: { title: string; onSuccess:
   }, "Playbook created.");
 }
 
-async function addStep({ procedure, text, onSuccess }: { procedure: Procedure; text: string; onSuccess: () => void }) {
+async function addStep({ procedure, text, expectedVersion, onSuccess }: { procedure: Procedure; text: string; expectedVersion: number; onSuccess: () => void }) {
   await runAction(`step-${procedure.procedure}`, async () => {
-    await api.addStep(procedure.procedure, text, csrfToken.value);
+    await api.addStep(procedure.procedure, text, expectedVersion, csrfToken.value);
     onSuccess();
   }, "Step added.");
 }
 
-async function renameProcedure({ procedure, title, onSuccess }: { procedure: Procedure; title: string; onSuccess: () => void }) {
-  await runAction(`rename-${procedure.procedure}`, async () => { await api.renameProcedure(procedure.procedure, title, csrfToken.value); onSuccess(); }, "Playbook renamed.");
+async function renameProcedure({ procedure, title, expectedVersion, onSuccess }: { procedure: Procedure; title: string; expectedVersion: number; onSuccess: () => void }) {
+  await runAction(`rename-${procedure.procedure}`, async () => { await api.renameProcedure(procedure.procedure, title, expectedVersion, csrfToken.value); onSuccess(); }, "Playbook renamed.");
 }
 
-async function editStep({ procedure, step, text, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void }) {
-  await runAction(`edit-${step.step}`, async () => { await api.editStep(procedure.procedure, step.step, text, csrfToken.value); onSuccess(); }, "Step updated.");
+async function editStep({ procedure, step, text, expectedVersion, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; expectedVersion: number; onSuccess: () => void }) {
+  await runAction(`edit-${step.step}`, async () => { await api.editStep(procedure.procedure, step.step, text, expectedVersion, csrfToken.value); onSuccess(); }, "Step updated.");
 }
 
 async function moveStep({ procedure, step, position }: { procedure: Procedure; step: Procedure["steps"][number]; position: number }) {
-  await runAction(`move-${step.step}`, async () => { await api.moveStep(procedure.procedure, step.step, position, csrfToken.value); }, "");
+  await runAction(`move-${step.step}`, async () => { await api.moveStep(procedure.procedure, step.step, position, procedure.version, csrfToken.value); }, "");
 }
 
 async function removeStep({ procedure, step }: { procedure: Procedure; step: Procedure["steps"][number] }) {
   if (!window.confirm(`Remove step ${step.position} from "${procedure.title}"? Any context attached specifically to this step will be detached.`)) return;
-  await runAction(`remove-${step.step}`, async () => { await api.removeStep(procedure.procedure, step.step, csrfToken.value); }, "Step removed. Its stable identity and history are preserved.");
+  await runAction(`remove-${step.step}`, async () => { await api.removeStep(procedure.procedure, step.step, procedure.version, csrfToken.value); }, "Step removed. Its stable identity and history are preserved.");
 }
 
 async function archiveProcedure(procedure: Procedure) {
   if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved.`)) return;
-  await runAction(`archive-${procedure.procedure}`, async () => { await api.archiveProcedure(procedure.procedure, csrfToken.value); }, "Playbook archived. Its context and review history are preserved.");
+  await runAction(`archive-${procedure.procedure}`, async () => { await api.archiveProcedure(procedure.procedure, procedure.version, csrfToken.value); }, "Playbook archived. Its context and review history are preserved.");
 }
 
 async function recordContext({ text, onSuccess }: { text: string; onSuccess: () => void }) {
@@ -366,29 +368,58 @@ async function recordStepContext({ procedure, step, text, onSuccess }: { procedu
   }, "Context saved with the step.");
 }
 
-async function correctContext({ note, text, onSuccess }: { note: ContextNote; text: string; onSuccess: () => void }) {
-  await runAction(`correct-${note.context}`, async () => { await api.correctContextNote(note.context, text, csrfToken.value); onSuccess(); }, "Wording corrected. No review was created.");
+async function correctContext({ note, text, expectedVersion, onSuccess }: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }) {
+  contextChangeResult.value = undefined;
+  await runAction(`correct-${note.context}`, async () => { await api.correctContextNote(note.context, text, expectedVersion, csrfToken.value); onSuccess(); }, "Wording corrected. No review was created.");
 }
 
-async function changeContext({ note, text, onSuccess }: { note: ContextNote; text: string; onSuccess: () => void }) {
-  await runAction(`change-${note.context}`, async () => { await api.changeContextNote(note.context, text, csrfToken.value); onSuccess(); }, "Meaningful change recorded; affected review state has been refreshed.");
+async function changeContext({ note, text, expectedVersion, onSuccess }: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }) {
+  if (actionBusy.value) {
+    showValidationError("Please wait for the current workspace action to finish.");
+    return;
+  }
+  clearMessages();
+  contextChangeResult.value = undefined;
+  actionBusy.value = `change-${note.context}`;
+  try {
+    const changed = await api.changeContextNote(note.context, text, expectedVersion, csrfToken.value);
+    const refreshed = await refreshData();
+    onSuccess();
+    if (refreshed) {
+      contextChangeResult.value = {
+        context: note.context,
+        affectedPlaybooks: confirmedAffectedPlaybooks(changed.change, reviews.value),
+      };
+    } else {
+      successMessage.value = "The information changed, but Relay could not confirm the affected reviews. Try Refresh.";
+    }
+  } catch (error) {
+    showError(error);
+    if (error instanceof RelayApiError && error.code === "VERSION_CONFLICT") await refreshData(false, true);
+  } finally {
+    actionBusy.value = "";
+  }
+}
+
+function reviewAffectedPlaybooks(review: string) {
+  navigate({ section: "reviews", review });
 }
 
 async function confirmReview(review: PendingReview) {
-  await runAction(`confirm-${review.review}`, async () => { await api.confirmReview(review.review, review.procedure, csrfToken.value); }, "Review confirmed as correct.");
+  await runAction(`confirm-${review.review}`, async () => { await api.confirmReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review confirmed as correct.");
 }
 
 async function requireReviewChanges(review: PendingReview) {
-  await runAction(`require-${review.review}`, async () => { await api.requireReviewChanges(review.review, review.procedure, csrfToken.value); }, "Review marked as requiring changes. Edit the playbook, then resolve the review.");
+  await runAction(`require-${review.review}`, async () => { await api.requireReviewChanges(review.review, review.procedure, review.version, csrfToken.value); }, "Review marked as requiring changes. Edit the playbook, then resolve the review.");
 }
 
 async function resolveReview(review: PendingReview) {
-  await runAction(`resolve-${review.review}`, async () => { await api.resolveReview(review.review, review.procedure, csrfToken.value); }, "Review resolved. Its causes remain in review history.");
+  await runAction(`resolve-${review.review}`, async () => { await api.resolveReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review resolved. Its causes remain in review history.");
 }
 
 async function cancelReview(review: PendingReview) {
   if (!window.confirm(`Cancel the review for "${review.title}"? Its causes will remain in review history.`)) return;
-  await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, csrfToken.value); }, "Review cancelled. Its causes remain in review history.");
+  await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review cancelled. Its causes remain in review history.");
 }
 
 function editReviewedPlaybook(review: PendingReview) {
@@ -418,18 +449,18 @@ async function askContextQuestion({ note, procedure, text, onSuccess }: { note: 
   }, "Question sent to the officer inbox.");
 }
 
-async function answerQuestion({ kind, question, answer, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; onSuccess: () => void }) {
+async function answerQuestion({ kind, question, answer, expectedVersion, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }) {
   await runAction(`answer-${question.question}`, async () => {
-    if (kind === "step") await api.answerStepQuestion(question.question, answer, csrfToken.value);
-    else await api.answerContextQuestion(question.question, answer, csrfToken.value);
+    if (kind === "step") await api.answerStepQuestion(question.question, answer, expectedVersion, csrfToken.value);
+    else await api.answerContextQuestion(question.question, answer, expectedVersion, csrfToken.value);
     onSuccess();
   }, "Question answered. The original question and answer are preserved together.");
 }
 
-async function reviseQuestionAnswer({ kind, question, answer, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; onSuccess: () => void }) {
+async function reviseQuestionAnswer({ kind, question, answer, expectedVersion, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }) {
   await runAction(`revise-${question.question}`, async () => {
-    if (kind === "step") await api.reviseStepQuestionAnswer(question.question, answer, csrfToken.value);
-    else await api.reviseContextQuestionAnswer(question.question, answer, csrfToken.value);
+    if (kind === "step") await api.reviseStepQuestionAnswer(question.question, answer, expectedVersion, csrfToken.value);
+    else await api.reviseContextQuestionAnswer(question.question, answer, expectedVersion, csrfToken.value);
     onSuccess();
   }, "Answer updated. The original question and answer ownership are preserved.");
 }
@@ -481,8 +512,8 @@ onUnmounted(() => {
     <section v-else-if="!hasWorkspace" class="loading-screen onboarding-screen">
       <span class="brand-mark" aria-hidden="true">R</span><h1>Choose a club</h1><p>Create a new club or enter an invitation code.</p>
       <div v-if="workspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in workspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
-      <form class="onboarding-card" @submit.prevent="createClub"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Owner</button></form>
-      <form class="onboarding-card" @submit.prevent="acceptInvitation"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">Join club</button></form>
+      <form class="onboarding-card" @submit.prevent="createClub()"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Owner</button></form>
+      <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">Join club</button></form>
       <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
     </section>
     <div v-else class="workspace-layout">
@@ -507,10 +538,10 @@ onUnmounted(() => {
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
           <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
-          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" />
+          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @browse-context="navigate({ section: 'context' })" />
           <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
-          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" />
         </div>
       </section>
     </div>

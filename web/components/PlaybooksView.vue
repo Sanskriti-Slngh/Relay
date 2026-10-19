@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import type { ContextNote, PendingReview, Procedure, Step, StepQuestion } from "../api.ts";
+import VersionConflict from "./VersionConflict.vue";
 
 const props = defineProps<{ procedures: Procedure[]; contexts: ContextNote[]; stepQuestions: StepQuestion[]; actionBusy: string; canEdit: boolean; canEditContext: boolean; focusProcedure?: string; focusContextStep?: string; startCreate?: boolean; review?: PendingReview }>();
 const emit = defineEmits<{
   create: [payload: { title: string; onSuccess: () => void }];
-  addStep: [payload: { procedure: Procedure; text: string; onSuccess: () => void }];
-  rename: [payload: { procedure: Procedure; title: string; onSuccess: () => void }];
-  editStep: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
+  addStep: [payload: { procedure: Procedure; text: string; expectedVersion: number; onSuccess: () => void }];
+  rename: [payload: { procedure: Procedure; title: string; expectedVersion: number; onSuccess: () => void }];
+  editStep: [payload: { procedure: Procedure; step: Step; text: string; expectedVersion: number; onSuccess: () => void }];
   moveStep: [payload: { procedure: Procedure; step: Step; position: number }];
   removeStep: [payload: { procedure: Procedure; step: Step }];
   askQuestion: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
@@ -26,6 +27,9 @@ const showAddStep = ref(false);
 const stepDraft = reactive<Record<string, string>>({});
 const titleDraft = reactive<Record<string, string>>({});
 const stepEditDraft = reactive<Record<string, string>>({});
+const titleEditVersion = reactive<Record<string, number>>({});
+const stepEditVersion = reactive<Record<string, number>>({});
+const addStepVersion = reactive<Record<string, number>>({});
 const questionDraft = reactive<Record<string, string>>({});
 const questionComposer = reactive<Record<string, boolean>>({});
 const contextComposer = reactive<Record<string, boolean>>({});
@@ -89,19 +93,25 @@ function createProcedure() {
 }
 function addStep(procedure: Procedure) {
   const text = (stepDraft[procedure.procedure] ?? "").trim(); if (!text) return;
-  emit("addStep", { procedure, text, onSuccess: () => { stepDraft[procedure.procedure] = ""; showAddStep.value = false; } });
+  emit("addStep", { procedure, text, expectedVersion: addStepVersion[procedure.procedure] ?? procedure.version, onSuccess: () => { stepDraft[procedure.procedure] = ""; delete addStepVersion[procedure.procedure]; showAddStep.value = false; } });
 }
-function beginRename(procedure: Procedure) { titleDraft[procedure.procedure] = procedure.title; editingTitle.value = procedure.procedure; }
+function beginRename(procedure: Procedure) { titleDraft[procedure.procedure] = procedure.title; titleEditVersion[procedure.procedure] = procedure.version; editingTitle.value = procedure.procedure; }
 function renameProcedure(procedure: Procedure) {
   const title = (titleDraft[procedure.procedure] ?? "").trim(); if (!title) return;
-  emit("rename", { procedure, title, onSuccess: () => { editingTitle.value = ""; } });
+  emit("rename", { procedure, title, expectedVersion: titleEditVersion[procedure.procedure] ?? procedure.version, onSuccess: () => { delete titleEditVersion[procedure.procedure]; editingTitle.value = ""; } });
 }
-function beginEditStep(step: Step) { stepEditDraft[step.step] = step.text; editingStep.value = step.step; }
+function useSavedTitle(procedure: Procedure) { delete titleDraft[procedure.procedure]; delete titleEditVersion[procedure.procedure]; editingTitle.value = ""; }
+function saveMyTitle(procedure: Procedure) { titleEditVersion[procedure.procedure] = procedure.version; renameProcedure(procedure); }
+function beginEditStep(step: Step) { stepEditDraft[step.step] = step.text; stepEditVersion[step.step] = step.version; editingStep.value = step.step; }
 function editStep(procedure: Procedure, step: Step) {
   const text = (stepEditDraft[step.step] ?? "").trim(); if (!text) return;
-  emit("editStep", { procedure, step, text, onSuccess: () => { delete stepEditDraft[step.step]; editingStep.value = ""; } });
+  emit("editStep", { procedure, step, text, expectedVersion: stepEditVersion[step.step] ?? step.version, onSuccess: () => { delete stepEditDraft[step.step]; delete stepEditVersion[step.step]; editingStep.value = ""; } });
 }
-function cancelEditStep(step: Step) { delete stepEditDraft[step.step]; editingStep.value = ""; }
+function cancelEditStep(step: Step) { delete stepEditDraft[step.step]; delete stepEditVersion[step.step]; editingStep.value = ""; }
+function saveMyStep(procedure: Procedure, step: Step) { stepEditVersion[step.step] = step.version; editStep(procedure, step); }
+function beginAddStep(procedure: Procedure) { addStepVersion[procedure.procedure] = procedure.version; showAddStep.value = true; }
+function discardAddedStep(procedure: Procedure) { delete stepDraft[procedure.procedure]; delete addStepVersion[procedure.procedure]; showAddStep.value = false; }
+function retryAddedStep(procedure: Procedure) { addStepVersion[procedure.procedure] = procedure.version; addStep(procedure); }
 function askQuestion(procedure: Procedure, step: Step) {
   const text = (questionDraft[step.step] ?? "").trim(); if (!text) return;
   emit("askQuestion", { procedure, step, text, onSuccess: () => { questionDraft[step.step] = ""; questionComposer[step.step] = false; } });
@@ -158,6 +168,7 @@ function recordStepContext(procedure: Procedure, step: Step) {
         <div class="document-title">
           <form v-if="canEdit && editingTitle === selectedProcedure.procedure" class="title-edit-form" @submit.prevent="renameProcedure(selectedProcedure)">
             <label class="sr-only" :for="`rename-${selectedProcedure.procedure}`">Rename {{ selectedProcedure.title }}</label><input :id="`rename-${selectedProcedure.procedure}`" v-model="titleDraft[selectedProcedure.procedure]" required maxlength="160"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !titleDraft[selectedProcedure.procedure]?.trim()">Save</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="editingTitle = ''">Cancel</button>
+            <VersionConflict v-if="titleEditVersion[selectedProcedure.procedure] !== selectedProcedure.version" subject="playbook name" saved-label="Current saved name" :saved-value="selectedProcedure.title" draft-label="Your unsaved name" :draft-value="titleDraft[selectedProcedure.procedure] ?? ''" :busy="!!actionBusy" @use-saved="useSavedTitle(selectedProcedure)" @save-mine="saveMyTitle(selectedProcedure)" />
           </form>
           <template v-else><h2>{{ selectedProcedure.title }}</h2><p>{{ selectedProcedure.steps.length }} {{ selectedProcedure.steps.length === 1 ? "step" : "steps" }}</p></template>
         </div>
@@ -170,6 +181,7 @@ function recordStepContext(procedure: Procedure, step: Step) {
           <div class="step-body">
             <form v-if="canEdit && editingStep === step.step" class="step-edit-form" @submit.prevent="editStep(selectedProcedure, step)">
               <label class="sr-only" :for="`edit-${step.step}`">Edit step {{ step.position }}</label><textarea :id="`edit-${step.step}`" v-model="stepEditDraft[step.step]" required maxlength="500" rows="3" autofocus></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !stepEditDraft[step.step]?.trim()">{{ actionBusy === `edit-${step.step}` ? "Saving…" : "Save" }}</button><button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="cancelEditStep(step)">Cancel</button></div>
+              <VersionConflict v-if="stepEditVersion[step.step] !== step.version" subject="step" saved-label="Current saved instruction" :saved-value="step.text" draft-label="Your unsaved instruction" :draft-value="stepEditDraft[step.step] ?? ''" :busy="!!actionBusy" @use-saved="cancelEditStep(step)" @save-mine="saveMyStep(selectedProcedure, step)" />
             </form>
             <template v-else>
               <p class="step-text">{{ step.text }}</p>
@@ -199,8 +211,8 @@ function recordStepContext(procedure: Procedure, step: Step) {
       </ol>
 
       <div v-if="canEdit" class="add-step-control">
-        <button v-if="!showAddStep" class="text-button" type="button" @click="showAddStep = true">+ Add step</button>
-        <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div></form>
+        <button v-if="!showAddStep" class="text-button" type="button" @click="beginAddStep(selectedProcedure)">+ Add step</button>
+        <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="showAddStep = false">Cancel</button></div><VersionConflict v-if="addStepVersion[selectedProcedure.procedure] !== selectedProcedure.version" subject="playbook structure" saved-label="Current saved steps" :saved-value="`${selectedProcedure.steps.length} ${selectedProcedure.steps.length === 1 ? 'step' : 'steps'}, shown above`" draft-label="Your unsaved new step" :draft-value="stepDraft[selectedProcedure.procedure] ?? ''" use-saved-label="Keep current steps" save-mine-label="Add my step" save-consequence="Adding your step keeps the current steps and appends your draft only if the structure has not changed again." :busy="!!actionBusy" @use-saved="discardAddedStep(selectedProcedure)" @save-mine="retryAddedStep(selectedProcedure)" /></form>
       </div>
 
       <details v-if="notesForProcedure(selectedProcedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure).length }}</span></summary><div class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure)" :key="note.context">{{ note.text }}</blockquote></div></details>

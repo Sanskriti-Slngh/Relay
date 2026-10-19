@@ -123,22 +123,24 @@ function fullTimestamp(value: string): string {
       <section v-if="canEdit" class="recent-activity" aria-labelledby="recent-activity-title">
         <header class="recent-activity-header"><h2 id="recent-activity-title">Recent activity</h2></header>
         <div v-if="activity.length" class="activity-list">
-          <component
-            :is="activityProcedureTarget(event) ? 'button' : 'div'"
+          <details
             v-for="event in activity"
             :key="event.event"
             class="activity-row"
-            :type="activityProcedureTarget(event) ? 'button' : undefined"
-            :title="activityDescription(event)"
-            @click="activityProcedureTarget(event) && emit('navigate', { section: 'procedures', procedure: activityProcedureTarget(event) })"
           >
-            <span class="activity-marker" aria-hidden="true"></span>
-            <span class="activity-copy">
-              <strong>{{ activityDescription(event) }}</strong>
-              <time :datetime="event.occurredAt" :title="fullTimestamp(event.occurredAt)">{{ formatActivityRelativeTime(event.occurredAt) }}</time>
-            </span>
-            <span v-if="activityProcedureTarget(event)" class="activity-arrow" aria-hidden="true">→</span>
-          </component>
+            <summary :title="activityDescription(event)">
+              <span class="activity-marker" aria-hidden="true"></span>
+              <span class="activity-copy">
+                <strong>{{ activityDescription(event) }}</strong>
+                <time :datetime="event.occurredAt" :title="fullTimestamp(event.occurredAt)">{{ formatActivityRelativeTime(event.occurredAt) }}</time>
+              </span>
+              <span class="activity-disclosure" aria-hidden="true"><span class="activity-more">More</span><span class="activity-less">Less</span></span>
+            </summary>
+            <div class="activity-detail">
+              <p>{{ activityDescription(event) }}</p>
+              <button v-if="activityProcedureTarget(event)" class="text-button" type="button" @click="emit('navigate', { section: 'procedures', procedure: activityProcedureTarget(event) })">Open playbook</button>
+            </div>
+          </details>
         </div>
         <p v-else class="activity-empty">No activity yet</p>
       </section>

@@ -11,6 +11,7 @@ type ProcedureDocument = Document & {
   title: string;
   status: ProcedureStatus;
   stepRevision: number;
+  version: number;
 };
 
 type StepDocument = Document & {
@@ -19,6 +20,7 @@ type StepDocument = Document & {
   text: string;
   position?: number;
   status: StepStatus;
+  version: number;
 };
 
 type ProcedureStorage = {
@@ -34,6 +36,7 @@ export class ProcedureNotActive extends Error {}
 export class StepNotFound extends Error {}
 export class StepNotActive extends Error {}
 export class InvalidPosition extends Error {}
+export class VersionConflict extends Error {}
 
 export class StepOrderIntegrityError extends Error {}
 
@@ -45,6 +48,8 @@ async function ensureStorage(storage: ProcedureStorage): Promise<void> {
     await storage.db.command({ ping: 1 });
   }
   storage.indexesReady ??= Promise.all([
+    storage.procedures.updateMany({ version: { $exists: false } }, { $set: { version: 1 } }),
+    storage.steps.updateMany({ version: { $exists: false } }, { $set: { version: 1 } }),
     storage.steps.createIndex(
       { procedure: 1, position: 1 },
       {
@@ -77,20 +82,32 @@ async function requireActiveProcedure(
   storage: ProcedureStorage,
   procedure: string,
   session: OptionalMongoSession,
+  expectedVersion?: number,
 ): Promise<void> {
   const result = await storage.procedures.updateOne(
-    { _id: procedure, status: "ACTIVE" },
-    { $inc: { stepRevision: 1 } },
+    { _id: procedure, status: "ACTIVE", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+    { $inc: { stepRevision: 1, version: 1 } },
     { session },
   );
   if (result.matchedCount === 1) return;
 
   const found = await storage.procedures.findOne(
     { _id: procedure },
-    { session, projection: { _id: 1 } },
+    { session, projection: { _id: 1, status: 1, version: 1 } },
   );
   if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
-  throw new ProcedureNotActive("The Procedure is retired.");
+  if (found.status !== "ACTIVE") throw new ProcedureNotActive("The Procedure is retired.");
+  throw new VersionConflict("The Procedure changed after it was loaded.");
+}
+
+async function ensureActiveProcedure(
+  storage: ProcedureStorage,
+  procedure: string,
+  session: OptionalMongoSession,
+): Promise<void> {
+  const found = await storage.procedures.findOne({ _id: procedure }, { session, projection: { status: 1 } });
+  if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
+  if (found.status !== "ACTIVE") throw new ProcedureNotActive("The Procedure is retired.");
 }
 
 async function requireActiveStepsAreContiguous(
@@ -195,6 +212,7 @@ export class ProcedureMaintainingConcept {
       title,
       status: "ACTIVE",
       stepRevision: 0,
+      version: 1,
     });
     return { procedure };
   }
@@ -202,13 +220,15 @@ export class ProcedureMaintainingConcept {
   async addStep({
     procedure,
     text,
+    expectedVersion,
   }: {
     procedure: string;
     text: string;
+    expectedVersion?: number;
   }): Promise<{ step: string }> {
     const step = crypto.randomUUID();
     await inTransaction(this.storage, async (session) => {
-      await requireActiveProcedure(this.storage, procedure, session);
+      await requireActiveProcedure(this.storage, procedure, session, expectedVersion);
       const activeSteps = await requireActiveStepsAreContiguous(this.storage, procedure, session);
       await this.storage.steps.insertOne(
         {
@@ -217,6 +237,7 @@ export class ProcedureMaintainingConcept {
           text,
           position: activeSteps.length + 1,
           status: "ACTIVE",
+          version: 1,
         },
         { session },
       );
@@ -224,20 +245,20 @@ export class ProcedureMaintainingConcept {
     return { step };
   }
 
-  async editStep({ step, text }: { step: string; text: string }) {
+  async editStep({ step, text, expectedVersion }: { step: string; text: string; expectedVersion?: number }) {
     return inTransaction(this.storage, async (session) => {
       const found = await this.storage.steps.findOne(stepFilter(step), { session });
       if (found === null) throw new StepNotFound("There is no such Step.");
       if (found.status === "REMOVED") throw new StepNotActive("The Step has been removed.");
 
-      await requireActiveProcedure(this.storage, found.procedure, session);
+      await ensureActiveProcedure(this.storage, found.procedure, session);
       const result = await this.storage.steps.updateOne(
-        activeStepFilter(step),
-        { $set: { text } },
+        { ...activeStepFilter(step), ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { $set: { text }, $inc: { version: 1 } },
         { session },
       );
       if (result.matchedCount !== 1) {
-        throw new StepOrderIntegrityError(`Active Step ${step} changed during its edit.`);
+        throw new VersionConflict(`Step ${step} changed during its edit.`);
       }
       return {};
     });
@@ -246,16 +267,18 @@ export class ProcedureMaintainingConcept {
   async moveStep({
     step,
     position,
+    expectedVersion,
   }: {
     step: string;
     position: number;
+    expectedVersion?: number;
   }) {
     return inTransaction(this.storage, async (session) => {
       const found = await this.storage.steps.findOne(stepFilter(step), { session });
       if (found === null) throw new StepNotFound("There is no such Step.");
       if (found.status === "REMOVED") throw new StepNotActive("The Step has been removed.");
 
-      await requireActiveProcedure(this.storage, found.procedure, session);
+      await ensureActiveProcedure(this.storage, found.procedure, session);
       const activeSteps = await requireActiveStepsAreContiguous(
         this.storage,
         found.procedure,
@@ -271,6 +294,8 @@ export class ProcedureMaintainingConcept {
         throw new StepOrderIntegrityError(`Active Step ${step} disappeared during reordering.`);
       }
       const [movedStep] = movedSteps.splice(currentIndex, 1);
+      if (currentIndex === position - 1) return {};
+      await requireActiveProcedure(this.storage, found.procedure, session, expectedVersion);
       movedSteps.splice(position - 1, 0, movedStep);
 
       await moveAllToTemporaryPositions(this.storage, activeSteps, activeSteps.length, session);
@@ -279,13 +304,13 @@ export class ProcedureMaintainingConcept {
     });
   }
 
-  async removeStep({ step }: { step: string }) {
+  async removeStep({ step, expectedVersion }: { step: string; expectedVersion?: number }) {
     return inTransaction(this.storage, async (session) => {
       const found = await this.storage.steps.findOne(stepFilter(step), { session });
       if (found === null) throw new StepNotFound("There is no such Step.");
       if (found.status === "REMOVED") throw new StepNotActive("The Step has been removed.");
 
-      await requireActiveProcedure(this.storage, found.procedure, session);
+      await requireActiveProcedure(this.storage, found.procedure, session, expectedVersion);
       const activeSteps = await requireActiveStepsAreContiguous(
         this.storage,
         found.procedure,
@@ -311,42 +336,46 @@ export class ProcedureMaintainingConcept {
   async rename({
     procedure,
     title,
+    expectedVersion,
   }: {
     procedure: string;
     title: string;
+    expectedVersion?: number;
   }) {
     return inTransaction(this.storage, async (session) => {
       const result = await this.storage.procedures.updateOne(
-        { _id: procedure, status: "ACTIVE" },
-        { $set: { title } },
+        { _id: procedure, status: "ACTIVE", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { $set: { title }, $inc: { version: 1 } },
         { session },
       );
       if (result.matchedCount === 1) return {};
 
       const found = await this.storage.procedures.findOne(
         { _id: procedure },
-        { session, projection: { _id: 1 } },
+        { session, projection: { _id: 1, status: 1, version: 1 } },
       );
       if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
-      throw new ProcedureNotActive("The Procedure is retired.");
+      if (found.status !== "ACTIVE") throw new ProcedureNotActive("The Procedure is retired.");
+      throw new VersionConflict("The Procedure changed after it was loaded.");
     });
   }
 
-  async retire({ procedure }: { procedure: string }) {
+  async retire({ procedure, expectedVersion }: { procedure: string; expectedVersion?: number }) {
     return inTransaction(this.storage, async (session) => {
       const result = await this.storage.procedures.updateOne(
-        { _id: procedure, status: "ACTIVE" },
-        { $set: { status: "RETIRED" } },
+        { _id: procedure, status: "ACTIVE", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { $set: { status: "RETIRED" }, $inc: { version: 1 } },
         { session },
       );
       if (result.matchedCount === 1) return {};
 
       const found = await this.storage.procedures.findOne(
         { _id: procedure },
-        { session, projection: { _id: 1 } },
+        { session, projection: { _id: 1, status: 1, version: 1 } },
       );
       if (found === null) throw new ProcedureNotFound("There is no such Procedure.");
-      throw new ProcedureNotActive("The Procedure is already retired.");
+      if (found.status !== "ACTIVE") throw new ProcedureNotActive("The Procedure is already retired.");
+      throw new VersionConflict("The Procedure changed after it was loaded.");
     });
   }
 
@@ -405,5 +434,17 @@ export class ProcedureMaintainingConcept {
     return found === null
       ? []
       : [{ procedure: found.procedure, text: found.text, status: found.status }];
+  }
+
+  async _getVersion({ procedure }: { procedure: string }): Promise<{ version: number }[]> {
+    await ensureStorage(this.storage);
+    const found = await this.storage.procedures.findOne({ _id: procedure }, { projection: { version: 1 } });
+    return found === null ? [] : [{ version: found.version }];
+  }
+
+  async _getStepVersion({ step }: { step: string }): Promise<{ version: number }[]> {
+    await ensureStorage(this.storage);
+    const found = await this.storage.steps.findOne({ _id: step }, { projection: { version: 1 } });
+    return found === null ? [] : [{ version: found.version }];
   }
 }

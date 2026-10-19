@@ -13,6 +13,7 @@ type ContextNoteDocument = Document & {
   _id: string;
   scope: string;
   text: string;
+  version: number;
 };
 
 type AttachmentDocument = Document & {
@@ -43,6 +44,7 @@ export class AttachmentNotFound extends Error {}
 export class AttachmentAlreadyExists extends Error {}
 export class ChangeNotDifferent extends Error {}
 export class ContextTrackingIntegrityError extends Error {}
+export class VersionConflict extends Error {}
 
 async function ensureConnected(storage: ContextTrackingStorage): Promise<void> {
   if (storage.db === db && storage.mongoClient === mongoClient) {
@@ -56,6 +58,7 @@ async function ensureConnected(storage: ContextTrackingStorage): Promise<void> {
 async function ensureStorage(storage: ContextTrackingStorage): Promise<void> {
   await ensureConnected(storage);
   storage.indexesReady ??= Promise.all([
+    storage.contextNotes.updateMany({ version: { $exists: false } }, { $set: { version: 1 } }),
     storage.contextNotes.createIndex(
       { scope: 1, _id: 1 },
       { name: "context_scope_identity" },
@@ -120,7 +123,7 @@ export class ContextTrackingConcept {
   }): Promise<{ context: string }> {
     await ensureStorage(this.storage);
     const context = crypto.randomUUID();
-    await this.storage.contextNotes.insertOne({ _id: context, scope, text });
+    await this.storage.contextNotes.insertOne({ _id: context, scope, text, version: 1 });
     return { context };
   }
 
@@ -190,23 +193,23 @@ export class ContextTrackingConcept {
   async correct({
     context,
     text,
+    expectedVersion,
   }: {
     context: string;
     text: string;
+    expectedVersion?: number;
   }): Promise<Record<string, never>> {
     return inTransaction(this.storage, async (session) => {
       const current = await this.storage.contextNotes.findOne({ _id: context }, { session });
       if (current === null) throw new ContextNotFound("There is no such ContextNote.");
 
       const result = await this.storage.contextNotes.updateOne(
-        { _id: context, text: current.text },
-        { $set: { text } },
+        { _id: context, text: current.text, ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { $set: { text }, $inc: { version: 1 } },
         { session },
       );
       if (result.matchedCount !== 1) {
-        throw new ContextTrackingIntegrityError(
-          `ContextNote ${context} changed during its correction.`,
-        );
+        throw new VersionConflict(`ContextNote ${context} changed during its correction.`);
       }
       return {};
     });
@@ -215,9 +218,11 @@ export class ContextTrackingConcept {
   async change({
     context,
     text,
+    expectedVersion,
   }: {
     context: string;
     text: string;
+    expectedVersion?: number;
   }): Promise<{ change: string }> {
     return inTransaction(this.storage, async (session) => {
       const current = await this.storage.contextNotes.findOne({ _id: context }, { session });
@@ -227,14 +232,12 @@ export class ContextTrackingConcept {
       }
 
       const result = await this.storage.contextNotes.updateOne(
-        { _id: context, text: current.text },
-        { $set: { text } },
+        { _id: context, text: current.text, ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { $set: { text }, $inc: { version: 1 } },
         { session },
       );
       if (result.matchedCount !== 1) {
-        throw new ContextTrackingIntegrityError(
-          `ContextNote ${context} changed while recording its Change.`,
-        );
+        throw new VersionConflict(`ContextNote ${context} changed while recording its Change.`);
       }
 
       const change = crypto.randomUUID();
@@ -260,6 +263,12 @@ export class ContextTrackingConcept {
     await ensureConnected(this.storage);
     const found = await this.storage.contextNotes.findOne({ _id: context });
     return found === null ? [] : [{ scope: found.scope, text: found.text }];
+  }
+
+  async _getVersion({ context }: { context: string }): Promise<{ version: number }[]> {
+    await ensureStorage(this.storage);
+    const found = await this.storage.contextNotes.findOne({ _id: context }, { projection: { version: 1 } });
+    return found === null ? [] : [{ version: found.version }];
   }
 
   async _attachments({

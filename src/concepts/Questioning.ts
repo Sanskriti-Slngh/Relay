@@ -10,6 +10,7 @@ type QuestionDocument = Document & {
   status: QuestionStatus;
   answer?: string;
   answerer?: string;
+  version: number;
 };
 
 type QuestioningStorage = {
@@ -22,6 +23,7 @@ type QuestioningStorage = {
 export class QuestionNotFound extends Error {}
 export class QuestionNotOpen extends Error {}
 export class QuestionAnswerNotEditable extends Error {}
+export class VersionConflict extends Error {}
 
 async function ensureConnected(storage: QuestioningStorage): Promise<void> {
   if (storage.db === db && storage.mongoClient === mongoClient) {
@@ -35,6 +37,7 @@ async function ensureConnected(storage: QuestioningStorage): Promise<void> {
 async function ensureStorage(storage: QuestioningStorage): Promise<void> {
   await ensureConnected(storage);
   storage.indexesReady ??= Promise.all([
+    storage.questions.updateMany({ version: { $exists: false } }, { $set: { version: 1 } }),
     storage.questions.createIndex(
       { subject: 1, _id: 1 },
       { name: "questions_subject_identity" },
@@ -89,6 +92,7 @@ export class QuestioningConcept {
       subject,
       text,
       status: "OPEN",
+      version: 1,
     });
     return { question };
   }
@@ -97,47 +101,55 @@ export class QuestioningConcept {
     question,
     answer,
     answerer,
+    expectedVersion,
   }: {
     question: string;
     answer: string;
     answerer: string;
+    expectedVersion?: number;
   }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.questions.updateOne(
-      { _id: question, status: "OPEN" },
-      { $set: { status: "ANSWERED", answer, answerer } },
+      { _id: question, status: "OPEN", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { status: "ANSWERED", answer, answerer }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
     const found = await this.storage.questions.findOne(
       { _id: question },
-      { projection: { _id: 1 } },
+      { projection: { _id: 1, status: 1, version: 1 } },
     );
     if (found === null) throw new QuestionNotFound("There is no such Question.");
-    throw new QuestionNotOpen("Only an OPEN Question can be answered.");
+    if (found.status !== "OPEN") throw new QuestionNotOpen("Only an OPEN Question can be answered.");
+    throw new VersionConflict("The Question changed after it was loaded.");
   }
 
   async reviseAnswer({
     question,
     answer,
     answerer,
+    expectedVersion,
   }: {
     question: string;
     answer: string;
     answerer: string;
+    expectedVersion?: number;
   }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.questions.updateOne(
-      { _id: question, status: "ANSWERED", answerer },
-      { $set: { answer } },
+      { _id: question, status: "ANSWERED", answerer, ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { answer }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
     const found = await this.storage.questions.findOne(
       { _id: question },
-      { projection: { _id: 1 } },
+      { projection: { _id: 1, status: 1, answerer: 1, version: 1 } },
     );
     if (found === null) throw new QuestionNotFound("There is no such Question.");
+    if (found.status === "ANSWERED" && found.answerer === answerer) {
+      throw new VersionConflict("The Question answer changed after it was loaded.");
+    }
     throw new QuestionAnswerNotEditable(
       "Only the original answerer can revise an ANSWERED Question.",
     );
@@ -203,5 +215,11 @@ export class QuestioningConcept {
       ...("answer" in row ? { answer: row.answer } : {}),
       ...("answerer" in row ? { answerer: row.answerer } : {}),
     }];
+  }
+
+  async _getVersion({ question }: { question: string }): Promise<{ version: number }[]> {
+    await ensureStorage(this.storage);
+    const found = await this.storage.questions.findOne({ _id: question }, { projection: { version: 1 } });
+    return found === null ? [] : [{ version: found.version }];
   }
 }

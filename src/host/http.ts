@@ -115,6 +115,19 @@ function injectTrustedIdentity(
   body: Record<string, unknown>,
   config: HostConfig,
 ): Request {
+  const legacyVersionedPaths = new Set([
+    "/api/workspaces/procedures/rename", "/api/workspaces/procedures/archive",
+    "/api/workspaces/procedures/steps/add", "/api/workspaces/procedures/steps/edit",
+    "/api/workspaces/procedures/steps/move", "/api/workspaces/procedures/steps/remove",
+    "/api/workspaces/context/correct", "/api/workspaces/context/change",
+    "/api/workspaces/questions/steps/answer", "/api/workspaces/questions/context/answer",
+    "/api/workspaces/questions/steps/revise", "/api/workspaces/questions/context/revise",
+    "/api/workspaces/reviews/confirm", "/api/workspaces/reviews/require-changes",
+    "/api/workspaces/reviews/resolve", "/api/workspaces/reviews/cancel",
+  ]);
+  const expectedVersion = legacyVersionedPaths.has(new URL(request.url).pathname) && body.expectedVersion === undefined
+    ? { expectedVersion: 0 }
+    : {};
   const headers = new Headers(request.headers);
   for (const name of ["authorization", "cookie", "content-length", "x-relay-csrf"]) {
     headers.delete(name);
@@ -125,6 +138,7 @@ function injectTrustedIdentity(
     headers,
     body: JSON.stringify({
       ...body,
+      ...expectedVersion,
       user: config.officerUserId,
       workspace: config.clubWorkspaceId,
     }),
@@ -170,6 +184,7 @@ export function createRelayHttpHandler(
       QUESTION_NOT_OPEN: "CONFLICT",
       QUESTION_ANSWER_NOT_EDITABLE: "FORBIDDEN",
       INVALID_POSITION: "INVALID_REQUEST",
+      VERSION_CONFLICT: "CONFLICT",
     },
   });
   const handler = createHttpHandler({ application, gateway, policy });

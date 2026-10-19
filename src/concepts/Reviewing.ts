@@ -14,6 +14,7 @@ type ReviewDocument = Document & {
   item: string;
   causes: string[];
   status: ReviewStatus;
+  version: number;
 };
 
 type ReviewingStorage = {
@@ -35,6 +36,7 @@ export class ResolveReviewNotFound extends Error {}
 export class ReviewNotAwaitingChanges extends Error {}
 export class CancelReviewNotFound extends Error {}
 export class CancelReviewFinished extends Error {}
+export class VersionConflict extends Error {}
 
 async function ensureConnected(storage: ReviewingStorage): Promise<void> {
   if (storage.db === db && storage.mongoClient === mongoClient) {
@@ -48,6 +50,7 @@ async function ensureConnected(storage: ReviewingStorage): Promise<void> {
 async function ensureStorage(storage: ReviewingStorage): Promise<void> {
   await ensureConnected(storage);
   storage.indexesReady ??= Promise.all([
+    storage.reviews.updateMany({ version: { $exists: false } }, { $set: { version: 1 } }),
     storage.reviews.createIndex(
       { item: 1 },
       {
@@ -97,6 +100,7 @@ export class ReviewingConcept {
         item,
         causes: [cause],
         status: "PENDING",
+        version: 1,
       });
     } catch (error) {
       if (isUnfinishedReviewUniquenessViolation(error)) {
@@ -123,7 +127,7 @@ export class ReviewingConcept {
         status: { $in: ["PENDING", "CHANGES_REQUIRED"] },
         causes: { $ne: cause },
       },
-      { $addToSet: { causes: cause } },
+      { $addToSet: { causes: cause }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
@@ -137,63 +141,71 @@ export class ReviewingConcept {
     throw new CauseAlreadyPresent("That cause is already associated with the Review.");
   }
 
-  async confirm({ review }: { review: string }): Promise<Record<string, never>> {
+  async confirm({ review, expectedVersion }: { review: string; expectedVersion?: number }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.reviews.updateOne(
-      { _id: review, status: "PENDING" },
-      { $set: { status: "COMPLETE" } },
+      { _id: review, status: "PENDING", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { status: "COMPLETE" }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
-    if (!(await this.storage.reviews.findOne({ _id: review }, { projection: { _id: 1 } }))) {
+    const current = await this.storage.reviews.findOne({ _id: review }, { projection: { status: 1, version: 1 } });
+    if (!current) {
       throw new ConfirmReviewNotFound("There is no such Review.");
     }
+    if (current.status === "PENDING") throw new VersionConflict("The Review changed after it was loaded.");
     throw new ReviewNotPendingForConfirmation("Only a PENDING Review can be confirmed.");
   }
 
-  async requireChanges({ review }: { review: string }): Promise<Record<string, never>> {
+  async requireChanges({ review, expectedVersion }: { review: string; expectedVersion?: number }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.reviews.updateOne(
-      { _id: review, status: "PENDING" },
-      { $set: { status: "CHANGES_REQUIRED" } },
+      { _id: review, status: "PENDING", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { status: "CHANGES_REQUIRED" }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
-    if (!(await this.storage.reviews.findOne({ _id: review }, { projection: { _id: 1 } }))) {
+    const current = await this.storage.reviews.findOne({ _id: review }, { projection: { status: 1, version: 1 } });
+    if (!current) {
       throw new RequireChangesReviewNotFound("There is no such Review.");
     }
+    if (current.status === "PENDING") throw new VersionConflict("The Review changed after it was loaded.");
     throw new ReviewNotPendingForChanges(
       "Only a PENDING Review can be marked as requiring changes.",
     );
   }
 
-  async resolve({ review }: { review: string }): Promise<Record<string, never>> {
+  async resolve({ review, expectedVersion }: { review: string; expectedVersion?: number }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.reviews.updateOne(
-      { _id: review, status: "CHANGES_REQUIRED" },
-      { $set: { status: "COMPLETE" } },
+      { _id: review, status: "CHANGES_REQUIRED", ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { status: "COMPLETE" }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
-    if (!(await this.storage.reviews.findOne({ _id: review }, { projection: { _id: 1 } }))) {
+    const current = await this.storage.reviews.findOne({ _id: review }, { projection: { status: 1, version: 1 } });
+    if (!current) {
       throw new ResolveReviewNotFound("There is no such Review.");
     }
+    if (current.status === "CHANGES_REQUIRED") throw new VersionConflict("The Review changed after it was loaded.");
     throw new ReviewNotAwaitingChanges(
       "Only a Review requiring changes can be resolved.",
     );
   }
 
-  async cancel({ review }: { review: string }): Promise<Record<string, never>> {
+  async cancel({ review, expectedVersion }: { review: string; expectedVersion?: number }): Promise<Record<string, never>> {
     await ensureStorage(this.storage);
     const result = await this.storage.reviews.updateOne(
-      { _id: review, status: { $in: ["PENDING", "CHANGES_REQUIRED"] } },
-      { $set: { status: "CANCELLED" } },
+      { _id: review, status: { $in: ["PENDING", "CHANGES_REQUIRED"] }, ...(!expectedVersion ? {} : { version: expectedVersion }) },
+      { $set: { status: "CANCELLED" }, $inc: { version: 1 } },
     );
     if (result.matchedCount === 1) return {};
 
-    if (!(await this.storage.reviews.findOne({ _id: review }, { projection: { _id: 1 } }))) {
+    const current = await this.storage.reviews.findOne({ _id: review }, { projection: { status: 1, version: 1 } });
+    if (!current) {
       throw new CancelReviewNotFound("There is no such Review.");
     }
+    if (current.status === "PENDING" || current.status === "CHANGES_REQUIRED") throw new VersionConflict("The Review changed after it was loaded.");
     throw new CancelReviewFinished("Only an unfinished Review can be cancelled.");
   }
 
@@ -226,6 +238,12 @@ export class ReviewingConcept {
     await ensureConnected(this.storage);
     const found = await this.storage.reviews.findOne({ _id: review });
     return found === null ? [] : [{ item: found.item, status: found.status }];
+  }
+
+  async _getVersion({ review }: { review: string }): Promise<{ version: number }[]> {
+    await ensureStorage(this.storage);
+    const found = await this.storage.reviews.findOne({ _id: review }, { projection: { version: 1 } });
+    return found === null ? [] : [{ version: found.version }];
   }
 
   async _causes({ review }: { review: string }): Promise<{ cause: string }[]> {
