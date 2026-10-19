@@ -8,187 +8,187 @@ $ bun test
 bun test v1.4.0 (1381054db)
 
 tests/mongoAtomic.test.ts:
-(pass) MongoDB topology-aware atomic operations > uses a real transaction when connected to a replica set [0.43ms]
-(pass) MongoDB topology-aware atomic operations > serializes operations without sessions on standalone MongoDB [0.25ms]
+(pass) MongoDB topology-aware atomic operations > uses a real transaction when connected to a replica set [0.32ms]
+(pass) MongoDB topology-aware atomic operations > serializes operations without sessions on standalone MongoDB [0.21ms]
 
 tests/host/main-routing.test.ts:
-(pass) Relay top-level HTTP routing > sends session logout and all other host APIs to the authenticated handler [0.09ms]
-(pass) Relay top-level HTTP routing > keeps frontend assets and unrelated lookalike paths out of the host API [0.03ms]
+(pass) Relay top-level HTTP routing > sends session logout and all other host APIs to the authenticated handler [0.10ms]
+(pass) Relay top-level HTTP routing > keeps frontend assets and unrelated lookalike paths out of the host API [0.04ms]
 
 tests/host/backend.test.ts:
-(pass) Relay trusted HTTP backend > uses an isolated database and rejects missing or invalid local credentials [0.31ms]
-(pass) Relay trusted HTTP backend > requires a same-origin request and CSRF token for authenticated mutations [0.07ms]
+(pass) Relay trusted HTTP backend > uses an isolated database and rejects missing or invalid local credentials [0.30ms]
+(pass) Relay trusted HTTP backend > requires a same-origin request and CSRF token for authenticated mutations [0.06ms]
 (pass) Relay trusted HTTP backend > returns only session state and revokes a logged-out browser session [0.10ms]
-(pass) Relay trusted HTTP backend > expires a browser session after its configured lifetime [0.16ms]
-(pass) Relay trusted HTTP backend > overwrites forged User and workspace input with server-controlled identities [33.27ms]
-(pass) Relay trusted HTTP backend > denies mutations after permission removal and leaves procedure state unchanged [79.66ms]
-(pass) Relay trusted HTTP backend > archives only an active in-workspace Playbook and retains its Steps, attachments, and Reviews [106.00ms]
-(pass) Relay trusted HTTP backend > does not let the configured officer mutate a Procedure from another workspace [27.72ms]
-(pass) Relay trusted HTTP backend > renames Playbooks and edits, reorders, and removes Steps through the application [75.23ms]
-(pass) Relay trusted HTTP backend > requires Playbook changes, resolves after editing, and preserves cancelled Review history [98.29ms]
-(pass) Relay trusted HTTP backend > asks and answers Step and Context Questions with stable subjects, history, and role boundaries [210.65ms]
-(pass) Relay trusted HTTP backend > rejects object-shaped identities before they reach MongoDB queries [0.15ms]
-(pass) Relay trusted HTTP backend > rejects blank user-authored text at the server boundary [6.69ms]
-(pass) Relay trusted HTTP backend > enforces the frontend text limits at the server boundary [9.97ms]
-(pass) Relay trusted HTTP backend > rejects an unavailable attachment target without creating an attachment [19.14ms]
-(pass) Relay trusted HTTP backend > runs the shared-context workflow, builds both Reviews, and confirms one [123.04ms]
-(pass) Relay trusted HTTP backend > returns no mutation for missing resources and refuses duplicate note attachments [16.86ms]
+(pass) Relay trusted HTTP backend > expires a browser session after its configured lifetime [0.18ms]
+(pass) Relay trusted HTTP backend > overwrites forged User and workspace input with server-controlled identities [49.59ms]
+(pass) Relay trusted HTTP backend > denies mutations after permission removal and leaves procedure state unchanged [76.97ms]
+(pass) Relay trusted HTTP backend > archives only an active in-workspace Playbook and retains its Steps, attachments, and Reviews [103.21ms]
+(pass) Relay trusted HTTP backend > does not let the configured officer mutate a Procedure from another workspace [27.30ms]
+(pass) Relay trusted HTTP backend > renames Playbooks and edits, reorders, and removes Steps through the application [77.04ms]
+(pass) Relay trusted HTTP backend > requires Playbook changes, resolves after editing, and preserves cancelled Review history [104.25ms]
+(pass) Relay trusted HTTP backend > asks and answers Step and Context Questions with stable subjects, history, and role boundaries [210.32ms]
+(pass) Relay trusted HTTP backend > rejects object-shaped identities before they reach MongoDB queries [0.14ms]
+(pass) Relay trusted HTTP backend > rejects blank user-authored text at the server boundary [7.13ms]
+(pass) Relay trusted HTTP backend > enforces the frontend text limits at the server boundary [9.90ms]
+(pass) Relay trusted HTTP backend > rejects an unavailable attachment target without creating an attachment [18.62ms]
+(pass) Relay trusted HTTP backend > runs the shared-context workflow, builds both Reviews, and confirms one [123.30ms]
+(pass) Relay trusted HTTP backend > returns no mutation for missing resources and refuses duplicate note attachments [16.18ms]
 
 tests/host/multi-user.test.ts:
-(pass) multi-user Relay host > registers distinct users, creates isolated clubs, and never trusts forged identities [162.45ms]
-(pass) multi-user Relay host > supports one-time member invitations and enforces Member and Officer permissions [300.91ms]
-(pass) multi-user Relay host > enforces Owner, Officer, and Member transitions with revocation and safe legacy migration [330.30ms]
-(pass) multi-user Relay host > serializes concurrent ownership transfers and limits Officer management to Members [291.56ms]
-(pass) multi-user Relay host > persists the five newest successful activities with Officer-only workspace isolation [342.71ms]
-(pass) multi-user Relay host > records meaningful archive, Context, Review, and Question activity without workflow spam [435.76ms]
-(pass) multi-user Relay host > rejects expired invitation tokens and omits them from pending administration [124.38ms]
-(pass) multi-user Relay host > persists sessions across handler instances and expires them server-side [39.54ms]
-(pass) multi-user Relay host > logs out without interpreting proxy-added or caller-supplied request bodies [25.25ms]
-(pass) multi-user Relay host > rejects wrong credentials, foreign invitation emails, missing CSRF, and cross-origin requests [87.08ms]
+(pass) multi-user Relay host > registers distinct users, creates isolated clubs, and never trusts forged identities [176.69ms]
+(pass) multi-user Relay host > supports one-time member invitations and enforces Member and Officer permissions [291.90ms]
+(pass) multi-user Relay host > enforces Owner, Officer, and Member transitions with revocation and safe legacy migration [309.38ms]
+(pass) multi-user Relay host > serializes concurrent ownership transfers and limits Officer management to Members [271.55ms]
+(pass) multi-user Relay host > persists the five newest successful activities with Officer-only workspace isolation [364.83ms]
+(pass) multi-user Relay host > records meaningful archive, Context, Review, and Question activity without workflow spam [434.94ms]
+(pass) multi-user Relay host > rejects expired invitation tokens and omits them from pending administration [130.11ms]
+(pass) multi-user Relay host > persists sessions across handler instances and expires them server-side [39.64ms]
+(pass) multi-user Relay host > logs out without interpreting proxy-added or caller-supplied request bodies [25.10ms]
+(pass) multi-user Relay host > rejects wrong credentials, foreign invitation emails, missing CSRF, and cross-origin requests [85.36ms]
 
 tests/host/config.test.ts:
-(pass) host configuration validation > returns a typed, immutable configuration from explicit input [0.19ms]
+(pass) host configuration validation > returns a typed, immutable configuration from explicit input [0.24ms]
 (pass) host configuration validation > rejects missing CLUB_WORKSPACE_ID [0.04ms]
 (pass) host configuration validation > rejects missing OFFICER_USER_ID
 (pass) host configuration validation > rejects missing LOCAL_ACCESS_CREDENTIAL
 (pass) host configuration validation > rejects missing MONGODB_URL
 (pass) host configuration validation > rejects blank CLUB_WORKSPACE_ID [0.02ms]
 (pass) host configuration validation > rejects blank OFFICER_USER_ID
-(pass) host configuration validation > rejects blank LOCAL_ACCESS_CREDENTIAL [0.01ms]
+(pass) host configuration validation > rejects blank LOCAL_ACCESS_CREDENTIAL
 (pass) host configuration validation > rejects blank MONGODB_URL
-(pass) host configuration validation > rejects malformed or placeholder CLUB_WORKSPACE_ID [0.03ms]
+(pass) host configuration validation > rejects malformed or placeholder CLUB_WORKSPACE_ID [0.02ms]
 (pass) host configuration validation > rejects malformed or placeholder OFFICER_USER_ID
 (pass) host configuration validation > rejects malformed or placeholder OFFICER_USER_ID
-(pass) host configuration validation > rejects placeholder or weak access credentials [0.02ms]
+(pass) host configuration validation > rejects placeholder or weak access credentials [0.01ms]
 (pass) host configuration validation > rejects placeholder or weak access credentials
 (pass) host configuration validation > rejects placeholder or weak access credentials
-(pass) host configuration validation > does not include a rejected access credential in validation errors [0.05ms]
-(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.04ms]
-(pass) host configuration validation > rejects malformed MongoDB connection configuration
-(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.02ms]
-(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.06ms]
+(pass) host configuration validation > does not include a rejected access credential in validation errors [0.06ms]
+(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.10ms]
+(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.05ms]
 (pass) host configuration validation > rejects malformed MongoDB connection configuration [0.03ms]
+(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.03ms]
+(pass) host configuration validation > rejects malformed MongoDB connection configuration [0.01ms]
 (pass) host configuration validation > reuses configured identities deterministically and ignores process.env [0.08ms]
-(pass) deployment host configuration > accepts an exact origin and derives secure cookie policy [0.13ms]
+(pass) deployment host configuration > accepts an exact origin and derives secure cookie policy [0.18ms]
 (pass) deployment host configuration > requires the platform public origin [0.04ms]
-(pass) deployment host configuration > rejects invalid deployment origin relay.example [0.05ms]
+(pass) deployment host configuration > rejects invalid deployment origin relay.example [0.06ms]
 (pass) deployment host configuration > rejects invalid deployment origin https://relay.example/path
 (pass) deployment host configuration > rejects invalid deployment origin ftp://relay.example
 
 tests/host/provision.test.ts:
-(pass) host Officer provisioning > uses a unique test database separate from the application database [0.04ms]
-(pass) host Officer provisioning > creates the exact Officer Role, permissions, and configured assignment [37.51ms]
-(pass) host Officer provisioning > provisions Owner with Officer permissions and Member with ask-only permission [13.69ms]
-(pass) host Officer provisioning > is idempotent and preserves Role and Assignment identities [8.05ms]
-(pass) host Officer provisioning > does not assign the Officer Role to another workspace automatically [7.95ms]
-(pass) host Officer provisioning > reuses pre-existing expected state created through concept actions [6.05ms]
-(pass) host Officer provisioning > concurrent first-time provisioning converges to one Role and Assignment [58.59ms]
-(pass) host Officer provisioning > refuses to add an Officer assignment over a conflicting existing Role [5.72ms]
-(pass) host Officer provisioning > fails closed without modifying an Officer Role with unexpected permissions [4.21ms]
+(pass) host Officer provisioning > uses a unique test database separate from the application database [0.05ms]
+(pass) host Officer provisioning > creates the exact Officer Role, permissions, and configured assignment [41.62ms]
+(pass) host Officer provisioning > provisions Owner with Officer permissions and Member with ask-only permission [15.96ms]
+(pass) host Officer provisioning > is idempotent and preserves Role and Assignment identities [8.91ms]
+(pass) host Officer provisioning > does not assign the Officer Role to another workspace automatically [5.78ms]
+(pass) host Officer provisioning > reuses pre-existing expected state created through concept actions [5.51ms]
+(pass) host Officer provisioning > concurrent first-time provisioning converges to one Role and Assignment [56.46ms]
+(pass) host Officer provisioning > refuses to add an Officer assignment over a conflicting existing Role [5.38ms]
+(pass) host Officer provisioning > fails closed without modifying an Officer Role with unexpected permissions [5.67ms]
 
 tests/frontend/overview.test.ts:
-(pass) Overview attention selection > keeps both Reviews and Questions visible when both have many items [0.09ms]
-(pass) Overview attention selection > fills remaining attention space from the nonempty inbox [0.01ms]
+(pass) Overview attention selection > keeps both Reviews and Questions visible when both have many items [0.10ms]
+(pass) Overview attention selection > fills remaining attention space from the nonempty inbox [0.02ms]
 
 tests/frontend/activity.test.ts:
-(pass) Overview activity presentation > describes the actor, action, Step, and Playbook [0.10ms]
-(pass) Overview activity presentation > uses concise descriptions for the extended meaningful events [0.05ms]
-(pass) Overview activity presentation > formats compact relative times from server timestamps [0.18ms]
-(pass) Overview activity presentation > preserves stable Playbook identity for activity navigation [0.04ms]
+(pass) Overview activity presentation > describes the actor, action, Step, and Playbook [0.13ms]
+(pass) Overview activity presentation > uses concise descriptions for the extended meaningful events [0.07ms]
+(pass) Overview activity presentation > formats compact relative times from server timestamps [0.16ms]
+(pass) Overview activity presentation > preserves stable Playbook identity for activity navigation [0.03ms]
 
 tests/frontend/api.test.ts:
-(pass) Relay browser API client > uses account, workspace, and invitation routes without client identities [0.87ms]
-(pass) Relay browser API client > exchanges the operator-entered credential for a same-origin session without persisting it [0.15ms]
-(pass) Relay browser API client > sends logout as explicit empty JSON so development proxies cannot create an ambiguous empty stream [0.15ms]
-(pass) Relay browser API client > sends a CSRF token and no caller-controlled identity on composition operations [0.19ms]
-(pass) Relay browser API client > archives a Playbook through the authorized composition endpoint [0.34ms]
-(pass) Relay browser API client > sends Playbook editing and Review lifecycle operations to their composition endpoints [0.63ms]
-(pass) Relay browser API client > sends Question reads, asks, answers, and owned revisions without caller-controlled identities [0.37ms]
-(pass) Relay browser API client > surfaces unauthenticated API responses as an explicit sign-in error [0.30ms]
-(pass) Relay browser API client > distinguishes an invalid browser origin from an Officer permission denial [0.14ms]
-(pass) Relay browser API client > surfaces actionable messages for guarded failure paths [0.46ms]
+(pass) Relay browser API client > uses account, workspace, and invitation routes without client identities [0.89ms]
+(pass) Relay browser API client > exchanges the operator-entered credential for a same-origin session without persisting it [0.17ms]
+(pass) Relay browser API client > sends logout as explicit empty JSON so development proxies cannot create an ambiguous empty stream [0.13ms]
+(pass) Relay browser API client > sends a CSRF token and no caller-controlled identity on composition operations [0.21ms]
+(pass) Relay browser API client > archives a Playbook through the authorized composition endpoint [0.20ms]
+(pass) Relay browser API client > sends Playbook editing and Review lifecycle operations to their composition endpoints [0.42ms]
+(pass) Relay browser API client > sends Question reads, asks, answers, and owned revisions without caller-controlled identities [0.33ms]
+(pass) Relay browser API client > surfaces unauthenticated API responses as an explicit sign-in error [0.26ms]
+(pass) Relay browser API client > distinguishes an invalid browser origin from an Officer permission denial [0.10ms]
+(pass) Relay browser API client > surfaces actionable messages for guarded failure paths [0.49ms]
 
 tests/compositions/Relay.test.ts:
-(pass) Relay internal composition reactions > uses a unique database separate from configured application data [0.13ms]
-(pass) Relay internal composition reactions > fans a Change out once per active Procedure, skips retired Procedures, and accumulates Causes [139.67ms]
-(pass) Relay internal composition reactions > concurrent Changes retain one Review and every Cause for one Procedure [29.52ms]
-(pass) Relay internal composition reactions > recovers a concurrent request refusal by attaching its Cause to the existing Review [4.23ms]
+(pass) Relay internal composition reactions > uses a unique database separate from configured application data [0.11ms]
+(pass) Relay internal composition reactions > fans a Change out once per active Procedure, skips retired Procedures, and accumulates Causes [149.09ms]
+(pass) Relay internal composition reactions > concurrent Changes retain one Review and every Cause for one Procedure [28.35ms]
+(pass) Relay internal composition reactions > recovers a concurrent request refusal by attaching its Cause to the existing Review [4.71ms]
 
 tests/concepts/Reviewing.test.ts:
 (pass) Reviewing concept > uses a unique database separate from the configured application database [0.07ms]
-(pass) Reviewing concept > requests a PENDING Review and retrieves its Item, status, and initial Cause [21.65ms]
-(pass) Reviewing concept > keeps unfinished Reviews independent for different Items [2.94ms]
-(pass) Reviewing concept > refuses a second unfinished Review for the same Item [3.12ms]
-(pass) Reviewing concept > adds distinct Causes and refuses a Cause already present [5.90ms]
-(pass) Reviewing concept > confirms a PENDING Review and permits a new Review after it finishes [5.30ms]
-(pass) Reviewing concept > transitions PENDING to CHANGES_REQUIRED to COMPLETE [5.23ms]
-(pass) Reviewing concept > cancels Reviews from PENDING and CHANGES_REQUIRED [7.08ms]
-(pass) Reviewing concept > uses the specified refusal class for every missing-Review action [4.62ms]
-(pass) Reviewing concept > refuses illegal lifecycle operations without changing status or Causes [31.84ms]
-(pass) Reviewing concept > concurrent requests create exactly one unfinished Review for one Item [5.83ms]
-(pass) Reviewing concept > concurrent distinct Causes are all retained exactly once [5.71ms]
-(pass) Reviewing concept > concurrent duplicate Cause additions do not duplicate the Cause [3.97ms]
-(pass) Reviewing concept > racing incompatible lifecycle transitions commits only one legal transition [4.37ms]
+(pass) Reviewing concept > requests a PENDING Review and retrieves its Item, status, and initial Cause [21.30ms]
+(pass) Reviewing concept > keeps unfinished Reviews independent for different Items [3.01ms]
+(pass) Reviewing concept > refuses a second unfinished Review for the same Item [3.52ms]
+(pass) Reviewing concept > adds distinct Causes and refuses a Cause already present [7.15ms]
+(pass) Reviewing concept > confirms a PENDING Review and permits a new Review after it finishes [5.47ms]
+(pass) Reviewing concept > transitions PENDING to CHANGES_REQUIRED to COMPLETE [5.59ms]
+(pass) Reviewing concept > cancels Reviews from PENDING and CHANGES_REQUIRED [6.92ms]
+(pass) Reviewing concept > uses the specified refusal class for every missing-Review action [5.40ms]
+(pass) Reviewing concept > refuses illegal lifecycle operations without changing status or Causes [32.19ms]
+(pass) Reviewing concept > concurrent requests create exactly one unfinished Review for one Item [6.05ms]
+(pass) Reviewing concept > concurrent distinct Causes are all retained exactly once [5.43ms]
+(pass) Reviewing concept > concurrent duplicate Cause additions do not duplicate the Cause [4.62ms]
+(pass) Reviewing concept > racing incompatible lifecycle transitions commits only one legal transition [4.35ms]
 
 tests/concepts/RoleBasedAccessing.test.ts:
-(pass) RoleBasedAccessing concept > uses a unique database separate from the configured application database [0.08ms]
-(pass) RoleBasedAccessing concept > creates and retrieves Roles, ordered by name [36.70ms]
-(pass) RoleBasedAccessing concept > rejects duplicate Role names without altering the existing Role [3.72ms]
-(pass) RoleBasedAccessing concept > grants and retrieves Permissions, refusing a duplicate grant [7.03ms]
-(pass) RoleBasedAccessing concept > revokes a Permission and refuses to revoke an absent Permission [6.02ms]
-(pass) RoleBasedAccessing concept > assigns a Role to a User and Resource and retrieves the Assignment [4.63ms]
-(pass) RoleBasedAccessing concept > rejects duplicate assignments but permits the same Role on different Resources [6.75ms]
-(pass) RoleBasedAccessing concept > refuses assignment to a nonexistent Role without creating an Assignment [1.56ms]
-(pass) RoleBasedAccessing concept > authorizes only matching User, Resource, Role, and Permission and preserves Command identity [9.15ms]
-(pass) RoleBasedAccessing concept > denies immediately after Permission revocation and after unassignment [12.41ms]
-(pass) RoleBasedAccessing concept > refuses deletion for assigned Roles and permits deletion when unassigned [10.54ms]
-(pass) RoleBasedAccessing concept > refuses missing Roles and Assignments with the specified error classes [5.33ms]
-(pass) RoleBasedAccessing concept > concurrent Role creations with the same name produce one Role [5.54ms]
-(pass) RoleBasedAccessing concept > concurrent identical Assignments produce one Assignment [27.25ms]
-(pass) RoleBasedAccessing concept > racing Role deletion with assignment never leaves an orphan Assignment [9.78ms]
-(pass) RoleBasedAccessing concept > authorization racing Permission revocation has a legal serial outcome [10.58ms]
-(pass) RoleBasedAccessing concept > concurrent grant and revoke of different Permissions do not lose updates [7.71ms]
+(pass) RoleBasedAccessing concept > uses a unique database separate from the configured application database [0.07ms]
+(pass) RoleBasedAccessing concept > creates and retrieves Roles, ordered by name [88.58ms]
+(pass) RoleBasedAccessing concept > rejects duplicate Role names without altering the existing Role [3.81ms]
+(pass) RoleBasedAccessing concept > grants and retrieves Permissions, refusing a duplicate grant [7.99ms]
+(pass) RoleBasedAccessing concept > revokes a Permission and refuses to revoke an absent Permission [7.50ms]
+(pass) RoleBasedAccessing concept > assigns a Role to a User and Resource and retrieves the Assignment [5.57ms]
+(pass) RoleBasedAccessing concept > rejects duplicate assignments but permits the same Role on different Resources [8.82ms]
+(pass) RoleBasedAccessing concept > refuses assignment to a nonexistent Role without creating an Assignment [2.00ms]
+(pass) RoleBasedAccessing concept > authorizes only matching User, Resource, Role, and Permission and preserves Command identity [10.52ms]
+(pass) RoleBasedAccessing concept > denies immediately after Permission revocation and after unassignment [14.92ms]
+(pass) RoleBasedAccessing concept > refuses deletion for assigned Roles and permits deletion when unassigned [12.05ms]
+(pass) RoleBasedAccessing concept > refuses missing Roles and Assignments with the specified error classes [5.23ms]
+(pass) RoleBasedAccessing concept > concurrent Role creations with the same name produce one Role [4.86ms]
+(pass) RoleBasedAccessing concept > concurrent identical Assignments produce one Assignment [35.66ms]
+(pass) RoleBasedAccessing concept > racing Role deletion with assignment never leaves an orphan Assignment [11.04ms]
+(pass) RoleBasedAccessing concept > authorization racing Permission revocation has a legal serial outcome [18.42ms]
+(pass) RoleBasedAccessing concept > concurrent grant and revoke of different Permissions do not lose updates [12.34ms]
 
 tests/concepts/ContextTracking.test.ts:
-(pass) ContextTracking concept > uses a unique database separate from the configured application database [0.06ms]
-(pass) ContextTracking concept > records and retrieves ContextNotes by scope and identity [35.84ms]
-(pass) ContextTracking concept > attaches a note without an anchor and at specific anchors [7.05ms]
-(pass) ContextTracking concept > rejects duplicate unanchored and same-anchor attachments but allows distinct anchors [7.12ms]
-(pass) ContextTracking concept > detaches an Attachment and refuses to detach an unknown identity [4.71ms]
-(pass) ContextTracking concept > refuses attachments, corrections, and changes for nonexistent ContextNotes [4.23ms]
-(pass) ContextTracking concept > corrects text without creating a Change record [3.75ms]
-(pass) ContextTracking concept > changes text and preserves the exact before and after values [5.33ms]
-(pass) ContextTracking concept > rejects an unchanged meaningful change without partial state [4.30ms]
-(pass) ContextTracking concept > records consecutive Changes as an exact before/after chain [10.04ms]
-(pass) ContextTracking concept > concurrent Changes preserve a complete history without assuming Change ID order [22.98ms]
+(pass) ContextTracking concept > uses a unique database separate from the configured application database [0.08ms]
+(pass) ContextTracking concept > records and retrieves ContextNotes by scope and identity [38.94ms]
+(pass) ContextTracking concept > attaches a note without an anchor and at specific anchors [9.94ms]
+(pass) ContextTracking concept > rejects duplicate unanchored and same-anchor attachments but allows distinct anchors [8.01ms]
+(pass) ContextTracking concept > detaches an Attachment and refuses to detach an unknown identity [5.49ms]
+(pass) ContextTracking concept > refuses attachments, corrections, and changes for nonexistent ContextNotes [5.17ms]
+(pass) ContextTracking concept > corrects text without creating a Change record [4.16ms]
+(pass) ContextTracking concept > changes text and preserves the exact before and after values [5.72ms]
+(pass) ContextTracking concept > rejects an unchanged meaningful change without partial state [4.91ms]
+(pass) ContextTracking concept > records consecutive Changes as an exact before/after chain [9.03ms]
+(pass) ContextTracking concept > concurrent Changes preserve a complete history without assuming Change ID order [19.24ms]
 
 tests/concepts/Questioning.test.ts:
-(pass) Questioning concept > uses a unique database separate from configured application data [0.06ms]
-(pass) Questioning concept > asks an OPEN Question about a stable Subject [19.05ms]
-(pass) Questioning concept > answers once while preserving the original Question and Subject [5.43ms]
-(pass) Questioning concept > keeps multiple Questions and Subjects independent [6.26ms]
-(pass) Questioning concept > refuses missing Questions and repeat answers without changing the first answer [6.27ms]
-(pass) Questioning concept > lets only the original answerer revise an answered Question [6.59ms]
-(pass) Questioning concept > allows only one of two concurrent answers to become the preserved answer [5.16ms]
+(pass) Questioning concept > uses a unique database separate from configured application data [0.07ms]
+(pass) Questioning concept > asks an OPEN Question about a stable Subject [18.47ms]
+(pass) Questioning concept > answers once while preserving the original Question and Subject [5.26ms]
+(pass) Questioning concept > keeps multiple Questions and Subjects independent [7.58ms]
+(pass) Questioning concept > refuses missing Questions and repeat answers without changing the first answer [12.43ms]
+(pass) Questioning concept > lets only the original answerer revise an answered Question [6.70ms]
+(pass) Questioning concept > allows only one of two concurrent answers to become the preserved answer [2.94ms]
 
 tests/concepts/ProcedureMaintaining.test.ts:
-(pass) ProcedureMaintaining concept > uses a unique database separate from the configured application database [0.06ms]
-(pass) ProcedureMaintaining concept > creates a Procedure and retrieves it by identity and Space [19.36ms]
-(pass) ProcedureMaintaining concept > adds several Steps in exact contiguous order [11.71ms]
-(pass) ProcedureMaintaining concept > moves Steps forward and backward without changing their identities [20.84ms]
-(pass) ProcedureMaintaining concept > removes a Step from the order while preserving its identity and text [10.65ms]
-(pass) ProcedureMaintaining concept > edits active Step text without changing its identity or position [7.15ms]
-(pass) ProcedureMaintaining concept > renames and retires a Procedure [4.75ms]
-(pass) ProcedureMaintaining concept > refuses unknown Procedures and Steps with their specified error classes [6.68ms]
-(pass) ProcedureMaintaining concept > refuses operations on retired Procedures and removed Steps [20.53ms]
-(pass) ProcedureMaintaining concept > refuses invalid positions without changing Step state or order [18.58ms]
-(pass) ProcedureMaintaining concept > concurrent additions leave unique identities and contiguous positions [22.35ms]
-(pass) ProcedureMaintaining concept > reordering preserves each Step identity and associated text [13.40ms]
+(pass) ProcedureMaintaining concept > uses a unique database separate from the configured application database [0.08ms]
+(pass) ProcedureMaintaining concept > creates a Procedure and retrieves it by identity and Space [21.67ms]
+(pass) ProcedureMaintaining concept > adds several Steps in exact contiguous order [12.47ms]
+(pass) ProcedureMaintaining concept > moves Steps forward and backward without changing their identities [16.91ms]
+(pass) ProcedureMaintaining concept > removes a Step from the order while preserving its identity and text [10.95ms]
+(pass) ProcedureMaintaining concept > edits active Step text without changing its identity or position [7.24ms]
+(pass) ProcedureMaintaining concept > renames and retires a Procedure [5.51ms]
+(pass) ProcedureMaintaining concept > refuses unknown Procedures and Steps with their specified error classes [7.50ms]
+(pass) ProcedureMaintaining concept > refuses operations on retired Procedures and removed Steps [22.74ms]
+(pass) ProcedureMaintaining concept > refuses invalid positions without changing Step state or order [21.51ms]
+(pass) ProcedureMaintaining concept > concurrent additions leave unique identities and contiguous positions [43.11ms]
+(pass) ProcedureMaintaining concept > reordering preserves each Step identity and associated text [12.75ms]
 
  148 pass
  0 fail
  936 expect() calls
-Ran 148 tests across 15 files. [5.23s]
+Ran 148 tests across 15 files. [5.42s]
 
 [exit 0]
 
@@ -209,7 +209,7 @@ dist/assets/Inter-Latin-BwkfbSeq.woff2   72.92 kB
 dist/assets/index-pjuGeR9K.css           30.96 kB │ gzip:  6.76 kB
 dist/assets/index-HJQ_6TZY.js           145.47 kB │ gzip: 45.88 kB
 
-✓ built in 126ms
+✓ built in 134ms
 
 [exit 0]
 
@@ -260,7 +260,8 @@ $ git diff --check
 
 [exit 0]
 
-$ production SIGTERM lifecycle smoke test
+$ production SIGTERM lifecycle smoke test (bun run start)
+$ bun src/main.ts
 Relay listening on port 3199.
 Relay received SIGTERM; closing the HTTP listener and MongoDB connection.
 
