@@ -57,21 +57,18 @@ the required deployed Officer/Member browser journey.
 
 ## Deployment status and browser verification
 
-The configured public address is <https://relay.mit-sdg.dev/>. The owner has
-reported that the application is deployed, but this audit could not inspect the
-site because the authorized browser's admin policy could not be verified. The
-browser explicitly prohibited bypassing that control. The exact deployed Git
-commit and complete Officer/Member browser journey therefore remain manual
-verification items; this record does not claim they were independently
-confirmed.
+The configured public address is <https://relay.mit-sdg.dev/>. A direct public
+check returned `200 {"status":"ok"}` from `/health`. Its HTML referenced
+`index-HJQ_6TZY.js` and `index-pjuGeR9K.css`, exactly matching the verified
+local production build. This confirms that the current release application
+build is live.
 
-After pushing the release candidate, a direct public check returned
-`200 {"status":"ok"}` from `/health`. The live HTML still referenced
-`index-De747IX2.js` and `index-Ci8KLxLR.css`, while the verified local build
-produced `index-HJQ_6TZY.js` and `index-pjuGeR9K.css`. The public service is
-therefore healthy, but that evidence does **not** establish that the release
-candidate is the deployed commit. Select the pushed commit explicitly in
-6.1040 Apps, deploy it, and then repeat the browser journey.
+The submitted narrated recording demonstrates the Owner and Member journey in
+the deployed interface. This audit still did not independently control that
+browser because the available browser's administrative policy could not be
+verified, and that restriction was not bypassed. The 6.1040 Apps deployment
+screen should be checked once more after the final documentation commit so the
+commit selected there exactly matches the hash submitted in Commons.
 
 The platform log showed an existing process receive `SIGTERM` after running for
 about nine minutes, followed two seconds later by a new `bun src/main.ts`

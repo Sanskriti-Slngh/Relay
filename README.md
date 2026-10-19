@@ -6,6 +6,8 @@ before-and-after text and creates a Review for each affected active Playbook.
 A wording correction changes the text without creating Review work.
 
 The live beta is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/).
+The narrated P3 demonstration is available on
+[YouTube](https://youtu.be/2jB5J9K8b5Y).
 
 ## P3 Beta submission
 
@@ -29,6 +31,7 @@ The live beta is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/).
 - [Typography study source](slide-catalog/typography-slide.svg)
 - [Color study source](slide-catalog/color-slide.svg)
 - [Updated P3 Beta user journey](mvp/p3-beta-user-journey.md)
+- [Narrated screen recording](https://youtu.be/2jB5J9K8b5Y)
 - [Deployment verification record](mvp/p3-beta-deployment-verification.md)
 
 The current design notebook belongs in the private individual repository, not
