@@ -1,6 +1,6 @@
 # Relay P3 Beta user journey
 
-Tiya, an Officer in a student club, creates a Playbook for booking rehearsal
+Tiya, the Owner of a student club workspace, creates a Playbook for booking rehearsal
 space and adds its first ordered Step. Relay opens an optional Context editor
 beside that Step, so she records why the renewal check matters without leaving
 the Playbook. The saved Playbook reads as instructions; its Context and
@@ -26,7 +26,8 @@ direct return takes her back to the same Review. She resolves it after checking
 the edit. Finished Review history retains the cause, while both users continue
 to see the updated Playbook after refresh.
 
-This journey uses the deployed application's authenticated accounts, workspace
+This journey uses Relay's authenticated accounts, workspace
 membership, authorized operations, Vue interface, sync-engine reactions and
-formers, and MongoDB persistence. It must be demonstrated without fixture data,
-request-body identities, or direct database edits.
+formers, and MongoDB persistence. The deployed walkthrough must use the public
+application without fixture data, request-body identities, or direct database
+edits.

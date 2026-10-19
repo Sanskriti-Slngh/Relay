@@ -71,6 +71,19 @@ if (import.meta.main) {
         return await asset.exists() ? new Response(asset) : new Response(Bun.file(`${distributionDirectory}/index.html`));
       },
     });
+    let shutdownStarted = false;
+    const shutdown = async (signal: "SIGINT" | "SIGTERM") => {
+      if (shutdownStarted) return;
+      shutdownStarted = true;
+      console.info(`Relay received ${signal}; closing the HTTP listener and MongoDB connection.`);
+      server.stop(true);
+      await client?.close().catch(() => {
+        console.error("Relay MongoDB client cleanup failed during shutdown.");
+      });
+      process.exit(0);
+    };
+    process.once("SIGINT", () => { void shutdown("SIGINT"); });
+    process.once("SIGTERM", () => { void shutdown("SIGTERM"); });
     console.info(`Relay listening on port ${server.port}.`);
   } catch (error) {
     const errorKind = error instanceof Error ? error.name : "UnknownError";

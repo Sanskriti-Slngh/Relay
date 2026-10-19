@@ -162,3 +162,11 @@ opened.
 - [Radix Themes, Color](https://www.radix-ui.com/themes/docs/theme/color): a small neutral/accent scale and semantic colors designed for their UI purpose.
 - [Alex Hunting Studio, Kinfolk](https://alexhunting.studio/blogs/projects/kinfolk): editorial whitespace, confident scale contrast, and muted photographic color.
 
+The two-slide study additionally cites the exact visual references used in its
+collage: [MoMA's Josef Müller-Brockmann poster record](https://www.moma.org/collection/works/7916),
+[Kinfolk Issue 58](https://magazinecafestore.com/products/kinfolk-magazine-issue-58),
+[Notion's writing and editing guide](https://www.notion.com/help/writing-and-editing-basics),
+[EPITOME's card-catalog essay](https://epitome.hypotheses.org/2384), and
+[Radix Themes](https://www.radix-ui.com/themes). The tracked SVG files are the
+editable study source; the PNG files are the submission-ready renders.
+

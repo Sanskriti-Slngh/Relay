@@ -1,136 +1,120 @@
 # Relay
 
-Relay helps MIT student clubs keep repeatable Procedures and shared Context
-connected. A meaningful context change preserves its before/after text and
-creates a pending Review for each attached active Procedure; a wording
-correction does not.
+Relay helps student clubs preserve repeatable procedures and the context behind
+them. When shared information changes meaningfully, Relay preserves the exact
+before-and-after text and creates a Review for each affected active Playbook.
+A wording correction changes the text without creating Review work.
 
-The implemented beta walkthrough is documented in the
-[P3 Beta user journey](mvp/p3-beta-user-journey.md). Its room-renewal policy is
-fictional demo content, not a statement of current MIT policy. The original
-[P1 journey](design/user-journey.md) and historical
-[P2 MVP journey](mvp/p2-mvp-user-journey.md) remain available for comparison.
+The live beta is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/).
 
-## P3 Beta submission map
+## P3 Beta submission
 
-- [Design index and specifications](design/README.md), including all five
-  [concept specifications](design/concepts), the
-  [Relay composition](design/compositions/Relay.md), and the
-  [visual-system specification](design/visual-design.md)
-- [Automated tests](tests) and
-  [saved P3 verification output](artifacts/p3-verification-output.txt)
+### Implementation and design
+
+- [Design index and specifications](design/README.md)
+- [ProcedureMaintaining](design/concepts/ProcedureMaintaining.md)
+- [ContextTracking](design/concepts/ContextTracking.md)
+- [Questioning](design/concepts/Questioning.md)
+- [Reviewing](design/concepts/Reviewing.md)
+- [RoleBasedAccessing](design/concepts/RoleBasedAccessing.md)
+- [Relay composition](design/compositions/Relay.md)
+- [Visual design specification](design/visual-design.md)
+- [Automated tests](tests/)
+- [Saved verification output](artifacts/p3-verification-output.txt)
+
+### Design deliverables
+
+- [Typography study](slide-catalog/typography-slide.png)
+- [Color study](slide-catalog/color-slide.png)
+- [Typography study source](slide-catalog/typography-slide.svg)
+- [Color study source](slide-catalog/color-slide.svg)
 - [Updated P3 Beta user journey](mvp/p3-beta-user-journey.md)
-- [Deployment-preparation and verification record](mvp/p3-beta-deployment-verification.md)
-- [Implementation design notebook](mvp/design-notebook.md); the submission must
-  also link the current notebook from the private individual repository
+- [Deployment verification record](mvp/p3-beta-deployment-verification.md)
 
-The required two-slide visual design study, final YouTube recording, confirmed
-live deployment URL, private-repository link, and final submitted commit hashes
-must be added before submission. The tracked `mvp/My Movie.mp4` is an obsolete
-P2 recording longer than the P3 two-minute limit and is not submission-ready.
+The current design notebook belongs in the private individual repository, not
+in this public project repository. The private repository README should link to
+its notebook and its submitted commit should be supplied separately in Commons.
+
+## Implemented beta
+
+Relay supports distinct authenticated users, persistent server-side sessions,
+multiple isolated club workspaces, one Owner per configured workspace, Officer
+and Member roles, one-time email-bound invitation codes, and permission-aware
+Vue interfaces.
+
+- Members can read Playbooks and Context Notes and ask Questions.
+- Officers can edit official knowledge, answer Questions, complete Reviews,
+  invite Members, promote Members, and remove Members.
+- Owners have Officer permissions and can additionally manage Officers and
+  transfer ownership.
+- The server derives the actor and selected workspace from the session. Request
+  bodies cannot choose a user, workspace, or role.
+- Three-second polling and immediate local refresh keep sessions current without
+  replacing unfinished local drafts.
+
+Invitation codes are not sent by email. Relay creates a one-time code that an
+Owner or Officer shares securely with the invited email address's owner. The
+recipient must register with that same normalized email before accepting it.
 
 ## Local development
 
-Relay supports distinct accounts, persistent server-side sessions, multiple
-club workspaces, and invitation-based Member onboarding. Workspace creators
-become the sole Owner; Owner and Officer domain permissions continue to come
-from RoleBasedAccessing
-authorizes every composition operation using the User and selected workspace
-loaded from the server-side session.
+Requirements: Bun 1.4.0 and Podman with Compose.
 
-Invitations are email-bound but are not delivered by email. An Owner or Officer creates
-a one-time code in Relay and shares it securely with the invited address's
-owner, who must register with that same normalized email before accepting it.
-
-1. Install Bun 1.4.0 and Podman with Compose. Install dependencies:
+1. Install dependencies:
 
    ```sh
    bun install
    ```
 
-2. Create the local MongoDB replica set if it is not already running:
+2. Start the local MongoDB replica set:
 
    ```sh
    bun run db:up
    ```
 
-3. Create a private `.env` from the example. Set `MONGODB_URL` to a URI with an
-   explicit database name and set the exact browser origin:
+3. Create a private environment file:
 
    ```sh
    cp .env.example .env
-   PUBLIC_ORIGIN=http://127.0.0.1:5173
    ```
 
-   Keep MongoDB credentials private and do not expose them through a `VITE_`
-   variable. Use a disposable local database name if you want to reset data.
+   `MONGODB_URL` must contain an explicit database name. `PUBLIC_ORIGIN` must
+   exactly match the browser origin, including whether it uses `localhost` or
+   `127.0.0.1`. Never expose MongoDB credentials through a `VITE_` variable.
 
-4. Start the API and Vite development server together. For a clean first-run
-   demo, choose a fresh isolated database name. This overrides only the URI's
-   database path for the dev API process; it does not change `.env`:
+4. Start the API and Vite development server:
 
    ```sh
-   RELAY_DEMO_DATABASE=relay_demo_first_run bun run dev
+   bun run dev
    ```
 
-   Choose a new name if that database already contains demo data. To use the
-   configured URI database instead, run `bun run dev`. Startup validates
-   configuration, connects to MongoDB, and creates or verifies the private
-   Owner, Officer, and Member Roles before opening the API listener. It also starts
-   Vite on loopback. Open
-   [http://127.0.0.1:5173](http://127.0.0.1:5173), create an account and club,
-   and follow the workflow below.
+   Open [http://127.0.0.1:5173](http://127.0.0.1:5173). To use a clean demo
+   database without modifying `.env`, choose a new isolated name:
 
-5. Demonstrate the MVP:
+   ```sh
+   RELAY_DEMO_DATABASE=relay_demo_fresh bun run dev
+   ```
 
-   - Create **Plan the Annual Club Showcase** and **Renew Club Room Access**,
-     then add an ordered Step to each.
-   - Record one fictional annual room-renewal Context Note, then attach it to
-     the relevant Step in both Playbooks.
-   - Use **Correct wording** to fix text; this does not create Reviews.
-   - Use **Meaningful change** to change the underlying meaning. Relay preserves
-     the exact before/after text and waits for the associated review work to
-     settle before refreshing the dashboard.
-   - Open **Reviews**, inspect each playbook's cause text, and confirm a Review.
-     The other affected Review remains pending.
-   - Mark a pending Review as requiring changes, edit the affected Playbook,
-     and return to resolve it. A Review that is no longer relevant can be
-     cancelled instead; both outcomes retain the Review's causes in history.
-   - Rename Playbooks and edit, reorder, or remove their active Steps. Removing
-     a Step detaches Context links anchored specifically to that Step while
-     preserving the removed Step's identity.
-   - Ask a Question beside a Step or attached Context Note. The Questions
-     navigation count and officer inbox keep every unanswered item actionable;
-     answering preserves the original Question beside its resolution.
-   - Archive a Playbook from the Playbooks page when it is no longer active.
-     Archiving preserves its Steps, Context attachments, and Reviews; open
-     **Archived playbooks** to inspect it later.
+## Demonstration journey
 
-The browser talks only to the composition's authorized HTTP operations and
-read formers. Role-management and bootstrap actions are not public. User and
-workspace identities are injected by the host; request-body identity fields
-cannot change them.
+1. Create a club and a Playbook, then add ordered Steps.
+2. Add optional Context to a Step or reuse an existing shared Context Note.
+3. Invite a Member by creating and securely sharing a one-time code.
+4. Have the Member ask a Question beside a Step or Context Note.
+5. Answer it from the Officer Questions inbox and confirm both sessions update.
+6. Use **Fix wording** and confirm that no Review appears.
+7. Use **Information changed** and inspect the generated affected Reviews.
+8. Confirm one still-correct Playbook. Mark another as requiring changes, edit
+   its Step, return to the Review, and resolve it.
+9. Verify Question and Review history after reload.
+10. Create a second club and confirm its users cannot access the first club.
 
-All five P1 concepts are implemented. The P3 Beta host adds multi-user accounts,
-multiple isolated club workspaces, Member invitations, workspace selection,
-and permission-aware interfaces without adding a new domain concept.
+## Verification
 
-### Security boundary
-
-Passwords are salted and hashed with scrypt. Random session tokens are stored
-only as SHA-256 digests in MongoDB; cookies are HttpOnly, SameSite=Strict,
-eight-hour limited, and Secure whenever `PUBLIC_ORIGIN` uses HTTPS. State-changing
-requests also require an exact Origin and CSRF token. Registration grants no
-workspace role, invitation codes are single-use and email-bound, and the host
-replaces any request-body User or workspace fields with verified session state.
-Production deployments must use HTTPS and a private MongoDB connection string.
-The installed sync-engine HTTP package documents Node.js 24 support; this
-project continues to host it with Bun, outside that formal runtime contract.
-
-## Checks
+Start the test database, then run:
 
 ```sh
-bun run test
+bun test
 bun run typecheck
 bun run build
 bunx sync-engine check --show-advisories
@@ -139,22 +123,25 @@ bunx sync-engine artifacts check
 git diff --check
 ```
 
-`artifacts check` verifies the pinned read-back and wire contract under
-`generated/`; it does not generate or modify them. The browser adapter derives
-its response types from that wire contract but remains host-aware because it
-must omit caller-controlled User and workspace fields from protected request
-bodies. After an intentional composition or contract change, run
-`bun run generate`, review both generated diffs, and then rerun the check.
+The MongoDB-backed tests create and drop uniquely named test databases; they do
+not use the configured Relay application database. The 28 sync-engine
+advisories are documented in the deployment record. Generated contracts under
+`generated/` are checked into source and validated with `artifacts check`.
 
-The MongoDB-backed tests require the configured test MongoDB replica set and
-create/drop uniquely named test databases. They do not use the configured Relay
-application database for fixtures.
+## Security boundary
+
+Passwords are salted and hashed with scrypt. Random session tokens are stored
+only as SHA-256 digests in MongoDB. Session cookies are HttpOnly,
+SameSite=Strict, expire after eight hours, and use `Secure` when
+`PUBLIC_ORIGIN` is HTTPS. State-changing requests require the exact Origin and
+a CSRF token. Registration grants no workspace role, invitation codes are
+single-use and email-bound, and revoked Members immediately lose access even
+if their browser session remains active.
 
 ## Deploying to 6.1040 Apps
 
-Relay follows the Fall 2026 course deployment procedure. The platform must
-deploy a pushed commit; it does not use local files, Docker Compose, or `.env`.
-Use these application settings:
+The platform deploys a pushed Git commit and does not use local `.env`, Compose,
+or Docker files. Use:
 
 - Runtime: Bun 1.4.0
 - Package directory: `.`
@@ -163,23 +150,14 @@ Use these application settings:
 - Port: `3000`
 - Health-check path: `/health`
 
-Add the platform MongoDB integration and expose its connection string to Relay
-as `MONGODB_URL` (map a generated `MONGODB_URI` value if necessary). Add
-`PUBLIC_ORIGIN=https://<app-name>.mit-sdg.dev` with no trailing slash. The
-platform supplies `HOST`, `PORT`, and `NODE_ENV`; Relay reads `HOST` and `PORT`
-and serves the built Vue application and API from the same origin. Never add a
-MongoDB URI, invitation token, session token, or password to source control or
-to a `VITE_` variable.
+Add the platform MongoDB integration with its URI exposed as `MONGODB_URL`.
+Set `PUBLIC_ORIGIN=https://relay.mit-sdg.dev` with no trailing slash. The
+platform supplies `HOST`, `PORT`, and `NODE_ENV`. Relay uses one MongoClient,
+calls `client.db()` so the URI selects the database, serves `dist/` from the
+same Bun process, and answers `/health` only after a live database ping.
 
-For a private GitHub repository, install the read-only deploy key generated by
-6.1040 Apps and use **Check access** before deploying. Review the selected
-branch and exact commit on the deployment screen, then deploy. `/health`
-returns 200 only after the process has connected to MongoDB and a live ping
-succeeds. Locally, `bun run preview` builds and starts the same production
-host using the private `.env` configuration.
-
-Relay detects whether MongoDB is a replica set. It uses database transactions
-when they are available and serializes guarded multi-operation actions in the
-single application process when running against the standalone MongoDB supplied
-by 6.1040 Apps. Both modes retain the concepts' conditional-write and unique-
-index checks.
+During a deployment or environment-variable change, 6.1040 Apps sends the old
+process `SIGTERM` and starts a replacement. Relay handles SIGTERM and SIGINT by
+closing its listener and MongoDB connection. A log saying the previous start
+script received SIGTERM is therefore expected during an intentional restart;
+an exit code 1 or a replacement that never logs `Relay listening` is not.
