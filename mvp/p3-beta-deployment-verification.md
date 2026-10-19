@@ -39,9 +39,10 @@ key. No functional deployment risk was found in the advisories.
 
 ## Production-mode smoke check
 
-Relay was built and started through `src/main.ts` on a non-default `PORT`, with
-an exact same-origin `PUBLIC_ORIGIN` and the private local MongoDB
-configuration. Startup and shutdown logged:
+Relay was built and started through the exact production command, `bun run
+start` (which invokes `bun src/main.ts`), on a non-default `PORT`, with an exact
+same-origin `PUBLIC_ORIGIN` and the private local MongoDB configuration.
+Startup and shutdown logged:
 
 ```text
 Relay listening on port 3199.
