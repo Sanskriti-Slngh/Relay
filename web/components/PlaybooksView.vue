@@ -13,7 +13,7 @@ const emit = defineEmits<{
   removeStep: [payload: { procedure: Procedure; step: Step }];
   askQuestion: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
   attachContext: [payload: { note: ContextNote; procedure: Procedure; step: Step; onSuccess: () => void }];
-  recordContext: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
+  recordContext: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void; onRecordedOnly: (context: string) => void }];
   archive: [procedure: Procedure];
   returnToReview: [];
 }>();
@@ -128,7 +128,17 @@ function attachExistingContext(procedure: Procedure, step: Step) {
 }
 function recordStepContext(procedure: Procedure, step: Step) {
   const text = (contextDraft[step.step] ?? "").trim(); if (!text) return;
-  emit("recordContext", { procedure, step, text, onSuccess: () => { contextDraft[step.step] = ""; } });
+  emit("recordContext", {
+    procedure,
+    step,
+    text,
+    onSuccess: () => { contextDraft[step.step] = ""; },
+    onRecordedOnly: (context) => {
+      contextDraft[step.step] = "";
+      contextMode[step.step] = "existing";
+      contextSelection[step.step] = context;
+    },
+  });
 }
 </script>
 

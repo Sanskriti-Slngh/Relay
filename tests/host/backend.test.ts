@@ -1033,7 +1033,7 @@ describe("Relay trusted HTTP backend", () => {
     })).length).toBe(proceduresBefore.length + 1);
   });
 
-  test("rejects an unavailable attachment target without creating an attachment", async () => {
+  test("rejects an unavailable attachment target and reuses the recorded Note on retry", async () => {
     const firstProcedure = await createProcedure("Attachment target A");
     const secondProcedure = await createProcedure("Attachment target B");
     const secondStepResponse = await request("/workspaces/procedures/steps/add", {
@@ -1052,6 +1052,29 @@ describe("Relay trusted HTTP backend", () => {
     expect(mismatch.status).toBe(404);
     expect(mismatch.body.error).toBe("NOT_FOUND");
     expect(await application.concepts.ContextTracking._attachments({ context })).toEqual([]);
+
+    const retry = await request("/workspaces/context/step-attachments", {
+      context,
+      procedure: secondProcedure,
+      step: secondStep,
+    });
+    expect(retry.status).toBe(200);
+    const contexts = (await request("/workspaces/context", {})).body.contexts as {
+      context: string;
+      text: string;
+      attachments: { attachment: string; subject: string; anchor: string | null }[];
+    }[];
+    const matchingNotes = contexts.filter(({ text }) => text === "Scoped target note");
+    expect(matchingNotes).toEqual([
+      expect.objectContaining({
+        context,
+        attachments: [expect.objectContaining({
+          attachment: retry.body.attachment,
+          subject: secondProcedure,
+          anchor: secondStep,
+        })],
+      }),
+    ]);
   });
 
   test("runs the shared-context workflow, builds both Reviews, and confirms one", async () => {

@@ -399,10 +399,10 @@ are specified in [version-control.md](../version-control.md).
   unfinished Reviews with Procedure titles and resolved Causes.
   `/workspaces/reviews` accepts `{}` and returns `{ procedures }` with all
   Review statuses and Causes. `/workspaces/reviews/confirm` accepts
-  `{ review, procedure }` and returns `{ review, status: "COMPLETE" }`.
-  The require-changes, resolve, and cancel routes accept the same identities
-  and return the resulting `CHANGES_REQUIRED`, `COMPLETE`, or `CANCELLED`
-  status respectively.
+  `{ review, procedure, expectedVersion }` and returns
+  `{ review, status: "COMPLETE" }`. The require-changes, resolve, and cancel
+  routes accept the same identities and `expectedVersion`, and return the
+  resulting `CHANGES_REQUIRED`, `COMPLETE`, or `CANCELLED` status respectively.
 
 The browser transport in `web/api.ts` intentionally omits the generated
 contract's trusted `user` and `workspace` inputs. Its response types are
