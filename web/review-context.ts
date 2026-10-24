@@ -1,4 +1,4 @@
-import type { Attachment, ContextNote } from "./api.ts";
+import type { Attachment, ContextNote, Step } from "./api.ts";
 
 export interface ReviewContextScope {
   contextFound: boolean;
@@ -10,6 +10,16 @@ export interface ReviewContextScope {
 export interface ReviewContextConnection {
   note: ContextNote;
   attachment: Attachment;
+}
+
+export function stepForReviewRepair(
+  anchor: string | null | undefined,
+  steps: Step[],
+  selectedStepId = "",
+): Step | undefined {
+  if (anchor === undefined) return undefined;
+  if (anchor === null) return steps.find(({ step }) => step === selectedStepId) ?? steps[0];
+  return steps.find(({ step }) => step === anchor);
 }
 
 export function contextConnectionsForReview(

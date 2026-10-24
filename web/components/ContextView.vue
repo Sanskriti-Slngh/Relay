@@ -160,7 +160,15 @@ function askQuestion(note: ContextNote) {
             </div>
           </div>
         </div>
-        <div v-if="canEdit" class="context-header-actions"><button class="context-edit-action" type="button" @click="toggleUpdate(note)">{{ updateOpen === note.context ? "Close" : "Edit" }}</button><button class="context-delete-icon" type="button" :disabled="!!actionBusy" aria-label="Delete Context Note forever" title="Delete Context Note forever" @click="emit('deleteNote', note)">{{ actionBusy === `delete-context-${note.context}` ? "…" : "×" }}</button></div>
+        <div v-if="canEdit" class="context-header-actions">
+          <button class="context-edit-action" type="button" @click="toggleUpdate(note)">{{ updateOpen === note.context ? "Close" : "Edit" }}</button>
+          <details class="context-more-disclosure">
+            <summary>More</summary>
+            <div class="context-more-actions">
+              <button class="context-delete-action" type="button" :disabled="!!actionBusy" @click="emit('deleteNote', note)">{{ actionBusy === `delete-context-${note.context}` ? "Deleting…" : "Delete forever" }}</button>
+            </div>
+          </details>
+        </div>
       </header>
 
       <section v-if="questionComposer[note.context]" class="inline-disclosure context-question-disclosure">

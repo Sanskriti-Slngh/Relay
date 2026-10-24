@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { ContextNote } from "../../web/api.ts";
-import { contextConnectionsForReview, contextScopeForReviewCause } from "../../web/review-context.ts";
+import type { ContextNote, Step } from "../../web/api.ts";
+import { contextConnectionsForReview, contextScopeForReviewCause, stepForReviewRepair } from "../../web/review-context.ts";
 
 function note(
   changes: string[],
@@ -16,6 +16,19 @@ function note(
 }
 
 describe("Review context attachment scope", () => {
+  test("opens the attached Step directly and gives whole-Playbook context an explicit first Step", () => {
+    const steps = [
+      { step: "step-1", text: "First instruction", position: 1, version: 1 },
+      { step: "step-2", text: "Affected instruction", position: 2, version: 3 },
+    ] as Step[];
+
+    expect(stepForReviewRepair("step-2", steps)?.step).toBe("step-2");
+    expect(stepForReviewRepair(null, steps)?.step).toBe("step-1");
+    expect(stepForReviewRepair(null, steps, "step-2")?.step).toBe("step-2");
+    expect(stepForReviewRepair("removed-step", steps)).toBeUndefined();
+    expect(stepForReviewRepair(undefined, steps)).toBeUndefined();
+  });
+
   test("finds and deduplicates the exact Steps attached to the changed Context Note", () => {
     const scope = contextScopeForReviewCause("change-1", "playbook-1", [note(
       ["change-1"],
