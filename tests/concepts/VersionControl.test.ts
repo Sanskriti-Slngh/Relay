@@ -30,6 +30,8 @@ describe("collaborative version control", () => {
     const { procedure } = await procedures.create({ space: "club", title: "Concurrent edits" });
     const { step } = await procedures.addStep({ procedure, text: "Original", expectedVersion: 1 });
     await expect(procedures.addStep({ procedure, text: "Stale addition", expectedVersion: 1 })).rejects.toBeInstanceOf(ProcedureVersionConflict);
+    await expect(procedures.moveStep({ step, position: 1, expectedVersion: 1 })).rejects.toBeInstanceOf(ProcedureVersionConflict);
+    expect(await procedures._getVersion({ procedure })).toEqual([{ version: 2 }]);
     await procedures.editStep({ step, text: "Officer A", expectedVersion: 1 });
     await expect(procedures.editStep({ step, text: "Officer B stale draft", expectedVersion: 1 })).rejects.toBeInstanceOf(ProcedureVersionConflict);
     expect(await procedures._steps({ procedure })).toEqual([{ step, text: "Officer A", position: 1 }]);

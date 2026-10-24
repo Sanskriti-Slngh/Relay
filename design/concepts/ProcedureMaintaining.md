@@ -119,7 +119,11 @@ moveStep (step: Step, position: Number, expectedVersion?: Number) : returns ()
   where step exists and step status is ACTIVE and step's procedure exists and step's procedure status is ACTIVE and (position is not an integer or position is less than 1 or position is greater than the number of ACTIVE Steps belonging to step's procedure)
   then
     refuses INVALID_POSITION "Position must be an integer within the active Step order."
-  where step exists and step status is ACTIVE and step's procedure exists and step's procedure status is ACTIVE and position is an integer and 1 <= position <= the number of ACTIVE Steps belonging to step's procedure
+  where step exists and step status is ACTIVE and step's procedure exists and step's procedure status is ACTIVE and position is step's current position
+  then
+    leave the Step order and procedure version unchanged
+    returns
+  where step exists and step status is ACTIVE and step's procedure exists and step's procedure status is ACTIVE and position is an integer and 1 <= position <= the number of ACTIVE Steps belonging to step's procedure and position is not step's current position
   then
     move step to given position
     shift the other ACTIVE Step positions as needed so the positions

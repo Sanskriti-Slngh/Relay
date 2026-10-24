@@ -157,6 +157,54 @@ describe("multi-user Relay host", () => {
     const current = await call("/api/workspaces/procedures", {}, officer);
     expect(current.body.procedures[0]).toEqual(expect.objectContaining({ title: "Original title", version: 2 }));
     expect((await call("/workspaces/activity", {}, officer)).body.events).toEqual(activityBeforeConflict);
+
+    const note = await call("/api/workspaces/context/notes", { text: "Original policy" }, officer);
+    expect(note.status).toBe(200);
+    expect((await call("/api/workspaces/context/step-attachments", {
+      context: note.body.context,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+    }, officer)).status).toBe(200);
+    const acceptedChange = await call("/api/workspaces/context/change", {
+      context: note.body.context,
+      text: "Officer A policy",
+      expectedVersion: 1,
+    }, officer);
+    expect(acceptedChange.status).toBe(200);
+    await application.whenIdle();
+
+    const contextBeforeStale = (await call("/api/workspaces/context", {}, officer)).body.contexts
+      .find((entry: Record<string, unknown>) => entry.context === note.body.context);
+    const reviewsBeforeStale = (await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews;
+    const activityBeforeStale = (await call("/workspaces/activity", {}, officer)).body.events;
+    expect(contextBeforeStale).toEqual(expect.objectContaining({
+      text: "Officer A policy",
+      version: 2,
+      changes: [expect.objectContaining({ change: acceptedChange.body.change })],
+    }));
+    expect(reviewsBeforeStale).toHaveLength(1);
+    expect(reviewsBeforeStale[0].causes).toEqual([
+      expect.objectContaining({ cause: acceptedChange.body.change }),
+    ]);
+
+    const staleChange = await call("/api/workspaces/context/change", {
+      context: note.body.context,
+      text: "Officer B stale policy",
+      expectedVersion: 1,
+    }, officer);
+    expect(staleChange).toEqual(expect.objectContaining({
+      status: 409,
+      body: { error: "VERSION_CONFLICT" },
+    }));
+    await application.whenIdle();
+
+    const contextAfterStale = (await call("/api/workspaces/context", {}, officer)).body.contexts
+      .find((entry: Record<string, unknown>) => entry.context === note.body.context);
+    expect(contextAfterStale).toEqual(contextBeforeStale);
+    expect((await call("/api/workspaces/reviews/pending", {}, officer)).body.reviews)
+      .toEqual(reviewsBeforeStale);
+    expect((await call("/workspaces/activity", {}, officer)).body.events)
+      .toEqual(activityBeforeStale);
   });
 
   test("supports one-time member invitations and enforces Member and Officer permissions", async () => {

@@ -110,6 +110,20 @@ async function ensureActiveProcedure(
   if (found.status !== "ACTIVE") throw new ProcedureNotActive("The Procedure is retired.");
 }
 
+async function requireCurrentProcedureVersion(
+  storage: ProcedureStorage,
+  procedure: string,
+  expectedVersion: number | undefined,
+  session: OptionalMongoSession,
+): Promise<void> {
+  if (!expectedVersion) return;
+  const found = await storage.procedures.findOne(
+    { _id: procedure, status: "ACTIVE", version: expectedVersion },
+    { session, projection: { _id: 1 } },
+  );
+  if (found === null) throw new VersionConflict("The Procedure changed after it was loaded.");
+}
+
 async function requireActiveStepsAreContiguous(
   storage: ProcedureStorage,
   procedure: string,
@@ -294,7 +308,15 @@ export class ProcedureMaintainingConcept {
         throw new StepOrderIntegrityError(`Active Step ${step} disappeared during reordering.`);
       }
       const [movedStep] = movedSteps.splice(currentIndex, 1);
-      if (currentIndex === position - 1) return {};
+      if (currentIndex === position - 1) {
+        await requireCurrentProcedureVersion(
+          this.storage,
+          found.procedure,
+          expectedVersion,
+          session,
+        );
+        return {};
+      }
       await requireActiveProcedure(this.storage, found.procedure, session, expectedVersion);
       movedSteps.splice(position - 1, 0, movedStep);
 

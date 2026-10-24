@@ -8,6 +8,8 @@ import ReviewsView from "./components/ReviewsView.vue";
 import QuestionsView from "./components/QuestionsView.vue";
 import WorkspaceView from "./components/WorkspaceView.vue";
 import { confirmedAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
+import { recordAndAttachInlineContext } from "./inline-context.ts";
+import { refreshAfterVersionConflict } from "./version-conflict-recovery.ts";
 
 type Section = "overview" | "procedures" | "context" | "reviews" | "questions" | "workspace";
 
@@ -204,7 +206,7 @@ async function runAction(label: string, action: () => Promise<void>, success: st
     successMessage.value = refreshed ? success : "The action completed, but the workspace could not refresh. Try Refresh.";
   } catch (error) {
     showError(error);
-    if (error instanceof RelayApiError && error.code === "VERSION_CONFLICT") await refreshData(false, true);
+    await refreshAfterVersionConflict(error, () => { actionBusy.value = ""; }, () => refreshData(false, true));
   }
   finally { actionBusy.value = ""; }
 }
@@ -360,12 +362,43 @@ async function attachStepContext({ note, procedure, step, onSuccess }: { note: C
   }, "Context attached to the step.");
 }
 
-async function recordStepContext({ procedure, step, text, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void }) {
-  await runAction(`record-step-context-${step.step}`, async () => {
-    const created = await api.recordContextNote(text, csrfToken.value);
-    await api.attachContextNoteAtStep(created.context, procedure.procedure, step.step, csrfToken.value);
-    onSuccess();
-  }, "Context saved with the step.");
+async function recordStepContext({ procedure, step, text, onSuccess, onRecordedOnly }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void; onRecordedOnly: (context: string) => void }) {
+  if (actionBusy.value) {
+    showValidationError("Please wait for the current workspace action to finish.");
+    return;
+  }
+  clearMessages();
+  actionBusy.value = `record-step-context-${step.step}`;
+  try {
+    const result = await recordAndAttachInlineContext(
+      () => api.recordContextNote(text, csrfToken.value),
+      (context) => api.attachContextNoteAtStep(context, procedure.procedure, step.step, csrfToken.value),
+    );
+    if (result.status === "ATTACHED") {
+      onSuccess();
+      const refreshed = await refreshData();
+      successMessage.value = refreshed
+        ? "Context saved with the step."
+        : "The context was saved with the step, but the workspace could not refresh. Try Refresh.";
+      return;
+    }
+
+    actionBusy.value = "";
+    const refreshed = await refreshData(false, true);
+    onRecordedOnly(result.context);
+    if (result.cause instanceof RelayApiError && (result.cause.status === 401 || result.cause.code === "CSRF_REJECTED")) {
+      clearWorkspaceState();
+      errorMessage.value = "The note was saved, but your session ended before it could be attached. Sign in again, then attach the saved note under Use existing.";
+    } else {
+      errorMessage.value = refreshed
+        ? "The note was saved, but it could not be attached. It is selected under Use existing so you can retry without creating another note."
+        : "The note was saved, but it could not be attached or shown after refresh. Try Refresh, then attach the saved note under Use existing.";
+    }
+  } catch (error) {
+    showError(error);
+  } finally {
+    actionBusy.value = "";
+  }
 }
 
 async function correctContext({ note, text, expectedVersion, onSuccess }: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }) {
@@ -395,7 +428,7 @@ async function changeContext({ note, text, expectedVersion, onSuccess }: { note:
     }
   } catch (error) {
     showError(error);
-    if (error instanceof RelayApiError && error.code === "VERSION_CONFLICT") await refreshData(false, true);
+    await refreshAfterVersionConflict(error, () => { actionBusy.value = ""; }, () => refreshData(false, true));
   } finally {
     actionBusy.value = "";
   }
