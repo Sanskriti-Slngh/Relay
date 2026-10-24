@@ -1,58 +1,39 @@
-# Relay: preserving club knowledge across handoffs
+# Relay design index
 
-Relay helps student clubs preserve recurring procedures and the context behind them, so incoming officers can understand inherited work and reconsider it when circumstances change.
+This directory contains Relay's current P4 design and the historical work that
+led to it. Start with the concise [final design summary](./p4-final-design.md).
 
-This README is the entry point to the complete design submission. Each section links to its full design document or prototype.
+## Current P4 specifications
 
-## Problem framing and stakeholders
+- [Relay composition and HTTP contract](./compositions/Relay.md)
+- Concepts: [ProcedureMaintaining](./concepts/ProcedureMaintaining.md),
+  [ContextTracking](./concepts/ContextTracking.md),
+  [Questioning](./concepts/Questioning.md),
+  [Reviewing](./concepts/Reviewing.md), and
+  [RoleBasedAccessing](./concepts/RoleBasedAccessing.md)
+- [Shared external types](./types.md)
+- [Collaborative version-control design](./version-control.md)
+- [P4 visual-design specification](./visual-design.md)
 
-See [Problem framing](./problem-framing.md) for the domain, stakeholder needs, observed handoff problems, and the opportunity Relay addresses.
+## Product foundations and historical milestones
 
-## Application pitch
+- [Problem framing](./problem-framing.md) and
+  [application pitch](./application-pitch.md)
+- [P1 concept design and low-fidelity sketches](./concept-design.md)
+- [P1 product-direction user journey](./user-journey.md)
+- [P2 MVP user journey](../mvp/p2-mvp-user-journey.md)
+- [P3 Beta user journey](../mvp/p3-beta-user-journey.md)
+- [P3 deployment record](../mvp/p3-beta-deployment-verification.md)
+- [Historical P3 demonstration](https://youtu.be/2jB5J9K8b5Y)
 
-See the [Application pitch](./application-pitch.md) for Relay's Quick Playbooks, optional Context Notes, and Change Check features.
-
-## Concept specifications, essential reactions, and concept roles
-
-The [Concept design](./concept-design.md) contains the complete concept specifications, essential reactions connecting them, and the explanation of each concept's role in Relay.
-
-## UI sketches
-
-The four low-fidelity UI sketches are shown below:
-
-### Fig. 1. Club workspace / Playbooks
-
-![Fig. 1: Relay club workspace / Playbooks](./club-workspace.png)
-
-### Fig. 2. Playbook detail
-
-![Fig. 2: Relay playbook detail](./playbook-detail.png)
-
-### Fig. 3. Changing a Context Note
-
-![Fig. 3: Relay changing a Context Note](./context-change.png)
-
-### Fig. 4. Reviewing an affected Playbook
-
-![Fig. 4: Relay review of an affected Playbook](./review-playbook.png)
-
-## User journey
-
-See the [P1 user journey](./user-journey.md) for the broader product direction
-and the [P2 MVP user journey](../mvp/p2-mvp-user-journey.md) for the narrower
-historical walkthrough. The implemented beta flow is documented in the
-[P3 Beta user journey](../mvp/p3-beta-user-journey.md). The policy examples are
-explicitly fictional demonstration content.
-
-## P3 Beta visual system
-
-See the [P3 Beta visual design specification](./visual-design.md) for the UI
-audit, design tokens, page patterns, accessibility rules, and sources applied
-to the implemented interface.
-
-The two-slide visual design study is available as rendered
-[typography](../slide-catalog/typography-slide.png) and
+The original P1 sketches remain available as
+[workspace](./club-workspace.png), [Playbook](./playbook-detail.png),
+[Context change](./context-change.png), and
+[Review](./review-playbook.png) images. The P3 visual study remains available
+as rendered [typography](../slide-catalog/typography-slide.png) and
 [color](../slide-catalog/color-slide.png) slides, with editable
 [typography](../slide-catalog/typography-slide.svg) and
-[color](../slide-catalog/color-slide.svg) source files. Each slide identifies
-its sources and the corresponding choices applied in Relay.
+[color](../slide-catalog/color-slide.svg) sources.
+
+The current design notebook is stored in the private individual course
+repository and is intentionally excluded from this public project.

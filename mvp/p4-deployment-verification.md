@@ -5,6 +5,17 @@ Date: October 24, 2026 (America/New_York)
 This is a non-secret evidence record for the P4 release. It contains no account
 credentials, session or CSRF tokens, invitation codes, or MongoDB configuration.
 
+## Later UI release
+
+The detailed HTTP, asset-digest, and 21-check evidence below applies to commit
+`8eb920e9624838679d3b8a80d7932148a1dea9bf`. The project owner later deployed
+the final UI refinement commit
+`21a6fac0bbd6f86bdd587f2acc41030b3ff9e5fd` and reported that its browser checks
+passed. Those later checks were user-operated, not agent-controlled. No new
+deployment identity, HTTP capture, asset-digest comparison, screenshots, or
+per-check notes were supplied, so the original evidence remains attributed to
+the release that actually produced it rather than being relabeled.
+
 ## Release under test
 
 - URL: <https://relay.mit-sdg.dev/>
