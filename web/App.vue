@@ -10,6 +10,7 @@ import WorkspaceView from "./components/WorkspaceView.vue";
 import { confirmedAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
 import { recordAndAttachInlineContext } from "./inline-context.ts";
 import { refreshAfterVersionConflict } from "./version-conflict-recovery.ts";
+import { discardAfterSuccessfulAction, shouldConfirmDiscard } from "./unsaved-work.ts";
 
 type Section = "overview" | "procedures" | "context" | "reviews" | "questions" | "workspace";
 
@@ -52,6 +53,8 @@ const workspaceMembers = ref<WorkspaceMember[]>([]);
 const pendingInvitations = ref<PendingInvitation[]>([]);
 const recentActivity = ref<ActivityEvent[]>([]);
 const contextChangeResult = ref<ContextChangeResult>();
+const hasUnsavedWork = ref(false);
+const playbooksEditorKey = ref(0);
 let refreshSequence = 0;
 let refreshTimer: number | undefined;
 
@@ -78,7 +81,12 @@ const navigation: { id: Section; label: string }[] = [
 
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
 
+function confirmDiscardUnsavedWork(): boolean {
+  return !shouldConfirmDiscard(hasUnsavedWork.value, true) || window.confirm("Discard your unsaved work? Relay has not saved the text in the open form.");
+}
+
 function navigate(target: { section: Section; procedure?: string; review?: string; question?: string; questionKind?: "step" | "context"; createPlaybook?: boolean }) {
+  if (target.section !== section.value && !confirmDiscardUnsavedWork()) return;
   clearMessages();
   focusedProcedure.value = target.procedure ?? "";
   focusedContextStep.value = "";
@@ -86,10 +94,12 @@ function navigate(target: { section: Section; procedure?: string; review?: strin
   focusedQuestionId.value = target.question ?? "";
   focusedQuestionKind.value = target.questionKind ?? "";
   startNewPlaybook.value = target.createPlaybook ?? false;
+  hasUnsavedWork.value = false;
   section.value = target.section;
 }
 
 function clearWorkspaceUiState() {
+  hasUnsavedWork.value = false;
   focusedProcedure.value = "";
   focusedContextStep.value = "";
   focusedReviewId.value = "";
@@ -245,8 +255,11 @@ async function createClub(payload?: { name: string; onSuccess: () => void }) {
   }, "Club workspace created. You are its Owner.");
 }
 
-async function selectClub(id: string) {
-  createdInvite.value = undefined;
+async function selectClub(id: string, select?: HTMLSelectElement) {
+  if (!confirmDiscardUnsavedWork()) {
+    if (select) select.value = workspace.value;
+    return;
+  }
   await runAction("select-workspace", async () => { await acceptSession(await api.selectWorkspace(id, csrfToken.value)); }, "Workspace selected.");
 }
 
@@ -259,7 +272,6 @@ async function acceptInvitation(payload?: { token: string; onSuccess: () => void
 }
 
 async function inviteMember({ email: address, onSuccess }: { email: string; onSuccess: () => void }) {
-  createdInvite.value = undefined;
   await runAction("invite-member", async () => {
     const invite = await api.createInvitation(address, csrfToken.value);
     createdInvite.value = invite; onSuccess();
@@ -267,7 +279,6 @@ async function inviteMember({ email: address, onSuccess }: { email: string; onSu
 }
 
 async function reissueInvitation(invitation: PendingInvitation) {
-  createdInvite.value = undefined;
   await runAction(`reissue-invitation-${invitation.invitation}`, async () => {
     const replacement = await api.reissueInvitation(invitation.invitation, csrfToken.value);
     createdInvite.value = { ...replacement, reissued: true };
@@ -298,7 +309,7 @@ async function transferOwnership({ member, formerOwnerRole, onSuccess }: { membe
 }
 
 async function signOut() {
-  createdInvite.value = undefined;
+  if (!confirmDiscardUnsavedWork()) return;
   clearMessages();
   try { await api.logout(csrfToken.value); }
   catch (error) { showError(error); return; }
@@ -339,8 +350,14 @@ async function removeStep({ procedure, step }: { procedure: Procedure; step: Pro
 }
 
 async function archiveProcedure(procedure: Procedure) {
-  if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved.`)) return;
-  await runAction(`archive-${procedure.procedure}`, async () => { await api.archiveProcedure(procedure.procedure, procedure.version, csrfToken.value); }, "Playbook archived. Its context and review history are preserved.");
+  const draftWarning = hasUnsavedWork.value ? " Unsaved text in this Playbook will be discarded." : "";
+  if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved.${draftWarning}`)) return;
+  await runAction(`archive-${procedure.procedure}`, async () => {
+    await discardAfterSuccessfulAction(
+      () => api.archiveProcedure(procedure.procedure, procedure.version, csrfToken.value),
+      () => { playbooksEditorKey.value += 1; },
+    );
+  }, "Playbook archived. Its context and review history are preserved.");
 }
 
 async function recordContext({ text, onSuccess }: { text: string; onSuccess: () => void }) {
@@ -463,8 +480,10 @@ function editReviewedPlaybook(review: PendingReview) {
 }
 
 function returnToReview() {
+  if (!confirmDiscardUnsavedWork()) return;
   clearMessages();
   focusedProcedure.value = "";
+  hasUnsavedWork.value = false;
   section.value = "reviews";
 }
 
@@ -507,6 +526,7 @@ onMounted(async () => {
     sessionChecked.value = true;
     refreshTimer = window.setInterval(() => { void refreshData(false, true); }, 3_000);
     document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("beforeunload", preventUnsavedUnload);
   }
 });
 
@@ -514,9 +534,16 @@ function refreshWhenVisible() {
   if (!document.hidden) void refreshData(false, true);
 }
 
+function preventUnsavedUnload(event: BeforeUnloadEvent) {
+  if (!hasUnsavedWork.value) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
+
 onUnmounted(() => {
   if (refreshTimer !== undefined) window.clearInterval(refreshTimer);
   document.removeEventListener("visibilitychange", refreshWhenVisible);
+  window.removeEventListener("beforeunload", preventUnsavedUnload);
 });
 </script>
 
@@ -545,15 +572,15 @@ onUnmounted(() => {
     <section v-else-if="!hasWorkspace" class="loading-screen onboarding-screen">
       <span class="brand-mark" aria-hidden="true">R</span><h1>Choose a club</h1><p>Create a new club or enter an invitation code.</p>
       <div v-if="workspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in workspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
-      <form class="onboarding-card" @submit.prevent="createClub()"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">Create as Owner</button></form>
-      <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">Join club</button></form>
+      <form class="onboarding-card" @submit.prevent="createClub()"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">{{ actionBusy === "create-workspace" ? "Creating…" : "Create as Owner" }}</button></form>
+      <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join club" }}</button></form>
       <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
     </section>
     <div v-else class="workspace-layout">
       <aside class="sidebar">
         <a class="brand-lockup sidebar-brand" href="#" @click.prevent="navigate({ section: 'overview' })"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></a>
         <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
-        <select v-if="workspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value)"><option v-for="club in workspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
+        <select v-if="workspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"><option v-for="club in workspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
           <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
             <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
@@ -570,11 +597,11 @@ onUnmounted(() => {
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
-          <PlaybooksView v-else-if="section === 'procedures'" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" />
-          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" />
+          <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
+          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" />
-          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" />
-          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" />
+          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @dirty-change="hasUnsavedWork = $event" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" @dirty-change="hasUnsavedWork = $event" />
         </div>
       </section>
     </div>

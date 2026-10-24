@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { PendingReview, Procedure, ProcedureReviewHistory } from "../api.ts";
+import { reviewDecisionGuidance } from "../interaction-guidance.ts";
 
 const props = defineProps<{ reviews: PendingReview[]; reviewHistory: ProcedureReviewHistory[]; procedures: Procedure[]; actionBusy: string; focusReview?: string }>();
 const emit = defineEmits<{ confirm: [review: PendingReview]; requireChanges: [review: PendingReview]; resolve: [review: PendingReview]; cancel: [review: PendingReview]; editPlaybook: [review: PendingReview] }>();
@@ -15,8 +16,12 @@ function currentProcedure(procedure: string) { return props.procedures.find((ent
   <div v-if="!reviews.length" class="empty-page-state"><h2>All caught up</h2><p>No Playbooks need review right now. When shared information changes, affected Playbooks will appear here.</p></div>
   <div v-else class="inbox-list">
     <details v-for="review in reviews" :key="review.review" class="inbox-row" :open="review.review === focusReview">
-      <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ review.title }}</strong><small>{{ review.causes.length }} {{ review.causes.length === 1 ? "context change" : "context changes" }}</small></span><span class="row-status pending">{{ review.status === "PENDING" ? "Review" : "Changes required" }}</span></summary>
+      <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ review.title }}</strong><small>{{ review.status === "PENDING" ? "Shared context changed" : "Instructions need an update" }} · {{ review.causes.length }} {{ review.causes.length === 1 ? "change" : "changes" }}</small></span><span class="row-status pending">{{ review.status === "PENDING" ? "Review" : "Changes required" }}</span></summary>
       <div class="inbox-detail">
+        <header class="review-task">
+          <span>Review task</span>
+          <p>Compare the changed context with the current instructions, then choose the appropriate next action.</p>
+        </header>
         <div class="review-context-grid">
           <section class="review-evidence" :aria-labelledby="`evidence-${review.review}`">
             <h3 :id="`evidence-${review.review}`">Changed context</h3>
@@ -24,7 +29,7 @@ function currentProcedure(procedure: string) { return props.procedures.find((ent
           </section>
           <section class="review-instructions" :aria-labelledby="`instructions-${review.review}`">
             <h3 :id="`instructions-${review.review}`">Current Playbook instructions</h3>
-            <p class="review-scope-note">Compare the current instructions with the changed context. The context may apply to the whole Playbook or to a particular Step.</p>
+            <p class="review-scope-note">Context may apply to the whole Playbook or to a particular Step.</p>
             <ol v-if="currentProcedure(review.procedure)?.steps.length" class="review-step-list">
               <li v-for="step in currentProcedure(review.procedure)?.steps" :key="step.step"><span>{{ step.position }}</span><p>{{ step.text }}</p></li>
             </ol>
@@ -32,12 +37,13 @@ function currentProcedure(procedure: string) { return props.procedures.find((ent
           </section>
         </div>
         <div class="review-decision">
-          <div><h3>{{ review.status === "PENDING" ? "Decision" : "Next step" }}</h3><p v-if="review.status === 'PENDING'">Are these instructions still correct after the context changed?</p><p v-else>Edit the Playbook as needed, then resolve this Review.</p></div>
+          <div><h3>{{ review.status === "PENDING" ? "Decision" : "Next step" }}</h3><p>{{ reviewDecisionGuidance(review.status) }}</p></div>
           <div class="review-actions">
             <template v-if="review.status === 'PENDING'"><button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('confirm', review)">{{ actionBusy === `confirm-${review.review}` ? "Confirming…" : "Still correct" }}</button><button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('requireChanges', review)">{{ actionBusy === `require-${review.review}` ? "Saving…" : "Needs updating" }}</button><details class="action-menu"><summary>Other actions</summary><div><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">Cancel review</button></div></details></template>
-            <template v-else><button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('editPlaybook', review)">Edit playbook</button><button class="button button-primary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('resolve', review)">{{ actionBusy === `resolve-${review.review}` ? "Resolving…" : "Resolve review" }}</button><details class="action-menu"><summary>Other actions</summary><div><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">Cancel review</button></div></details></template>
+            <template v-else><button class="button button-primary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('editPlaybook', review)">Edit playbook</button><button class="button button-secondary" type="button" :disabled="!!actionBusy || !procedureIsActive(review.procedure)" @click="emit('resolve', review)">{{ actionBusy === `resolve-${review.review}` ? "Resolving…" : "Instructions are current — resolve" }}</button><details class="action-menu"><summary>Other actions</summary><div><button class="danger-text" type="button" :disabled="!!actionBusy" @click="emit('cancel', review)">Cancel review</button></div></details></template>
           </div>
         </div>
+        <p v-if="!procedureIsActive(review.procedure)" class="form-guidance review-unavailable-guidance">{{ review.status === "PENDING" ? "This Playbook is archived, so it cannot be edited. You can still mark its current instructions as correct, or use Other actions to cancel the Review." : "This Playbook is archived, so it cannot be edited or resolved. Use Other actions to cancel the Review." }}</p>
       </div>
     </details>
   </div>

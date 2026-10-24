@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, onUnmounted, reactive, watch } from "vue";
 import type { ContextQuestion, StepQuestion } from "../api.ts";
 import VersionConflict from "./VersionConflict.vue";
 
@@ -7,6 +7,7 @@ const props = defineProps<{ stepQuestions: StepQuestion[]; contextQuestions: Con
 const emit = defineEmits<{
   answer: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }];
   revise: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }];
+  dirtyChange: [dirty: boolean];
 }>();
 const answerDraft = reactive<Record<string, string>>({});
 const editingAnswer = reactive<Record<string, boolean>>({});
@@ -14,6 +15,13 @@ const answerVersion = reactive<Record<string, number>>({});
 const questions = computed(() => [...props.stepQuestions.map((question) => ({ kind: "step" as const, question })), ...props.contextQuestions.map((question) => ({ kind: "context" as const, question }))]);
 const openQuestions = computed(() => questions.value.filter(({ question }) => question.status === "OPEN"));
 const answeredQuestions = computed(() => questions.value.filter(({ question }) => question.status === "ANSWERED"));
+const hasUnsavedWork = computed(() => questions.value.some(({ question }) => {
+  const draft = answerDraft[question.question] ?? "";
+  if (!draft.trim()) return false;
+  return !editingAnswer[question.question] || draft !== (question.answer ?? "");
+}));
+watch(hasUnsavedWork, (dirty) => emit("dirtyChange", dirty), { immediate: true });
+onUnmounted(() => emit("dirtyChange", false));
 function answerQuestion(kind: "step" | "context", question: StepQuestion | ContextQuestion) {
   const answer = (answerDraft[question.question] ?? "").trim(); if (!answer) return;
   emit("answer", { kind, question, answer, expectedVersion: answerVersion[question.question] ?? question.version, onSuccess: () => { answerDraft[question.question] = ""; delete answerVersion[question.question]; } });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import type { IssuedInvitation, PendingInvitation, WorkspaceMember, WorkspaceMembership } from "../api.ts";
+import { hasMeaningfulDraft } from "../unsaved-work.ts";
 
 const props = defineProps<{
   workspace: string;
@@ -25,6 +26,7 @@ const emit = defineEmits<{
   changeRole: [payload: { member: WorkspaceMember; role: "Officer" | "Member" }];
   removeMember: [member: WorkspaceMember];
   transferOwnership: [payload: { member: WorkspaceMember; formerOwnerRole: "Officer" | "Member"; onSuccess: () => void }];
+  dirtyChange: [dirty: boolean];
 }>();
 const inviteEmail = ref("");
 const newClubName = ref("");
@@ -36,8 +38,11 @@ const transferTarget = ref("");
 const formerOwnerRole = ref<"Officer" | "Member">("Officer");
 const transferConfirmed = ref(false);
 const transferableMembers = computed(() => props.members.filter((member) => member.user !== props.user?.id));
+const hasUnsavedWork = computed(() => hasMeaningfulDraft([inviteEmail.value, newClubName.value, invitationToken.value]) || !!transferTarget.value || transferConfirmed.value);
 
 watch(() => props.createdInvite?.token, () => { copyStatus.value = ""; });
+watch(hasUnsavedWork, (dirty) => emit("dirtyChange", dirty), { immediate: true });
+onUnmounted(() => emit("dirtyChange", false));
 
 function invite() {
   const email = inviteEmail.value.trim(); if (!email) return;
@@ -138,9 +143,9 @@ function transfer() {
         <div class="member-actions">
           <span>{{ member.role }}</span>
           <template v-if="canManage(member)">
-            <button v-if="member.role === 'Member'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Promote ${member.name} to Officer`" @click="emit('changeRole', { member, role: 'Officer' })">Make Officer</button>
-            <button v-if="role === 'Owner' && member.role === 'Officer'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Demote ${member.name} to Member`" @click="emit('changeRole', { member, role: 'Member' })">Make Member</button>
-            <button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" :aria-label="`Remove ${member.name} from workspace`" @click="emit('removeMember', member)">Remove</button>
+            <button v-if="member.role === 'Member'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Promote ${member.name} to Officer`" @click="emit('changeRole', { member, role: 'Officer' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Make Officer" }}</button>
+            <button v-if="role === 'Owner' && member.role === 'Officer'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Demote ${member.name} to Member`" @click="emit('changeRole', { member, role: 'Member' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Make Member" }}</button>
+            <button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" :aria-label="`Remove ${member.name} from workspace`" @click="emit('removeMember', member)">{{ actionBusy === `remove-member-${member.user}` ? "Removing…" : "Remove" }}</button>
           </template>
         </div>
       </div>
@@ -150,7 +155,7 @@ function transfer() {
   <section v-if="!ownershipConfigured && role === 'Officer'" class="workspace-settings-section ownership-setup" aria-labelledby="ownership-setup-title">
     <h2 id="ownership-setup-title">Set workspace owner</h2>
     <p>This older workspace has no recorded Owner. Claim ownership to enable role management. Relay will not choose an Owner automatically.</p>
-    <button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('claimOwnership')">Claim ownership</button>
+    <button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('claimOwnership')">{{ actionBusy === "claim-ownership" ? "Claiming…" : "Claim ownership" }}</button>
   </section>
 
   <section v-if="role === 'Owner' && transferableMembers.length" class="workspace-settings-section" aria-labelledby="transfer-title">
@@ -162,7 +167,7 @@ function transfer() {
       <label for="former-owner-role">Your role after transfer</label>
       <select id="former-owner-role" v-model="formerOwnerRole" :disabled="!!actionBusy"><option value="Officer">Officer</option><option value="Member">Member</option></select>
       <label class="confirmation-check"><input v-model="transferConfirmed" type="checkbox" :disabled="!!actionBusy"> I understand that only the new Owner can transfer ownership again.</label>
-      <button class="button button-primary" type="submit" :disabled="!!actionBusy || !transferTarget || !transferConfirmed">Transfer ownership</button>
+      <button class="button button-primary" type="submit" :disabled="!!actionBusy || !transferTarget || !transferConfirmed">{{ actionBusy === "transfer-ownership" ? "Transferring…" : "Transfer ownership" }}</button>
     </form>
   </section>
 

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onUnmounted, reactive, ref, watch } from "vue";
 import type { ContextNote, ContextQuestion, Procedure } from "../api.ts";
 import type { ContextChangeResult } from "../context-change-result.ts";
+import { meaningfulChangeActionLabel, meaningfulChangeConsequence, questionActionLabel } from "../interaction-guidance.ts";
+import { hasChangedDraft, hasMeaningfulDraft, shouldConfirmDiscard } from "../unsaved-work.ts";
 import VersionConflict from "./VersionConflict.vue";
 
 const props = defineProps<{ contexts: ContextNote[]; procedures: Procedure[]; contextQuestions: ContextQuestion[]; actionBusy: string; canEdit: boolean; changeResult?: ContextChangeResult }>();
@@ -14,6 +16,7 @@ const emit = defineEmits<{
   validationError: [message: string];
   reviewAffected: [review: string];
   dismissChangeResult: [];
+  dirtyChange: [dirty: boolean];
 }>();
 
 const contextDraft = ref("");
@@ -29,6 +32,17 @@ const questionComposer = reactive<Record<string, boolean>>({});
 const expandedNote = reactive<Record<string, boolean>>({});
 const updateVersion = reactive<Record<string, number>>({});
 const activeProcedures = computed(() => props.procedures.filter(({ status }) => status === "ACTIVE"));
+const activeUpdateIsDirty = computed(() => {
+  const note = props.contexts.find(({ context }) => context === updateOpen.value);
+  if (!note) return false;
+  return hasChangedDraft(note.text, [correctionDraft[note.context], changeDraft[note.context]]);
+});
+const hasUnsavedWork = computed(() =>
+  !!contextDraft.value.trim() || activeUpdateIsDirty.value || hasMeaningfulDraft(Object.values(questionDraft)),
+);
+
+watch(hasUnsavedWork, (dirty) => emit("dirtyChange", dirty), { immediate: true });
+onUnmounted(() => emit("dirtyChange", false));
 
 watch(() => props.procedures, () => {
   for (const context of Object.keys(attachmentProcedure)) {
@@ -41,6 +55,7 @@ watch(() => props.procedures, () => {
 function stepsForProcedure(id: string) { return props.procedures.find(({ procedure }) => procedure === id)?.steps ?? []; }
 function titleForProcedure(id: string) { return props.procedures.find(({ procedure }) => procedure === id)?.title ?? "Unknown playbook"; }
 function questionsForContext(id: string) { return props.contextQuestions.filter(({ context }) => context === id); }
+function contextQuestionLabel(id: string) { return questionActionLabel(questionsForContext(id).length); }
 function attachmentPlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject)).size; }
 function affectedActivePlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject).filter((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject))).size; }
 function activeAttachedProcedure(note: ContextNote) { return note.attachments.map(({ subject }) => subject).find((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject)); }
@@ -50,6 +65,22 @@ function openUpdate(note: ContextNote) {
   correctionDraft[note.context] = note.text;
   changeDraft[note.context] = note.text;
   updateVersion[note.context] = note.version;
+}
+function toggleUpdate(note: ContextNote) {
+  if (shouldConfirmDiscard(activeUpdateIsDirty.value, !!updateOpen.value && updateOpen.value !== note.context) && !window.confirm("Discard the unsaved Context edit before editing another Note?")) return;
+  if (updateOpen.value === note.context) {
+    if (shouldConfirmDiscard(activeUpdateIsDirty.value, true) && !window.confirm("Discard this unsaved Context edit?")) return;
+    updateOpen.value = "";
+    return;
+  }
+  openUpdate(note);
+}
+function toggleRecord() {
+  if (showRecord.value) {
+    if (contextDraft.value.trim() && !window.confirm("Discard this unsaved Context Note?")) return;
+    contextDraft.value = "";
+  }
+  showRecord.value = !showRecord.value;
 }
 function recordContext() {
   const text = contextDraft.value.trim(); if (!text) return;
@@ -90,7 +121,7 @@ function askQuestion(note: ContextNote) {
 <template>
   <header class="page-heading heading-with-action">
     <h1>Shared context</h1>
-    <button v-if="canEdit && contexts.length" class="button button-primary" type="button" @click="showRecord = !showRecord">{{ showRecord ? "Close" : "New note" }}</button>
+    <button v-if="canEdit && contexts.length" class="button button-primary" type="button" @click="toggleRecord">{{ showRecord ? "Close" : "New note" }}</button>
   </header>
 
   <form v-if="canEdit && showRecord" class="disclosure-form create-disclosure" @submit.prevent="recordContext">
@@ -105,17 +136,17 @@ function askQuestion(note: ContextNote) {
     <article v-for="note in contexts" :key="note.context" class="context-entry">
       <header class="context-entry-header">
         <div><p class="context-current-text" :class="{ 'is-collapsed': note.text.length > 420 && !expandedNote[note.context] }">{{ note.text }}</p><button v-if="note.text.length > 420" class="note-read-toggle" type="button" :aria-expanded="!!expandedNote[note.context]" @click="expandedNote[note.context] = !expandedNote[note.context]">{{ expandedNote[note.context] ? "Show less" : "Read more" }}</button></div>
-        <button v-if="canEdit" class="button button-small button-secondary" type="button" @click="updateOpen === note.context ? updateOpen = '' : openUpdate(note)">{{ updateOpen === note.context ? "Close" : "Update" }}</button>
+        <button v-if="canEdit" class="button button-small button-secondary" type="button" @click="toggleUpdate(note)">{{ updateOpen === note.context ? "Close" : "Update" }}</button>
       </header>
 
       <section v-if="updateOpen === note.context" class="update-disclosure">
         <fieldset>
           <legend>What changed?</legend>
-          <label><input v-model="updateMode[note.context]" type="radio" value="correct"> <span><strong>Fix wording</strong><small>For typos or clearer phrasing. No Review.</small></span></label>
-          <label><input v-model="updateMode[note.context]" type="radio" value="change"> <span><strong>Information changed</strong><small>Keeps both versions and may create Reviews.</small></span></label>
+          <label class="context-change-option" :class="{ selected: updateMode[note.context] === 'correct' }"><input v-model="updateMode[note.context]" type="radio" value="correct"> <span><strong>Fix wording</strong><small>Change phrasing only. This does not create Review work.</small></span></label>
+          <label class="context-change-option meaningful" :class="{ selected: updateMode[note.context] === 'change' }"><input v-model="updateMode[note.context]" type="radio" value="change"> <span><strong>Information changed</strong><small>Record a change in meaning and review every affected Playbook.</small></span></label>
         </fieldset>
-        <form v-if="updateMode[note.context] === 'correct'" @submit.prevent="correctContext(note)"><label :for="`correct-${note.context}`">Revised note</label><textarea :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" required maxlength="4000" rows="3"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">Save wording</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved note" :saved-value="note.text" draft-label="Your unsaved wording" :draft-value="correctionDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
-        <form v-else @submit.prevent="changeContext(note)"><label :for="`change-${note.context}`">New information</label><textarea :id="`change-${note.context}`" v-model="changeDraft[note.context]" required maxlength="4000" rows="3"></textarea><p class="form-guidance pending-guidance"><template v-if="affectedActivePlaybookCount(note)">This will create or update {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "playbook review" : "playbook reviews" }}.</template><template v-else>No active playbooks are attached, so this will not create a review.</template></p><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : "Save change" }}</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved information" :saved-value="note.text" draft-label="Your unsaved information" :draft-value="changeDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
+        <form v-if="updateMode[note.context] === 'correct'" @submit.prevent="correctContext(note)"><label :for="`correct-${note.context}`">Revised note</label><textarea :id="`correct-${note.context}`" v-model="correctionDraft[note.context]" required maxlength="4000" rows="3"></textarea><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(correctionDraft[note.context] ?? '').trim()">{{ actionBusy === `correct-${note.context}` ? "Saving…" : "Save wording" }}</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved note" :saved-value="note.text" draft-label="Your unsaved wording" :draft-value="correctionDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
+        <form v-else @submit.prevent="changeContext(note)"><label :for="`change-${note.context}`">New information</label><textarea :id="`change-${note.context}`" v-model="changeDraft[note.context]" required maxlength="4000" rows="3"></textarea><p class="form-guidance pending-guidance">{{ meaningfulChangeConsequence(affectedActivePlaybookCount(note)) }}</p><div class="form-actions"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !(changeDraft[note.context] ?? '').trim()">{{ actionBusy === `change-${note.context}` ? "Saving…" : meaningfulChangeActionLabel(affectedActivePlaybookCount(note)) }}</button></div><VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved information" :saved-value="note.text" draft-label="Your unsaved information" :draft-value="changeDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" /></form>
       </section>
 
       <section v-if="changeResult?.context === note.context" class="context-change-result">
@@ -133,7 +164,7 @@ function askQuestion(note: ContextNote) {
 
       <details class="secondary-disclosure context-dependencies"><summary>Used by {{ attachmentPlaybookCount(note) }} {{ attachmentPlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</summary><section aria-label="Playbook dependencies"><div v-if="note.attachments.length" class="dependency-list"><span v-for="(attachment, index) in note.attachments" :key="`${attachment.subject}-${attachment.anchor ?? 'whole'}-${index}`"><strong>{{ titleForProcedure(attachment.subject) }}</strong><small v-if="attachment.anchor">Step {{ stepsForProcedure(attachment.subject).find((step) => step.step === attachment.anchor)?.position ?? "" }}</small><small v-else>Whole playbook</small></span></div><p v-else>Not connected yet.</p><form v-if="canEdit && activeProcedures.length" class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure">{{ procedure.title }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="">Whole playbook</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></section></details>
 
-      <div class="context-entry-tools"><button type="button" :aria-expanded="!!questionComposer[note.context]" @click="questionComposer[note.context] = !questionComposer[note.context]">Questions{{ questionsForContext(note.context).length ? ` (${questionsForContext(note.context).length})` : "" }}</button><details v-if="note.changes.length" class="secondary-disclosure history-inline"><summary>Change history ({{ note.changes.length }})</summary><ol class="change-history"><li v-for="change in note.changes" :key="change.change"><div><span>Before</span><p>{{ change.before }}</p></div><div><span>After</span><p>{{ change.after }}</p></div></li></ol></details></div>
+      <div class="context-entry-tools"><button type="button" :aria-expanded="!!questionComposer[note.context]" @click="questionComposer[note.context] = !questionComposer[note.context]">{{ contextQuestionLabel(note.context) }}</button><details v-if="note.changes.length" class="secondary-disclosure history-inline"><summary>Change history ({{ note.changes.length }})</summary><ol class="change-history"><li v-for="change in note.changes" :key="change.change"><div><span>Before</span><p>{{ change.before }}</p></div><div><span>After</span><p>{{ change.after }}</p></div></li></ol></details></div>
 
       <section v-if="questionComposer[note.context]" class="inline-disclosure">
         <div v-if="questionsForContext(note.context).length" class="subject-question-list"><article v-for="question in questionsForContext(note.context)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>

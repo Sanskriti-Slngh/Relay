@@ -1,4 +1,4 @@
-# Relay visual system — P3 Beta
+# Relay visual system — P4 Code Complete
 
 ## Audit and intent
 
@@ -198,6 +198,63 @@ the existing correction and meaningful-change operations exactly as before.
 Questions and Reviews retain compact summary rows, with source text,
 before/after evidence, and lifecycle actions revealed only when a row is
 opened.
+
+## P4 hierarchy and readability audit
+
+The P4 pass applies the course visual-design rubric directly: organization,
+selective emphasis, readability, consistency, and appropriateness take
+priority over decoration. The interface continues to use the same typography,
+spacing scale, semantic colors, and separator-based grouping. The audit found
+no reason to introduce a second design language, extra icons, shadows, or a
+component library.
+
+Each major screen now has an explicit visual reading order:
+
+- **Overview:** active Playbooks are the dominant content; unfinished work is
+  the contrasting secondary rail; neutral recent activity stays subordinate.
+  First-use guidance replaces the work layout only while there are no active
+  Playbooks, so it cannot compete with real tasks.
+- **Playbooks:** the selected Playbook title and ordered instructions lead.
+  Step tools remain muted and spatially separate; Context, Questions, and
+  mutation forms appear only when requested. Instruction and supporting-copy
+  measures are bounded to about 70 characters for comfortable reading.
+- **Shared context:** current information leads, while dependencies, history,
+  and questions stay quiet. In update mode, the selected change type has a
+  visible state: evergreen for wording correction and amber for a meaningful
+  change that can create Review work.
+- **Reviews:** the summary names both the affected Playbook and why attention
+  is required. The expanded task reads in four levels: a one-sentence purpose,
+  changed Context evidence, current instructions, then the decision. Evidence
+  and instructions use a separator rather than additional cards; the decision
+  heading receives the accent because it is the next action, not because every
+  control needs emphasis.
+- **Questions:** the Question is primary, its Step or Context source is
+  secondary, and the answer form appears only inside the open thread. Preserved
+  answers use the existing completion color and remain distinguishable by text.
+- **Workspace:** club identity leads; memberships, members, ownership, and
+  invitation sections follow as separate settings groups. Destructive actions
+  use red text only at the point of action, while the rest of the page remains
+  calm.
+
+At widths below 960px, Review evidence and instructions stack with a horizontal
+separator. Below 840px, Playbooks replace the cramped master-detail columns
+with a horizontally scrollable index above the full-width document. Below
+720px, the sidebar becomes bottom navigation, forms stack, before/after
+comparisons become one column, and dense inbox summaries put status on its own
+line. At 320px the six navigation destinations may scroll horizontally rather
+than shrinking their labels. Member identity and role controls also stack and
+wrap instead of compressing names or actions. Long user-authored Context,
+Question, history, and member strings use emergency wrapping rather than
+forcing page overflow. The minimum viewport remains 320px; controls keep
+visible focus outlines and status continues to be communicated with words as
+well as color. Disabled controls retain 60% opacity so their labels remain
+legible while still appearing inactive.
+
+This pass deliberately leaves the established 15px application body size and
+12–13px metadata sizes intact. Primary reading content is 15–18px with relaxed
+line height; the smaller scale is reserved for timestamps, counts, roles, and
+other supporting context. These source-level decisions still require rendered
+inspection on representative desktop and 390px mobile viewports.
 
 ## Sources applied
 

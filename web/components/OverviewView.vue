@@ -85,7 +85,12 @@ function fullTimestamp(value: string): string {
   <div class="overview-grid" :class="{ 'has-attention': hasAttention }">
     <section v-if="firstRun" class="first-run overview-first-run">
       <h2>{{ canEdit ? "Create your first playbook" : "No playbooks yet" }}</h2>
-      <p>{{ canEdit ? "Write the steps for one task your club does regularly." : "An Officer can add the first playbook." }}</p>
+      <p>{{ canEdit ? "Start with one recurring club task. Relay keeps its instructions and the reasons behind them together." : "An Officer can add the first Playbook. Once it is ready, you will be able to read its Steps and ask Questions beside them." }}</p>
+      <ol v-if="canEdit" class="first-run-steps" aria-label="How Relay works">
+        <li><strong>Write the task as ordered Steps.</strong><span>The result is a Playbook your club can follow.</span></li>
+        <li><strong>Add Context beside a Step when the reason may change.</strong><span>The same Note can support more than one Playbook.</span></li>
+        <li><strong>Review affected Playbooks when that information changes.</strong><span>Relay finds them; an Officer decides what needs updating.</span></li>
+      </ol>
       <button v-if="canEdit" class="button button-primary" type="button" @click="emit('navigate', { section: 'procedures' })">Create your first playbook</button>
     </section>
     <section v-else class="overview-playbooks" aria-labelledby="overview-playbooks-title">
