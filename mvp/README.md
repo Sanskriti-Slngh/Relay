@@ -8,8 +8,10 @@ historical milestones as the current release.
 
 - [Final design summary](../design/p4-final-design.md)
 - [Deployment-verification record](./p4-deployment-verification.md)
-- [Final demonstration recording plan](./p4-demo-recording-plan.md) — the P4
-  video has not yet been recorded
+- [Final narrated demonstration](../recordings/p4.mp4) — completed 2:59.648 P4
+  submission recording
+- [Final demonstration recording plan](./p4-demo-recording-plan.md) — the plan
+  retained alongside the completed recording
 - [P5 user-testing preparation](./p5-user-testing-prep.md) — preparation only,
   with no participant results
 - [Live application](https://relay.mit-sdg.dev/)
@@ -28,4 +30,5 @@ historical milestones as the current release.
 
 The current design notebook is stored in the private individual repository, as
 required by the assignment, and is intentionally ignored in this public
-checkout. Historical recordings are not committed as large application assets.
+checkout. Historical recordings remain excluded; only the final P4 submission
+recording is included as a current milestone artifact.

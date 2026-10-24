@@ -10,4 +10,5 @@ dist/
 /design/design-notebook.md
 /mvp/design-notebook.md
 /.presentation-build/
-/recordings/
+/recordings/*
+!/recordings/p4.mp4

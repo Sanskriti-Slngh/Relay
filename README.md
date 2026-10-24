@@ -7,7 +7,8 @@ Playbook.
 
 - **Live application:** [relay.mit-sdg.dev](https://relay.mit-sdg.dev/)
 - **Final P4 design:** [Relay — Final Design](design/p4-final-design.md)
-- **Final P4 demonstration:** not yet recorded; no video link is available
+- **Final P4 demonstration:** [Relay — P4 narrated demo](recordings/p4.mp4)
+  (2:59.648)
 - **Historical P3 demonstration:** [Relay — P3](https://youtu.be/2jB5J9K8b5Y)
 
 ## What Relay supports
@@ -128,8 +129,10 @@ scope are documented in the [P4 deployment-verification record](mvp/p4-deploymen
 - [P4 deployment verification](mvp/p4-deployment-verification.md) — preserves
   the detailed evidence for release `8eb920e…` and separately identifies the
   later user-reported validation of `21a6fac…`
-- [P4 demonstration recording plan](mvp/p4-demo-recording-plan.md) — a plan,
-  not a completed video
+- [P4 narrated demonstration](recordings/p4.mp4) — the completed 2:59.648
+  submission recording with audio narration
+- [P4 demonstration recording plan](mvp/p4-demo-recording-plan.md) — the
+  timestamped plan used to prepare the final recording
 - [P5 user-testing preparation](mvp/p5-user-testing-prep.md) — preparation only;
   no participant results are claimed
 - [Milestone index](mvp/README.md) — P2, P3, and P4 evidence

@@ -1,8 +1,14 @@
 # Relay P4 narrated demo recording plan
 
-Target duration: **2:45**. Hard stop: **2:55** to leave margin below the
-assignment's three-minute limit. Narrate continuously, including account
-switches and short loading moments.
+**Recording completed:** [Relay — P4 narrated demo](../recordings/p4.mp4)
+
+The final file is 2:59.648 long and contains H.264 video with AAC audio. This
+document is retained as the preparation and final-QA plan used for that
+submission artifact.
+
+The original target duration was **2:45**, with a planned **2:55** stopping
+point. The completed take runs 2:59.648 and remains within the assignment's
+three-minute limit.
 
 The [official P4 brief](https://61040.github.io/fa26/assignments/p4/) asks for a
 video up to three minutes long, with audio narration throughout, showing at
@@ -158,9 +164,8 @@ Before uploading, verify all of the following:
 
 ## Where to publish and link the final materials
 
-Upload the finished video to a stable public or unlisted host such as YouTube,
-with link access that works while signed out. After the real URL exists, add it
-to the project root `README.md` alongside the deployed app and the P4 design
-document. Keep the supporting evidence and plan under `mvp/`, and link the
-deployment verification record from the README or from a concise P4 materials
-index there. Do not add a placeholder video URL.
+The completed recording is stored at [`recordings/p4.mp4`](../recordings/p4.mp4)
+and linked from the project root `README.md` alongside the deployed app and P4
+design document. If it is also uploaded to a stable public or unlisted video
+host, verify that the hosted link works while signed out before replacing or
+supplementing the repository link. Do not add a placeholder URL.
