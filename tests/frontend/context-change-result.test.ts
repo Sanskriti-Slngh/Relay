@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { PendingReview } from "../../web/api.ts";
-import { confirmedAffectedPlaybooks } from "../../web/context-change-result.ts";
+import { confirmedAffectedPlaybooks, remainingAffectedPlaybooks } from "../../web/context-change-result.ts";
 
 function review(overrides: Partial<PendingReview>): PendingReview {
   return {
@@ -29,5 +29,17 @@ describe("confirmed Context-change results", () => {
 
   test("does not infer affected Playbooks when the refreshed projection has not confirmed them", () => {
     expect(confirmedAffectedPlaybooks("change-missing", [review({})])).toEqual([]);
+  });
+
+  test("keeps only affected Playbooks whose Reviews remain unfinished", () => {
+    const affected = [
+      { review: "review-a", procedure: "procedure-a", title: "Book the hall" },
+      { review: "review-b", procedure: "procedure-b", title: "Run rehearsal" },
+    ];
+
+    expect(remainingAffectedPlaybooks(affected, [review({ review: "review-b" })])).toEqual([
+      { review: "review-b", procedure: "procedure-b", title: "Run rehearsal" },
+    ]);
+    expect(remainingAffectedPlaybooks(affected, [])).toEqual([]);
   });
 });

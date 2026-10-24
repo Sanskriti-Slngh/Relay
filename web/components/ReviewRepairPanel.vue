@@ -38,11 +38,7 @@ const connections = computed(() => contextConnectionsForReview(
   props.contexts,
 ));
 const selectedConnection = computed(() => connections.value.find(({ attachment }) => attachment.attachment === selectedAttachment.value));
-const targetStep = computed(() => selectedAnchor.value ? stepForReviewRepair(selectedAnchor.value, props.procedure.steps) : undefined);
 const editTargetStep = computed(() => props.procedure.steps.find(({ step }) => step === editStepId.value));
-const contextsAtTarget = computed(() => props.contexts.filter((note) => note.attachments.some((attachment) =>
-  attachment.subject === props.procedure.procedure && attachment.anchor === (selectedAnchor.value ?? null),
-)));
 const availableExistingContexts = computed(() => props.contexts.filter((note) =>
   note.context !== selectedConnection.value?.note.context &&
   !note.attachments.some((attachment) => attachment.subject === props.procedure.procedure && attachment.anchor === (selectedAnchor.value ?? null)),
@@ -150,8 +146,8 @@ function chooseEditStep(select: HTMLSelectElement) {
 <template>
   <section class="review-repair" aria-label="Update this Review">
     <header class="review-repair-heading">
-      <div><h3>Update affected instructions</h3><p v-if="selectedConnection">{{ targetLabel(selectedConnection.attachment.anchor) }} · {{ procedure.title }}</p><p v-else>Review the current Playbook, then resolve when its instructions are current.</p></div>
-      <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy || !canEdit" @click="emit('editPlaybook', review)">Open full Playbook editor</button>
+      <h3>{{ editTargetStep ? `Update Step ${editTargetStep.position}` : "Update affected instructions" }}</h3>
+      <button class="review-editor-link" type="button" :disabled="!!actionBusy || !canEdit" @click="emit('editPlaybook', review)">Open full Playbook editor</button>
     </header>
 
     <div v-if="connections.length > 1" class="review-connection-picker" role="group" aria-label="Changed Context connections">
@@ -165,24 +161,21 @@ function chooseEditStep(select: HTMLSelectElement) {
     <form v-if="selectedConnection && canEdit && editTargetStep" class="review-inline-step-editor" @submit.prevent="editStep">
       <label v-if="selectedAnchor === null" :for="`review-step-choice-${review.review}`">Step to edit</label>
       <select v-if="selectedAnchor === null" :id="`review-step-choice-${review.review}`" :value="editStepId" @change="chooseEditStep($event.target as HTMLSelectElement)"><option v-for="step in procedure.steps" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select>
-      <label :for="`review-edit-${editTargetStep.step}`">Step {{ editTargetStep.position }} instruction</label>
+      <label class="sr-only" :for="`review-edit-${editTargetStep.step}`">Step {{ editTargetStep.position }} instruction</label>
       <textarea :id="`review-edit-${editTargetStep.step}`" v-model="stepDraft" required maxlength="500" rows="3" @input="stepSaved = false"></textarea>
       <div class="review-step-save-row"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !stepDraft.trim() || !hasChangedDraft(editTargetStep.text, [stepDraft])">{{ actionBusy === `edit-${editTargetStep.step}` ? "Saving…" : "Save Step" }}</button><p v-if="stepSaved" role="status"><strong>Step saved.</strong> The Review remains open until resolved.</p></div>
       <VersionConflict v-if="!stepSaved && stepVersion !== editTargetStep.version" subject="step" saved-label="Current saved instruction" :saved-value="editTargetStep.text" draft-label="Your unsaved instruction" :draft-value="stepDraft" :busy="!!actionBusy" @use-saved="prepareStepEditor(selectedAnchor)" @save-mine="saveMyStep" />
     </form>
 
     <details v-if="selectedConnection && canEditContext" class="review-alternative-actions">
-      <summary>Other ways to fix this</summary>
-      <div v-if="selectedAnchor !== undefined" class="review-target-state">
-        <div><span>Current target</span><strong>{{ targetLabel(selectedAnchor) }}</strong><p v-if="targetStep">{{ targetStep.text }}</p></div>
-        <div><span>Context attached now</span><ul v-if="contextsAtTarget.length"><li v-for="note in contextsAtTarget" :key="note.context">{{ note.text }}</li></ul><p v-else>No Context Note is attached to this target.</p></div>
-      </div>
+      <summary>Other fixes</summary>
       <nav class="review-update-choices" aria-label="Other update options">
         <button type="button" :class="{ selected: actionMode === 'replace' }" @click="chooseAction('replace')"><strong>Replace Context</strong><small>Use an existing Note or write a new one</small></button>
         <button type="button" :class="{ selected: actionMode === 'remove' }" @click="chooseAction('remove')"><strong>Remove attachment</strong><small>Keep the shared Note, but detach it here</small></button>
       </nav>
 
       <form v-if="actionMode === 'replace'" class="review-update-form" @submit.prevent="replaceContext">
+        <p class="review-alternative-target"><strong>Replacing on {{ targetLabel(selectedAnchor ?? null) }}</strong><span>{{ selectedConnection.note.text }}</span></p>
         <div class="context-mode" role="group" aria-label="Replacement source"><button type="button" :class="{ active: replacementMode === 'existing' }" @click="replacementMode = 'existing'">Use existing</button><button type="button" :class="{ active: replacementMode === 'new' }" @click="replacementMode = 'new'">Write new</button></div>
         <template v-if="replacementMode === 'existing'"><label :for="`review-existing-context-${review.review}`">Replacement shared Context</label><select :id="`review-existing-context-${review.review}`" v-model="replacementContext" required><option value="" disabled>Choose a Context Note…</option><option v-for="note in availableExistingContexts" :key="note.context" :value="note.context">{{ note.text }}</option></select><p v-if="!availableExistingContexts.length" class="form-guidance">No other Context Notes are available for this target. Write a new one instead.</p></template>
         <template v-else><label :for="`review-new-context-${review.review}`">New shared Context</label><textarea :id="`review-new-context-${review.review}`" v-model="newContextDraft" placeholder="Record the replacement decision, constraint, or reason…" required maxlength="4000" rows="3"></textarea></template>

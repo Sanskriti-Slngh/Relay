@@ -23,3 +23,12 @@ export function confirmedAffectedPlaybooks(
     .filter((review) => review.causes.some((cause) => cause.cause === change))
     .map(({ procedure, review, title }) => ({ procedure, review, title }));
 }
+
+/** Keep a change result aligned with the unfinished Review projection. */
+export function remainingAffectedPlaybooks(
+  affectedPlaybooks: AffectedPlaybookReview[],
+  reviews: PendingReview[],
+): AffectedPlaybookReview[] {
+  const unfinishedReviews = new Set(reviews.map(({ review }) => review));
+  return affectedPlaybooks.filter(({ review }) => unfinishedReviews.has(review));
+}

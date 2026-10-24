@@ -7,7 +7,7 @@ import PlaybooksView from "./components/PlaybooksView.vue";
 import ReviewsView from "./components/ReviewsView.vue";
 import QuestionsView from "./components/QuestionsView.vue";
 import WorkspaceView from "./components/WorkspaceView.vue";
-import { confirmedAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
+import { confirmedAffectedPlaybooks, remainingAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
 import { recordAndAttachInlineContext } from "./inline-context.ts";
 import { replaceContextConnection } from "./replace-context.ts";
 import { refreshAfterVersionConflict } from "./version-conflict-recovery.ts";
@@ -187,6 +187,12 @@ async function refreshData(announce = false, background = false): Promise<boolea
     procedures.value = procedureResult.procedures;
     contexts.value = contextResult.contexts;
     reviews.value = reviewResult.reviews;
+    if (contextChangeResult.value?.affectedPlaybooks.length) {
+      const remaining = remainingAffectedPlaybooks(contextChangeResult.value.affectedPlaybooks, reviews.value);
+      contextChangeResult.value = remaining.length
+        ? { ...contextChangeResult.value, affectedPlaybooks: remaining }
+        : undefined;
+    }
     reviewHistory.value = historyResult.procedures;
     stepQuestions.value = questionResult.stepQuestions;
     contextQuestions.value = questionResult.contextQuestions;
