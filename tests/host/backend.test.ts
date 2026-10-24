@@ -1217,17 +1217,18 @@ describe("Relay trusted HTTP backend", () => {
     const histories = history.body.contexts as {
       context: string;
       attachments: { subject: string; anchor: string | null }[];
-      changes: { change: string; before: string; after: string }[];
+      changes: { change: string; before: string; after: string; occurredAt: string | null }[];
     }[];
     const noteHistory = histories.find((entry) => entry.context === context);
     expect(noteHistory?.attachments).toHaveLength(3);
     expect(noteHistory?.attachments.some((entry) => entry.anchor === firstStep)).toBe(true);
     expect(noteHistory?.attachments.filter((entry) => entry.anchor === null)).toHaveLength(2);
-    expect(noteHistory?.changes).toContainEqual({
+    expect(noteHistory?.changes).toContainEqual(expect.objectContaining({
       change,
       before: "Corrected wording, same meaning",
       after: "New policy changes the underlying assumption",
-    });
+      occurredAt: expect.any(String),
+    }));
   });
 
   test("returns no mutation for missing resources and refuses duplicate note attachments", async () => {
@@ -1248,5 +1249,82 @@ describe("Relay trusted HTTP backend", () => {
     const duplicate = await request("/workspaces/context/attachments", { context, procedure });
     expect(duplicate.status).toBe(409);
     expect(duplicate.body.error).toBe("CONFLICT");
+  });
+
+  test("detaches only the selected in-workspace Context relationship and preserves the Note", async () => {
+    const procedure = await createProcedure("Detachment target");
+    const stepResult = await request("/workspaces/procedures/steps/add", { procedure, text: "Uses removable context" });
+    const step = requireString(stepResult.body.step, "Step");
+    const noteResult = await request("/workspaces/context/notes", { text: "Keep this shared note" });
+    const context = requireString(noteResult.body.context, "ContextNote");
+    const whole = await request("/workspaces/context/attachments", { context, procedure });
+    const anchored = await request("/workspaces/context/step-attachments", { context, procedure, step });
+    const wholeAttachment = requireString(whole.body.attachment, "Attachment");
+    const anchoredAttachment = requireString(anchored.body.attachment, "Attachment");
+
+    expect(await request("/workspaces/context/detach", {
+      attachment: anchoredAttachment,
+      context: "forged-context",
+      procedure,
+    })).toEqual({ status: 404, body: { error: "NOT_FOUND" } });
+    expect(await application.concepts.ContextTracking._getAttachment({ attachment: anchoredAttachment })).toHaveLength(1);
+
+    expect(await request("/workspaces/context/detach", { attachment: anchoredAttachment, context, procedure })).toEqual({
+      status: 200,
+      body: { attachment: anchoredAttachment },
+    });
+    expect(await application.concepts.ContextTracking._attachments({ context })).toEqual([
+      { attachment: wholeAttachment, subject: procedure },
+    ]);
+    expect(await application.concepts.ContextTracking._get({ context })).toEqual([
+      expect.objectContaining({ text: "Keep this shared note" }),
+    ]);
+
+    const repeated = await request("/workspaces/context/detach", { attachment: anchoredAttachment, context, procedure });
+    expect(repeated).toEqual({ status: 404, body: { error: "NOT_FOUND" } });
+  });
+
+  test("permanently deletes a shared Context Note, every attachment, and its Questions", async () => {
+    const procedure = await createProcedure("Permanent Context deletion");
+    const noteResult = await request("/workspaces/context/notes", { text: "Policy that will be deleted" });
+    const context = requireString(noteResult.body.context, "ContextNote");
+    const attachmentResult = await request("/workspaces/context/attachments", { context, procedure });
+    const attachment = requireString(attachmentResult.body.attachment, "Attachment");
+    const questionResult = await request("/workspaces/questions/context/ask", {
+      procedure,
+      context,
+      text: "Does this still apply?",
+    });
+    const question = requireString(questionResult.body.question, "Question");
+    const changeResult = await request("/workspaces/context/change", {
+      context,
+      text: "Changed policy retained only for Review evidence",
+    });
+    const change = requireString(changeResult.body.change, "Change");
+
+    expect(await request("/workspaces/context/delete", { context, expectedVersion: 1 })).toEqual({
+      status: 409,
+      body: { error: "CONFLICT" },
+    });
+    expect(await request("/workspaces/context/delete", { context, expectedVersion: 2 })).toEqual({
+      status: 200,
+      body: { context },
+    });
+    expect(await application.concepts.ContextTracking._get({ context })).toEqual([]);
+    expect(await application.concepts.ContextTracking._getAttachment({ attachment })).toEqual([]);
+    expect(await application.concepts.ContextQuestioning._get({ question })).toEqual([]);
+    expect(await application.concepts.ContextTracking._getChange({ change })).toEqual([
+      expect.objectContaining({ context }),
+    ]);
+    expect((await request("/workspaces/context", {})).body.contexts).not.toContainEqual(
+      expect.objectContaining({ context }),
+    );
+    expect((await request("/workspaces/reviews/pending", {})).body.reviews).toContainEqual(
+      expect.objectContaining({ procedure, causes: [expect.objectContaining({ cause: change })] }),
+    );
+    expect(await request("/workspaces/context/delete", { context, expectedVersion: 2 })).toEqual({
+      status: 404,
+      body: { error: "NOT_FOUND" },
+    });
   });
 });

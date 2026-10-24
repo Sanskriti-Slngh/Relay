@@ -177,12 +177,30 @@ and the history endpoint to show confirmed state after refresh.
 Relay.ContextOperations.RecordContextNote at /workspaces/context/notes
 Relay.ContextOperations.AttachContextNote at /workspaces/context/attachments
 Relay.ContextOperations.AttachContextNoteAtStep at /workspaces/context/step-attachments
+Relay.ContextOperations.DetachContextNote at /workspaces/context/detach
+Relay.ContextOperations.DeleteContextNote at /workspaces/context/delete
 Relay.ContextOperations.CorrectContextNote at /workspaces/context/correct
 Relay.ContextOperations.ChangeContextNote at /workspaces/context/change
 Relay.ReadOperations.GetContextHistory at /workspaces/context
 Relay.ReadOperations.GetPendingReviews at /workspaces/reviews/pending
 Relay.ReadOperations.GetReviewHistory at /workspaces/reviews
 ```
+
+[DetachContextNote](reaction:Relay.ContextOperations.DetachContextNote)
+authorizes `EDIT_CONTEXT`, resolves the exact Attachment to its Context Note
+and Procedure, and requires both to belong to the selected workspace and the
+Procedure to remain active. It removes only that relationship: the shared
+Context Note, its Change history, the Playbook, and any existing Review history
+remain. Unknown, archived, or cross-workspace attachments return the same
+non-disclosing unavailable response.
+
+[DeleteContextNote](reaction:Relay.ContextOperations.DeleteContextNote)
+authorizes `EDIT_CONTEXT` and requires the Context Note to belong to the selected
+workspace. It permanently removes the Note and all of its attachments, and a
+[RemoveDeletedContextQuestions](reaction:Relay.ContextChanges.RemoveDeletedContextQuestions)
+removes Questions whose subject was that Note. Existing Change records remain
+only as immutable evidence for Review history; the deleted Note cannot be restored
+or attached again.
 
 ## Confirming a Review
 
@@ -390,6 +408,12 @@ are specified in [version-control.md](../version-control.md).
 - `/workspaces/context/notes` accepts `{ text }` and returns `{ context }`.
   Attachment routes accept `{ context, procedure }` or
   `{ context, procedure, step }` and return `{ attachment }`.
+  `/workspaces/context/detach` accepts `{ attachment, context, procedure }`,
+  verifies that exact relationship server-side, returns the Attachment identity,
+  and removes only the selected attachment from an active in-workspace Playbook.
+  `/workspaces/context/delete` accepts `{ context, expectedVersion }`, returns the
+  deleted Context identity, and permanently removes the shared Note from every
+  Playbook after a version-checked workspace authorization.
   Correction accepts `{ context, text, expectedVersion }` and returns `{ context }`; meaningful
   change accepts the same fields and returns `{ context, change }`.
 - `/workspaces/context` accepts `{}` and returns `{ contexts }`, including each

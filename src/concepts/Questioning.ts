@@ -155,6 +155,12 @@ export class QuestioningConcept {
     );
   }
 
+  async removeForSubject({ subject }: { subject: string }): Promise<Record<string, never>> {
+    await ensureStorage(this.storage);
+    await this.storage.questions.deleteMany({ subject });
+    return {};
+  }
+
   async _forSubject({
     subject,
   }: {

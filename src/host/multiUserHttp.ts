@@ -12,6 +12,8 @@ import {
   MembershipConflict,
   NotAuthorized,
   OwnershipRequired,
+  WorkspaceConfirmationMismatch,
+  WorkspaceMustBeArchived,
   WorkspaceUnavailable,
   type AuthenticatedSession,
   type ActivityEventType,
@@ -138,7 +140,7 @@ export function createMultiUserRelayHttpHandler(
         CONTEXT_PROCEDURE_OR_STEP_NOT_AVAILABLE: "NOT_FOUND", CONTEXT_NOT_AVAILABLE: "NOT_FOUND", REVIEW_NOT_AVAILABLE: "NOT_FOUND",
         STEP_NOT_AVAILABLE: "NOT_FOUND", QUESTION_SUBJECT_NOT_AVAILABLE: "NOT_FOUND", QUESTION_NOT_AVAILABLE: "NOT_FOUND",
         PROCEDURE_NOT_FOUND: "NOT_FOUND", PROCEDURE_NOT_ACTIVE: "CONFLICT", STEP_NOT_FOUND: "NOT_FOUND", STEP_NOT_ACTIVE: "CONFLICT",
-        CONTEXT_NOT_FOUND: "NOT_FOUND", ATTACHMENT_ALREADY_EXISTS: "CONFLICT", CHANGE_NOT_DIFFERENT: "INVALID_REQUEST",
+        CONTEXT_NOT_FOUND: "NOT_FOUND", ATTACHMENT_NOT_AVAILABLE: "NOT_FOUND", ATTACHMENT_NOT_FOUND: "NOT_FOUND", ATTACHMENT_ALREADY_EXISTS: "CONFLICT", CHANGE_NOT_DIFFERENT: "INVALID_REQUEST",
         CONFIRM_REVIEW_NOT_FOUND: "NOT_FOUND", REVIEW_NOT_PENDING_FOR_CONFIRMATION: "CONFLICT", REVIEW_NOT_PENDING_FOR_CHANGES: "CONFLICT",
         REVIEW_NOT_AWAITING_CHANGES: "CONFLICT", CANCEL_REVIEW_FINISHED: "CONFLICT", REQUIRE_CHANGES_REVIEW_NOT_FOUND: "NOT_FOUND",
         RESOLVE_REVIEW_NOT_FOUND: "NOT_FOUND", CANCEL_REVIEW_NOT_FOUND: "NOT_FOUND", QUESTION_NOT_FOUND: "NOT_FOUND",
@@ -155,7 +157,7 @@ export function createMultiUserRelayHttpHandler(
 
   async function sessionPayload(session: AuthenticatedSession) {
     const workspaces = await accounts.memberships(session.user);
-    const selected = workspaces.find(({ workspace }) => workspace === session.workspace);
+    const selected = workspaces.find(({ workspace, status }) => workspace === session.workspace && status === "ACTIVE");
     return {
       authenticated: true,
       csrfToken: session.csrfToken,
@@ -232,6 +234,37 @@ export function createMultiUserRelayHttpHandler(
       if (pathname === "/workspaces/select") {
         const values = strings(body, ["workspace"]); if (!values) return errorResponse(400, "INVALID_INPUT");
         await accounts.selectWorkspace(session, values[0]);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
+      }
+      if (pathname === "/workspaces/rename") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        const values = strings(body, ["name"]); if (!values) return errorResponse(400, "INVALID_INPUT");
+        await accounts.renameWorkspace(session.user, session.workspace, values[0]);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
+      }
+      if (pathname === "/workspaces/archive") {
+        if (!session.workspace) return errorResponse(409, "WORKSPACE_REQUIRED");
+        await accounts.archiveWorkspace(session.user, session.workspace);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        if (refreshed) {
+          const next = (await accounts.memberships(session.user)).find(({ status }) => status === "ACTIVE");
+          if (next) await accounts.selectWorkspace(refreshed, next.workspace);
+        }
+        const selected = await accounts.authenticate(tokenOf(request)!);
+        return response(200, selected ? await sessionPayload(selected) : { authenticated: false });
+      }
+      if (pathname === "/workspaces/restore") {
+        const values = strings(body, ["workspace"]); if (!values) return errorResponse(400, "INVALID_INPUT");
+        await accounts.restoreWorkspace(session.user, values[0]);
+        await accounts.selectWorkspace(session, values[0]);
+        const refreshed = await accounts.authenticate(tokenOf(request)!);
+        return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
+      }
+      if (pathname === "/workspaces/delete") {
+        const values = strings(body, ["workspace", "confirmationName"]); if (!values) return errorResponse(400, "INVALID_INPUT");
+        await accounts.deleteWorkspace(session.user, values[0], values[1]);
         const refreshed = await accounts.authenticate(tokenOf(request)!);
         return response(200, refreshed ? await sessionPayload(refreshed) : { authenticated: false });
       }
@@ -429,6 +462,8 @@ export function createMultiUserRelayHttpHandler(
       if (error instanceof NotAuthorized) return errorResponse(403, "FORBIDDEN");
       if (error instanceof MembershipConflict) return errorResponse(409, "MEMBERSHIP_CONFLICT");
       if (error instanceof OwnershipRequired) return errorResponse(409, "OWNERSHIP_REQUIRED");
+      if (error instanceof WorkspaceConfirmationMismatch) return errorResponse(409, "WORKSPACE_CONFIRMATION_MISMATCH");
+      if (error instanceof WorkspaceMustBeArchived) return errorResponse(409, "WORKSPACE_MUST_BE_ARCHIVED");
       if (error instanceof AccountInputError) return errorResponse(400, "INVALID_INPUT");
       throw error;
     }

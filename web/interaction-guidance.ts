@@ -11,7 +11,7 @@ export function meaningfulChangeActionLabel(affectedPlaybooks: number): string {
 export function reviewDecisionGuidance(status: string): string {
   return status === "PENDING"
     ? "Choose Still correct if the instructions already work with the new context. Choose Needs updating if the Playbook must change."
-    : "First edit the Playbook. When its instructions match the changed context, return here and resolve the Review.";
+    : "Update the affected Steps or Context attachments here, or open the full Playbook editor. Resolve only when the instructions are current.";
 }
 
 export function questionActionLabel(questionCount: number): string {

@@ -41,6 +41,7 @@ a set of Changes with
   a context ContextNote
   a before String
   an after String
+  an optional occurredAt String
 
 Rule: there is at most one Attachment with the same context, subject, and optional anchor
 ```
@@ -88,6 +89,19 @@ detach (attachment: Attachment) : returns ()
     remove attachment
     returns
 
+remove (context: ContextNote, expectedVersion?: Number) : returns ()
+  where context is unknown
+  then
+    refuses CONTEXT_NOT_FOUND "There is no such ContextNote."
+  where context version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The ContextNote changed after it was loaded."
+  where context is known
+  then
+    permanently remove the ContextNote and all of its Attachments
+    preserve its Changes as immutable evidence for existing Review history
+    returns
+
 correct (context: ContextNote, text: String, expectedVersion?: Number) : returns ()
   where context is unknown
   then
@@ -114,6 +128,7 @@ change (context: ContextNote, text: String, expectedVersion?: Number) : returns 
   where context is known and text is not context's current text
   then
     create a new Change with context, before set to context's current text, and after set to text
+    set change occurredAt to the current timestamp
     replace context text with text
     increment context version
     returns change
@@ -140,10 +155,10 @@ _atAnchor (anchor: Anchor) : many (attachment: Attachment, context: ContextNote,
   answers Attachments located at the given Anchor
   answers no rows when the Anchor has no Attachments
   orders rows by stable Attachment identity
-_changes (context: ContextNote) : many (change: Change, before: String, after: String)
-  answers the exact before and after text for each Change to the ContextNote
-  answers no rows for an unknown ContextNote or a ContextNote with no Changes
+_changes (context: ContextNote) : many (change: Change, before: String, after: String, occurredAt?: String)
+  answers the exact before and after text for each Change to the ContextNote, including preserved Changes after the ContextNote is removed
+  answers no rows when the identity has no Changes
   orders rows by stable Change identity
-_getChange (change: Change) : optional (context: ContextNote, before: String, after: String)
+_getChange (change: Change) : optional (context: ContextNote, before: String, after: String, occurredAt?: String)
   answers no row for an unknown Change
 ```

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
-import { ObjectId, type Collection, type Db, type Document } from "mongodb";
+import { ObjectId, type Collection, type Db, type Document, type Filter } from "mongodb";
 import {
   NotAuthorized,
   RoleBasedAccessingConcept,
@@ -20,7 +20,15 @@ type UserDocument = Document & {
   password: string;
   createdAt: Date;
 };
-type WorkspaceDocument = Document & { _id: string; name: string; createdAt: Date; owner?: string };
+type WorkspaceStatus = "ACTIVE" | "ARCHIVED";
+type WorkspaceDocument = Document & {
+  _id: string;
+  name: string;
+  createdAt: Date;
+  owner?: string;
+  status?: WorkspaceStatus;
+  archivedAt?: Date;
+};
 type SessionDocument = Document & {
   _id: string;
   user: string;
@@ -131,6 +139,15 @@ export class InvitationUnavailable extends Error {}
 export class WorkspaceUnavailable extends Error {}
 export class MembershipConflict extends Error {}
 export class OwnershipRequired extends Error {}
+export class WorkspaceConfirmationMismatch extends Error {}
+export class WorkspaceMustBeArchived extends Error {}
+
+function activeWorkspaceFilter(workspace: string): Filter<WorkspaceDocument> {
+  return {
+    _id: workspace,
+    $or: [{ status: "ACTIVE" }, { status: { $exists: false } }],
+  };
+}
 
 function normalizeEmail(value: string): string {
   const email = value.trim().toLowerCase();
@@ -270,35 +287,133 @@ export class AccountStore {
     const name = requireText(nameValue, "Club name", 120);
     const workspace = crypto.randomUUID();
     await this.roleAccess[hostAssignmentMutation](async ({ session, replaceAssignment }) => {
-      await this.workspaces.insertOne({ _id: workspace, name, createdAt: this.now(), owner: user }, { session });
+      await this.workspaces.insertOne({ _id: workspace, name, createdAt: this.now(), owner: user, status: "ACTIVE" }, { session });
       await replaceAssignment(user, workspace, roles.ownerRole);
     });
     return { workspace };
   }
 
-  async memberships(user: string): Promise<{ workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean }[]> {
+  async memberships(user: string): Promise<{ workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean; status: WorkspaceStatus }[]> {
     await this.ready();
-    const result: { workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean }[] = [];
+    const result: { workspace: string; name: string; role: string; permissions: string[]; ownershipConfigured: boolean; status: WorkspaceStatus }[] = [];
     for (const workspace of await this.workspaces.find({}).sort({ name: 1, _id: 1 }).toArray()) {
+      const status = workspace.status ?? "ACTIVE";
+      if (status === "ARCHIVED" && workspace.owner !== user) continue;
       const assignments = await this.roleAccess._assignmentsFor({ user, resource: workspace._id });
       if (assignments.length !== 1) continue;
       const assignment = assignments[0];
       const [role] = await this.roleAccess._getRole({ role: assignment.role });
       if (!role) continue;
       const permissions = (await this.roleAccess._permissions({ role: assignment.role })).map(({ permission }) => permission);
-      result.push({ workspace: workspace._id, name: workspace.name, role: role.name, permissions, ownershipConfigured: !!workspace.owner });
+      result.push({ workspace: workspace._id, name: workspace.name, role: role.name, permissions, ownershipConfigured: !!workspace.owner, status });
     }
     return result;
   }
 
   async selectWorkspace(session: AuthenticatedSession, workspace: string): Promise<void> {
     const memberships = await this.memberships(session.user);
-    if (!memberships.some((entry) => entry.workspace === workspace)) throw new WorkspaceUnavailable();
+    if (!memberships.some((entry) => entry.workspace === workspace && entry.status === "ACTIVE")) throw new WorkspaceUnavailable();
     await this.sessions.updateOne({ _id: session.idHash }, { $set: { workspace } });
+  }
+
+  async renameWorkspace(user: string, workspace: string, nameValue: string): Promise<void> {
+    await this.ready();
+    const name = requireText(nameValue, "Club name", 120);
+    const changed = await this.workspaces.updateOne(
+      { ...activeWorkspaceFilter(workspace), owner: user },
+      { $set: { name } },
+    );
+    if (changed.matchedCount === 1) return;
+    const existing = await this.workspaces.findOne({ _id: workspace });
+    if (existing && existing.owner !== user) throw new NotAuthorized();
+    throw new WorkspaceUnavailable();
+  }
+
+  async archiveWorkspace(user: string, workspace: string): Promise<void> {
+    await this.ready();
+    await this.roleAccess[hostAssignmentMutation](async ({ session }) => {
+      const changed = await this.workspaces.updateOne(
+        { ...activeWorkspaceFilter(workspace), owner: user },
+        { $set: { status: "ARCHIVED", archivedAt: this.now() } },
+        { session },
+      );
+      if (changed.matchedCount !== 1) {
+        const existing = await this.workspaces.findOne({ _id: workspace }, { session });
+        if (existing && existing.owner !== user) throw new NotAuthorized();
+        throw new WorkspaceUnavailable();
+      }
+      await this.sessions.updateMany({ workspace }, { $unset: { workspace: "" } }, { session });
+    });
+  }
+
+  async restoreWorkspace(user: string, workspace: string): Promise<void> {
+    await this.ready();
+    const changed = await this.workspaces.updateOne(
+      { _id: workspace, owner: user, status: "ARCHIVED" },
+      { $set: { status: "ACTIVE" }, $unset: { archivedAt: "" } },
+    );
+    if (changed.matchedCount === 1) return;
+    const existing = await this.workspaces.findOne({ _id: workspace });
+    if (existing && existing.owner !== user) throw new NotAuthorized();
+    throw new WorkspaceUnavailable();
+  }
+
+  async deleteWorkspace(user: string, workspace: string, confirmationName: string): Promise<void> {
+    await this.ready();
+    await this.roleAccess[hostAssignmentMutation](async ({ session, removeAssignments, removeResourceAssignments }) => {
+      const club = await this.workspaces.findOne({ _id: workspace }, { session });
+      if (!club) throw new WorkspaceUnavailable();
+      if (club.owner !== user) throw new NotAuthorized();
+      if (club.status !== "ARCHIVED") throw new WorkspaceMustBeArchived();
+      if (confirmationName !== club.name) throw new WorkspaceConfirmationMismatch();
+
+      const procedures = await this.database.collection<{ _id: string }>("procedureMaintaining_procedures")
+        .find({ space: workspace }, { session, projection: { _id: 1 } }).toArray();
+      const procedureIds = procedures.map(({ _id }) => _id);
+      const steps = procedureIds.length
+        ? await this.database.collection<{ _id: string }>("procedureMaintaining_steps")
+          .find({ procedure: { $in: procedureIds } }, { session, projection: { _id: 1 } }).toArray()
+        : [];
+      const stepIds = steps.map(({ _id }) => _id);
+      const contexts = await this.database.collection<{ _id: string }>("contextTracking_contextNotes")
+        .find({ scope: workspace }, { session, projection: { _id: 1 } }).toArray();
+      const contextIds = contexts.map(({ _id }) => _id);
+
+      if (stepIds.length) await this.database.collection("stepQuestioning_questions").deleteMany({ subject: { $in: stepIds } }, { session });
+      if (contextIds.length) {
+        await this.database.collection("contextQuestioning_questions").deleteMany({ subject: { $in: contextIds } }, { session });
+        await this.database.collection("contextTracking_changes").deleteMany({ context: { $in: contextIds } }, { session });
+      }
+      if (procedureIds.length) await this.database.collection("reviewing_reviews").deleteMany({ item: { $in: procedureIds } }, { session });
+      if (contextIds.length || procedureIds.length || stepIds.length) {
+        await this.database.collection("contextTracking_attachments").deleteMany({
+          $or: [
+            ...(contextIds.length ? [{ context: { $in: contextIds } }] : []),
+            ...(procedureIds.length ? [{ subject: { $in: procedureIds } }] : []),
+            ...(stepIds.length ? [{ anchor: { $in: stepIds } }] : []),
+          ],
+        }, { session });
+      }
+      if (stepIds.length) await this.database.collection<{ _id: string }>("procedureMaintaining_steps").deleteMany({ _id: { $in: stepIds } }, { session });
+      if (procedureIds.length) await this.database.collection<{ _id: string }>("procedureMaintaining_procedures").deleteMany({ _id: { $in: procedureIds } }, { session });
+      if (contextIds.length) await this.database.collection<{ _id: string }>("contextTracking_contextNotes").deleteMany({ _id: { $in: contextIds } }, { session });
+
+      await this.invitations.deleteMany({ workspace }, { session });
+      await this.activity.deleteMany({ workspace }, { session });
+      await this.sessions.updateMany({ workspace }, { $unset: { workspace: "" } }, { session });
+      // Keep the Owner's assignment until the archived workspace record is gone.
+      // On standalone MongoDB this leaves the deletion safely retryable if an
+      // earlier idempotent cascade step fails without transaction rollback.
+      await removeResourceAssignments(workspace, user);
+      const removed = await this.workspaces.deleteOne({ _id: workspace, owner: user, status: "ARCHIVED" }, { session });
+      if (removed.deletedCount !== 1) throw new WorkspaceUnavailable();
+      await removeAssignments(user, workspace);
+    });
   }
 
   async workspaceMembers(user: string, workspace: string): Promise<WorkspaceMember[]> {
     await this.ready();
+    if (!await this.workspaces.findOne(activeWorkspaceFilter(workspace))) throw new WorkspaceUnavailable();
     const ownAssignments = await this.roleAccess._assignmentsFor({ user, resource: workspace });
     if (ownAssignments.length !== 1) throw new WorkspaceUnavailable();
 
@@ -335,6 +450,7 @@ export class AccountStore {
   }
 
   private async exactRole(user: string, workspace: string): Promise<{ assignment: string; role: string; name: string }> {
+    if (!await this.workspaces.findOne(activeWorkspaceFilter(workspace))) throw new WorkspaceUnavailable();
     const assignments = await this.roleAccess._assignmentsFor({ user, resource: workspace });
     if (assignments.length !== 1) throw new WorkspaceUnavailable();
     const name = await this.roleName(assignments[0].role);
@@ -481,7 +597,8 @@ export class AccountStore {
       const invite = await this.invitations.findOne(
         { tokenHash: digest(token), email: account.email, status: "OPEN", expiresAt: { $gt: this.now() } }, { session },
       );
-      if (!invite || (await assignmentsFor(user, invite.workspace)).length !== 0) throw new InvitationUnavailable();
+      const club = invite ? await this.workspaces.findOne(activeWorkspaceFilter(invite.workspace), { session }) : null;
+      if (!invite || !club || (await assignmentsFor(user, invite.workspace)).length !== 0) throw new InvitationUnavailable();
       const accepted = await this.invitations.updateOne({ _id: invite._id, status: "OPEN" }, { $set: { status: "ACCEPTED", acceptedBy: user } }, { session });
       if (accepted.modifiedCount !== 1) throw new InvitationUnavailable();
       await replaceAssignment(user, invite.workspace, memberRole);

@@ -86,6 +86,12 @@ reviseAnswer (question: Question, answer: String, answerer: Answerer, expectedVe
     preserve the original question, subject, and answerer
     increment question version
     returns
+
+removeForSubject (subject: Subject) : returns ()
+  where true
+  then
+    permanently remove every Question about subject
+    returns
 ```
 
 ## Queries

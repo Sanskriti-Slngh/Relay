@@ -119,6 +119,17 @@ describe("Questioning concept", () => {
     ]));
   });
 
+  test("removes every Question for one deleted Subject only", async () => {
+    const first = await concept.ask({ subject: "deleted-context", text: "First question?" });
+    const second = await concept.ask({ subject: "deleted-context", text: "Second question?" });
+    const retained = await concept.ask({ subject: "retained-context", text: "Keep this question?" });
+
+    expect(await concept.removeForSubject({ subject: "deleted-context" })).toEqual({});
+    expect(await concept._get({ question: first.question })).toEqual([]);
+    expect(await concept._get({ question: second.question })).toEqual([]);
+    expect(await concept._get({ question: retained.question })).toHaveLength(1);
+  });
+
   test("refuses missing Questions and repeat answers without changing the first answer", async () => {
     await expect(concept.answer({ question: "missing-question", answer: "No", answerer: "officer-one" })).rejects
       .toBeInstanceOf(QuestionNotFound);

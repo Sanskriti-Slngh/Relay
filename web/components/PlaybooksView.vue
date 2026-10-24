@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, watch } from "vue";
-import type { ContextNote, PendingReview, Procedure, Step, StepQuestion } from "../api.ts";
+import type { Attachment, ContextNote, PendingReview, Procedure, Step, StepQuestion } from "../api.ts";
 import { questionActionLabel } from "../interaction-guidance.ts";
 import { hasMeaningfulDraft, shouldConfirmDiscard } from "../unsaved-work.ts";
 import VersionConflict from "./VersionConflict.vue";
@@ -16,6 +16,7 @@ const emit = defineEmits<{
   askQuestion: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void }];
   attachContext: [payload: { note: ContextNote; procedure: Procedure; step: Step; onSuccess: () => void }];
   recordContext: [payload: { procedure: Procedure; step: Step; text: string; onSuccess: () => void; onRecordedOnly: (context: string) => void }];
+  detachContext: [payload: { note: ContextNote; attachment: Attachment }];
   archive: [procedure: Procedure];
   returnToReview: [];
   dirtyChange: [dirty: boolean];
@@ -121,6 +122,8 @@ function notesForProcedure(procedure: Procedure) {
     !note.attachments.some((attachment) => attachment.subject === procedure.procedure && !!attachment.anchor && stepIds.has(attachment.anchor)));
 }
 function notesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
+function attachmentForStep(note: ContextNote, procedureId: string, stepId: string) { return note.attachments.find((attachment) => attachment.subject === procedureId && attachment.anchor === stepId); }
+function attachmentForProcedure(note: ContextNote, procedureId: string) { return note.attachments.find((attachment) => attachment.subject === procedureId && attachment.anchor === null); }
 function availableNotesForStep(procedureId: string, stepId: string) { return props.contexts.filter((note) => !note.attachments.some((attachment) => attachment.subject === procedureId && attachment.anchor === stepId)); }
 function questionsForStep(step: string) { return props.stepQuestions.filter((question) => question.step === step); }
 function stepQuestionLabel(step: string) { return questionActionLabel(questionsForStep(step).length); }
@@ -243,7 +246,7 @@ function recordStepContext(procedure: Procedure, step: Step) {
               <div class="step-tools"><button v-if="notesForStep(selectedProcedure.procedure, step.step).length" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">Why this matters{{ notesForStep(selectedProcedure.procedure, step.step).length > 1 ? ` (${notesForStep(selectedProcedure.procedure, step.step).length})` : "" }}</button><button v-else-if="canEditContext" type="button" :aria-expanded="!!contextComposer[step.step]" @click="openContext(step)">+ Add context</button><button type="button" :aria-expanded="!!questionComposer[step.step]" @click="questionComposer[step.step] = !questionComposer[step.step]">{{ stepQuestionLabel(step.step) }}</button></div>
             </template>
             <section v-if="contextComposer[step.step]" class="inline-disclosure step-context-disclosure" :aria-label="`Context for step ${step.position}`">
-              <div v-if="notesForStep(selectedProcedure.procedure, step.step).length" class="step-context-list"><blockquote v-for="note in notesForStep(selectedProcedure.procedure, step.step)" :key="note.context">{{ note.text }}</blockquote></div>
+              <div v-if="notesForStep(selectedProcedure.procedure, step.step).length" class="step-context-list"><div v-for="note in notesForStep(selectedProcedure.procedure, step.step)" :key="note.context" class="attached-context-row"><blockquote>{{ note.text }}</blockquote><button v-if="canEditContext && attachmentForStep(note, selectedProcedure.procedure, step.step)" class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('detachContext', { note, attachment: attachmentForStep(note, selectedProcedure.procedure, step.step)! })">Remove from Step</button></div></div>
               <details v-if="canEditContext" class="context-add-disclosure" :open="!notesForStep(selectedProcedure.procedure, step.step).length">
                 <summary>{{ notesForStep(selectedProcedure.procedure, step.step).length ? "+ Add another context" : "Add context" }}</summary>
                 <div class="context-connect">
@@ -280,7 +283,7 @@ function recordStepContext(procedure: Procedure, step: Step) {
         <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="discardAddedStep(selectedProcedure)">Cancel</button></div><VersionConflict v-if="addStepVersion[selectedProcedure.procedure] !== selectedProcedure.version" subject="playbook structure" saved-label="Current saved steps" :saved-value="`${selectedProcedure.steps.length} ${selectedProcedure.steps.length === 1 ? 'step' : 'steps'}, shown above`" draft-label="Your unsaved new step" :draft-value="stepDraft[selectedProcedure.procedure] ?? ''" use-saved-label="Keep current steps" save-mine-label="Add my step" save-consequence="Adding your step keeps the current steps and appends your draft only if the structure has not changed again." :busy="!!actionBusy" @use-saved="discardAddedStep(selectedProcedure)" @save-mine="retryAddedStep(selectedProcedure)" /></form>
       </div>
 
-      <details v-if="notesForProcedure(selectedProcedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure).length }}</span></summary><div class="context-callouts"><blockquote v-for="note in notesForProcedure(selectedProcedure)" :key="note.context">{{ note.text }}</blockquote></div></details>
+      <details v-if="notesForProcedure(selectedProcedure).length" class="quiet-history document-context"><summary>Context <span>{{ notesForProcedure(selectedProcedure).length }}</span></summary><div class="context-callouts"><div v-for="note in notesForProcedure(selectedProcedure)" :key="note.context" class="attached-context-row"><blockquote>{{ note.text }}</blockquote><button v-if="canEditContext && attachmentForProcedure(note, selectedProcedure.procedure)" class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('detachContext', { note, attachment: attachmentForProcedure(note, selectedProcedure.procedure)! })">Remove from Playbook</button></div></div></details>
     </article>
   </div>
 

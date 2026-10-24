@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, reactive, ref, watch } from "vue";
-import type { ContextNote, ContextQuestion, Procedure } from "../api.ts";
+import type { Attachment, ContextNote, ContextQuestion, Procedure } from "../api.ts";
 import type { ContextChangeResult } from "../context-change-result.ts";
 import { meaningfulChangeActionLabel, meaningfulChangeConsequence, questionActionLabel } from "../interaction-guidance.ts";
 import { hasChangedDraft, hasMeaningfulDraft, shouldConfirmDiscard } from "../unsaved-work.ts";
@@ -10,6 +10,8 @@ const props = defineProps<{ contexts: ContextNote[]; procedures: Procedure[]; co
 const emit = defineEmits<{
   record: [payload: { text: string; onSuccess: () => void }];
   attach: [payload: { note: ContextNote; procedure: string; step: string; onSuccess: () => void }];
+  detach: [payload: { note: ContextNote; attachment: Attachment }];
+  deleteNote: [note: ContextNote];
   correct: [payload: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }];
   change: [payload: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }];
   askQuestion: [payload: { note: ContextNote; procedure: string; text: string; onSuccess: () => void }];
@@ -56,6 +58,12 @@ function stepsForProcedure(id: string) { return props.procedures.find(({ procedu
 function titleForProcedure(id: string) { return props.procedures.find(({ procedure }) => procedure === id)?.title ?? "Unknown playbook"; }
 function questionsForContext(id: string) { return props.contextQuestions.filter(({ context }) => context === id); }
 function contextQuestionLabel(id: string) { return questionActionLabel(questionsForContext(id).length); }
+function formatChangeTimestamp(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
 function attachmentPlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject)).size; }
 function affectedActivePlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject).filter((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject))).size; }
 function activeAttachedProcedure(note: ContextNote) { return note.attachments.map(({ subject }) => subject).find((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject)); }
@@ -135,9 +143,30 @@ function askQuestion(note: ContextNote) {
   <div v-else class="context-ledger">
     <article v-for="note in contexts" :key="note.context" class="context-entry">
       <header class="context-entry-header">
-        <div><p class="context-current-text" :class="{ 'is-collapsed': note.text.length > 420 && !expandedNote[note.context] }">{{ note.text }}</p><button v-if="note.text.length > 420" class="note-read-toggle" type="button" :aria-expanded="!!expandedNote[note.context]" @click="expandedNote[note.context] = !expandedNote[note.context]">{{ expandedNote[note.context] ? "Show less" : "Read more" }}</button></div>
-        <button v-if="canEdit" class="button button-small button-secondary" type="button" @click="toggleUpdate(note)">{{ updateOpen === note.context ? "Close" : "Update" }}</button>
+        <div class="context-entry-content">
+          <p class="context-current-text" :class="{ 'is-collapsed': note.text.length > 420 && !expandedNote[note.context] }">{{ note.text }}</p>
+          <button v-if="note.text.length > 420" class="note-read-toggle" type="button" :aria-expanded="!!expandedNote[note.context]" @click="expandedNote[note.context] = !expandedNote[note.context]">{{ expandedNote[note.context] ? "Show less" : "Read more" }}</button>
+          <div class="context-card-footer">
+            <div v-if="attachmentPlaybookCount(note) || note.changes.length" class="context-info-row" aria-label="Context Note details">
+              <details v-if="attachmentPlaybookCount(note)" class="context-dependencies">
+                <summary>Used in <strong>{{ attachmentPlaybookCount(note) }}</strong> {{ attachmentPlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</summary>
+                <section aria-label="Playbook dependencies"><div class="dependency-list"><span v-for="attachment in note.attachments" :key="attachment.attachment"><strong>{{ titleForProcedure(attachment.subject) }}</strong><small v-if="attachment.anchor">Step {{ stepsForProcedure(attachment.subject).find((step) => step.step === attachment.anchor)?.position ?? "" }}</small><small v-else>Whole playbook</small><button v-if="canEdit && activeProcedures.some(({ procedure }) => procedure === attachment.subject)" class="dependency-remove" type="button" :disabled="!!actionBusy" :aria-label="`Remove context from ${titleForProcedure(attachment.subject)}${attachment.anchor ? ' step' : ''}`" @click="emit('detach', { note, attachment })">{{ attachment.anchor ? "Remove from Step" : "Remove from Playbook" }}</button></span></div></section>
+              </details>
+              <details v-if="note.changes.length" class="history-inline"><summary>{{ note.changes.length }} {{ note.changes.length === 1 ? "change" : "changes" }}</summary><ol class="change-history"><li v-for="change in note.changes" :key="change.change"><time v-if="change.occurredAt" :datetime="change.occurredAt">{{ formatChangeTimestamp(change.occurredAt) }}</time><div><span>Before</span><p>{{ change.before }}</p></div><div><span>After</span><p>{{ change.after }}</p></div></li></ol></details>
+            </div>
+            <div class="context-action-row">
+              <button type="button" :aria-expanded="!!questionComposer[note.context]" @click="questionComposer[note.context] = !questionComposer[note.context]">{{ contextQuestionLabel(note.context) }}</button>
+              <details v-if="canEdit && activeProcedures.length" class="context-attach-disclosure"><summary>Attach</summary><form class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure">{{ procedure.title }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="">Whole playbook</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></details>
+            </div>
+          </div>
+        </div>
+        <div v-if="canEdit" class="context-header-actions"><button class="context-edit-action" type="button" @click="toggleUpdate(note)">{{ updateOpen === note.context ? "Close" : "Edit" }}</button><button class="context-delete-icon" type="button" :disabled="!!actionBusy" aria-label="Delete Context Note forever" title="Delete Context Note forever" @click="emit('deleteNote', note)">{{ actionBusy === `delete-context-${note.context}` ? "…" : "×" }}</button></div>
       </header>
+
+      <section v-if="questionComposer[note.context]" class="inline-disclosure context-question-disclosure">
+        <div v-if="questionsForContext(note.context).length" class="subject-question-list"><article v-for="question in questionsForContext(note.context)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>
+        <form class="question-form" @submit.prevent="askQuestion(note)"><label :for="`question-${note.context}`">Ask about this context</label><div class="form-row"><input :id="`question-${note.context}`" v-model="questionDraft[note.context]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !activeAttachedProcedure(note) || !(questionDraft[note.context] ?? '').trim()">{{ actionBusy === `ask-context-${note.context}` ? "Sending…" : "Ask" }}</button></div></form><p v-if="!activeAttachedProcedure(note)" class="form-guidance">Attach this note to an active playbook before asking a question.</p>
+      </section>
 
       <section v-if="updateOpen === note.context" class="update-disclosure">
         <fieldset>
@@ -162,14 +191,6 @@ function askQuestion(note: ContextNote) {
         </div>
       </section>
 
-      <details class="secondary-disclosure context-dependencies"><summary>Used by {{ attachmentPlaybookCount(note) }} {{ attachmentPlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</summary><section aria-label="Playbook dependencies"><div v-if="note.attachments.length" class="dependency-list"><span v-for="(attachment, index) in note.attachments" :key="`${attachment.subject}-${attachment.anchor ?? 'whole'}-${index}`"><strong>{{ titleForProcedure(attachment.subject) }}</strong><small v-if="attachment.anchor">Step {{ stepsForProcedure(attachment.subject).find((step) => step.step === attachment.anchor)?.position ?? "" }}</small><small v-else>Whole playbook</small></span></div><p v-else>Not connected yet.</p><form v-if="canEdit && activeProcedures.length" class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure">{{ procedure.title }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="">Whole playbook</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></section></details>
-
-      <div class="context-entry-tools"><button type="button" :aria-expanded="!!questionComposer[note.context]" @click="questionComposer[note.context] = !questionComposer[note.context]">{{ contextQuestionLabel(note.context) }}</button><details v-if="note.changes.length" class="secondary-disclosure history-inline"><summary>Change history ({{ note.changes.length }})</summary><ol class="change-history"><li v-for="change in note.changes" :key="change.change"><div><span>Before</span><p>{{ change.before }}</p></div><div><span>After</span><p>{{ change.after }}</p></div></li></ol></details></div>
-
-      <section v-if="questionComposer[note.context]" class="inline-disclosure">
-        <div v-if="questionsForContext(note.context).length" class="subject-question-list"><article v-for="question in questionsForContext(note.context)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>
-        <form class="question-form" @submit.prevent="askQuestion(note)"><label :for="`question-${note.context}`">Ask about this context</label><div class="form-row"><input :id="`question-${note.context}`" v-model="questionDraft[note.context]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !activeAttachedProcedure(note) || !(questionDraft[note.context] ?? '').trim()">{{ actionBusy === `ask-context-${note.context}` ? "Sending…" : "Ask" }}</button></div></form><p v-if="!activeAttachedProcedure(note)" class="form-guidance">Attach this note to an active playbook before asking a question.</p>
-      </section>
     </article>
   </div>
 </template>

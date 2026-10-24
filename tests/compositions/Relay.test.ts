@@ -161,7 +161,12 @@ describe("Relay internal composition reactions", () => {
     await application.whenIdle();
 
     expect(await changesFor(context)).toEqual([
-      { change: firstChange.change, before: "Annual renewal", after: "Semester renewal" },
+      expect.objectContaining({
+        change: firstChange.change,
+        before: "Annual renewal",
+        after: "Semester renewal",
+        occurredAt: expect.any(String),
+      }),
     ]);
 
     const firstReviews = await reviewsFor(firstProcedure);
@@ -214,16 +219,18 @@ describe("Relay internal composition reactions", () => {
 
     const history = await changesFor(context);
     expect(history).toHaveLength(2);
-    expect(history).toContainEqual({
+    expect(history).toContainEqual(expect.objectContaining({
       change: firstChange.change,
       before: "Annual renewal",
       after: "Semester renewal",
-    });
-    expect(history).toContainEqual({
+      occurredAt: expect.any(String),
+    }));
+    expect(history).toContainEqual(expect.objectContaining({
       change: secondChange.change,
       before: "Semester renewal",
       after: "Semester renewal with updated checklist",
-    });
+      occurredAt: expect.any(String),
+    }));
     expect(await reviewsFor(firstProcedure)).toEqual([
       { review: priorFirstReviewId, status: "PENDING" },
     ]);

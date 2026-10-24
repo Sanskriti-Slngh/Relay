@@ -25,11 +25,12 @@ export type RelayP2MVPWire = {
           "attachment": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getAttachment"]>[0], ["attachment"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_attachments"]>>>, ["attachment"]>]>>;
           "subject": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_attachments"]>>>, ["subject"]>>;
         })[];
-        "changes": {
+        "changes": ({
           "after": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["after"]>>;
           "before": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["before"]>>;
-          "change": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["change"]>>;
-        }[];
+          "change": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>[0], ["change"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["change"]>]>>;
+          "occurredAt": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>>>, ["occurredAt"]>> | null;
+        })[];
         "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getVersion"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["context"]>]>>;
         "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["text"]>>;
         "version": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getVersion"]>>>, ["version"]>>;
@@ -75,6 +76,31 @@ export type RelayP2MVPWire = {
       "context": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["correct"]>[0], ["context"]>>;
     };
     error: { error: AppWideError | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "VERSION_CONFLICT" };
+  };
+  "/workspaces/context/delete": {
+    input: {
+      "context": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["remove"]>[0], ["context"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>]>>;
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["remove"]>[0], ["expectedVersion"]>>;
+      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "context": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["remove"]>[0], ["context"]>>;
+    };
+    error: { error: AppWideError | "CONTEXT_NOT_AVAILABLE" | "CONTEXT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" | "VERSION_CONFLICT" };
+  };
+  "/workspaces/context/detach": {
+    input: {
+      "attachment": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["detach"]>[0], ["attachment"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getAttachment"]>[0], ["attachment"]>]>>;
+      "context": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getAttachment"]>>>, ["context"]>>;
+      "procedure": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getAttachment"]>>>, ["subject"]>>;
+      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "attachment": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["detach"]>[0], ["attachment"]>>;
+    };
+    error: { error: AppWideError | "ATTACHMENT_NOT_AVAILABLE" | "ATTACHMENT_NOT_FOUND" | "INVALID_INPUT" | "NOT_AUTHORIZED" };
   };
   "/workspaces/context/notes": {
     input: {

@@ -12,6 +12,10 @@ describe("Relay browser API client", () => {
     await api.signIn("member@example.org", "secure password");
     await api.createWorkspace("Robotics", "csrf");
     await api.selectWorkspace("workspace-id", "csrf");
+    await api.renameWorkspace("Robotics Team", "csrf");
+    await api.archiveWorkspace("csrf");
+    await api.restoreWorkspace("workspace-id", "csrf");
+    await api.deleteWorkspace("workspace-id", "Robotics Team", "csrf");
     await api.workspaceMembers("csrf");
     await api.claimOwnership("csrf");
     await api.changeMemberRole("member-id", "Officer", "csrf");
@@ -22,7 +26,7 @@ describe("Relay browser API client", () => {
     await api.createInvitation("invitee@example.org", "csrf");
     await api.reissueInvitation("invitation-id", "csrf");
     await api.acceptInvitation("invite-token", "csrf");
-    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/members", "/workspaces/ownership/claim", "/workspaces/members/role", "/workspaces/members/remove", "/workspaces/ownership/transfer", "/workspaces/activity", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
+    expect(calls.map(({ input }) => input)).toEqual(["/auth/register", "/auth/login", "/workspaces/create", "/workspaces/select", "/workspaces/rename", "/workspaces/archive", "/workspaces/restore", "/workspaces/delete", "/workspaces/members", "/workspaces/ownership/claim", "/workspaces/members/role", "/workspaces/members/remove", "/workspaces/ownership/transfer", "/workspaces/activity", "/invitations/pending", "/invitations/create", "/invitations/reissue", "/invitations/accept"]);
     for (const { init } of calls) expect(init?.body).not.toContain('"user"');
     for (const { init } of calls.slice(2)) expect(new Headers(init?.headers).get("X-Relay-CSRF")).toBe("csrf");
   });
@@ -99,6 +103,32 @@ describe("Relay browser API client", () => {
       procedure: "archived-procedure",
       expectedVersion: 4,
     });
+  });
+
+  test("detaches one exact Context relationship without sending its workspace from the browser", async () => {
+    const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
+    const api = createRelayApi(async (input, init) => {
+      calls.push({ input, init });
+      return Response.json({ attachment: "attachment-1" });
+    });
+
+    await expect(api.detachContextNote("attachment-1", "context-1", "procedure-1", "session-csrf")).resolves.toEqual({ attachment: "attachment-1" });
+    expect(calls[0].input).toBe("/api/workspaces/context/detach");
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ attachment: "attachment-1", context: "context-1", procedure: "procedure-1" });
+    expect(new Headers(calls[0].init?.headers).get("X-Relay-CSRF")).toBe("session-csrf");
+  });
+
+  test("permanently deletes a versioned Context Note through its dedicated endpoint", async () => {
+    const calls: { input: RequestInfo | URL; init?: RequestInit }[] = [];
+    const api = createRelayApi(async (input, init) => {
+      calls.push({ input, init });
+      return Response.json({ context: "context-1" });
+    });
+
+    await expect(api.deleteContextNote("context-1", 3, "session-csrf")).resolves.toEqual({ context: "context-1" });
+    expect(calls[0].input).toBe("/api/workspaces/context/delete");
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ context: "context-1", expectedVersion: 3 });
+    expect(new Headers(calls[0].init?.headers).get("X-Relay-CSRF")).toBe("session-csrf");
   });
 
   test("sends Playbook editing and Review lifecycle operations to their composition endpoints", async () => {

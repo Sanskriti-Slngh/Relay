@@ -26,6 +26,10 @@ const emit = defineEmits<{
   changeRole: [payload: { member: WorkspaceMember; role: "Officer" | "Member" }];
   removeMember: [member: WorkspaceMember];
   transferOwnership: [payload: { member: WorkspaceMember; formerOwnerRole: "Officer" | "Member"; onSuccess: () => void }];
+  renameWorkspace: [payload: { name: string; onSuccess: () => void }];
+  archiveWorkspace: [];
+  restoreWorkspace: [workspace: WorkspaceMembership];
+  deleteWorkspace: [workspace: WorkspaceMembership];
   dirtyChange: [dirty: boolean];
 }>();
 const inviteEmail = ref("");
@@ -37,10 +41,16 @@ const copyStatus = ref("");
 const transferTarget = ref("");
 const formerOwnerRole = ref<"Officer" | "Member">("Officer");
 const transferConfirmed = ref(false);
+const editingWorkspaceName = ref(false);
+const workspaceNameDraft = ref("");
 const transferableMembers = computed(() => props.members.filter((member) => member.user !== props.user?.id));
-const hasUnsavedWork = computed(() => hasMeaningfulDraft([inviteEmail.value, newClubName.value, invitationToken.value]) || !!transferTarget.value || transferConfirmed.value);
+const activeWorkspaces = computed(() => props.workspaces.filter(({ status }) => status === "ACTIVE"));
+const archivedWorkspaces = computed(() => props.workspaces.filter(({ status }) => status === "ARCHIVED"));
+const hasUnsavedWork = computed(() => hasMeaningfulDraft([inviteEmail.value, newClubName.value, invitationToken.value]) ||
+  (editingWorkspaceName.value && workspaceNameDraft.value.trim() !== props.workspaceName) || !!transferTarget.value || transferConfirmed.value);
 
 watch(() => props.createdInvite?.token, () => { copyStatus.value = ""; });
+watch(() => props.workspaceName, (name) => { if (!editingWorkspaceName.value) workspaceNameDraft.value = name; }, { immediate: true });
 watch(hasUnsavedWork, (dirty) => emit("dirtyChange", dirty), { immediate: true });
 onUnmounted(() => emit("dirtyChange", false));
 
@@ -97,6 +107,22 @@ function transfer() {
     onSuccess: () => { transferTarget.value = ""; transferConfirmed.value = false; formerOwnerRole.value = "Officer"; },
   });
 }
+
+function beginWorkspaceRename() {
+  workspaceNameDraft.value = props.workspaceName;
+  editingWorkspaceName.value = true;
+}
+
+function renameWorkspace() {
+  const name = workspaceNameDraft.value.trim();
+  if (!name || name === props.workspaceName) return;
+  emit("renameWorkspace", { name, onSuccess: () => { editingWorkspaceName.value = false; } });
+}
+
+function cancelWorkspaceRename() {
+  workspaceNameDraft.value = props.workspaceName;
+  editingWorkspaceName.value = false;
+}
 </script>
 
 <template>
@@ -105,6 +131,16 @@ function transfer() {
   <section class="workspace-identity" aria-labelledby="club-name">
     <div><h2 id="club-name">{{ workspaceName }}</h2><p>{{ user?.name }}</p></div>
     <span>{{ role }}</span>
+  </section>
+
+  <section v-if="role === 'Owner'" class="workspace-settings-section" aria-labelledby="workspace-settings-title">
+    <h2 id="workspace-settings-title">Workspace settings</h2>
+    <p>Rename this workspace, or archive it to hide it from every member while keeping its knowledge recoverable.</p>
+    <form v-if="editingWorkspaceName" class="workspace-access-form disclosure-form" @submit.prevent="renameWorkspace">
+      <label for="workspace-name-edit">Workspace name</label>
+      <div class="form-row"><input id="workspace-name-edit" v-model="workspaceNameDraft" required maxlength="120"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !workspaceNameDraft.trim() || workspaceNameDraft.trim() === workspaceName">{{ actionBusy === "rename-workspace" ? "Renaming…" : "Save name" }}</button><button class="button button-quiet" type="button" :disabled="!!actionBusy" @click="cancelWorkspaceRename">Cancel</button></div>
+    </form>
+    <div v-else class="workspace-management-actions"><button class="button button-secondary" type="button" :disabled="!!actionBusy" @click="beginWorkspaceRename">Rename workspace</button><button class="button button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('archiveWorkspace')">{{ actionBusy === "archive-workspace" ? "Archiving…" : "Archive workspace" }}</button></div>
   </section>
 
   <section class="workspace-settings-section workspace-access" aria-labelledby="your-clubs-title">
@@ -127,10 +163,18 @@ function transfer() {
     </form>
 
     <div class="club-switch-list" aria-label="Club workspaces">
-      <div v-for="club in workspaces" :key="club.workspace" class="club-switch-row" :class="{ current: club.workspace === workspace }">
+      <div v-for="club in activeWorkspaces" :key="club.workspace" class="club-switch-row" :class="{ current: club.workspace === workspace }">
         <div><strong>{{ club.name }}</strong><small>{{ club.role }}</small></div>
         <span v-if="club.workspace === workspace">Current</span>
         <button v-else class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Switch to ${club.name}`" @click="emit('select', club.workspace)">{{ actionBusy === "select-workspace" ? "Switching…" : "Switch" }}</button>
+      </div>
+    </div>
+    <div v-if="archivedWorkspaces.length" class="archived-workspace-list">
+      <h3>Archived workspaces</h3>
+      <p>Restore a workspace to recover it. Permanent deletion removes all of its data and cannot be undone.</p>
+      <div v-for="club in archivedWorkspaces" :key="club.workspace" class="club-switch-row archived-workspace-row">
+        <div><strong>{{ club.name }}</strong><small>Archived · {{ club.role }}</small></div>
+        <div class="workspace-management-actions"><button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="emit('restoreWorkspace', club)">{{ actionBusy === `restore-workspace-${club.workspace}` ? "Restoring…" : "Restore" }}</button><button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('deleteWorkspace', club)">{{ actionBusy === `delete-workspace-${club.workspace}` ? "Deleting…" : "Delete forever" }}</button></div>
       </div>
     </div>
   </section>

@@ -28,6 +28,7 @@ type ChangeDocument = Document & {
   context: string;
   before: string;
   after: string;
+  occurredAt?: string;
 };
 
 type ContextTrackingStorage = {
@@ -190,6 +191,31 @@ export class ContextTrackingConcept {
     return {};
   }
 
+  async remove({
+    context,
+    expectedVersion,
+  }: {
+    context: string;
+    expectedVersion?: number;
+  }): Promise<Record<string, never>> {
+    return inTransaction(this.storage, async (session) => {
+      const result = await this.storage.contextNotes.deleteOne(
+        { _id: context, ...(!expectedVersion ? {} : { version: expectedVersion }) },
+        { session },
+      );
+      if (result.deletedCount !== 1) {
+        const found = await this.storage.contextNotes.findOne(
+          { _id: context },
+          { session, projection: { _id: 1 } },
+        );
+        if (found === null) throw new ContextNotFound("There is no such ContextNote.");
+        throw new VersionConflict(`ContextNote ${context} changed before it was removed.`);
+      }
+      await this.storage.attachments.deleteMany({ context }, { session });
+      return {};
+    });
+  }
+
   async correct({
     context,
     text,
@@ -242,7 +268,7 @@ export class ContextTrackingConcept {
 
       const change = crypto.randomUUID();
       await this.storage.changes.insertOne(
-        { _id: change, context, before: current.text, after: text },
+        { _id: change, context, before: current.text, after: text, occurredAt: new Date().toISOString() },
         { session },
       );
       return { change };
@@ -317,21 +343,31 @@ export class ContextTrackingConcept {
     context,
   }: {
     context: string;
-  }): Promise<{ change: string; before: string; after: string }[]> {
+  }): Promise<{ change: string; before: string; after: string; occurredAt?: string }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.changes.find({ context }).sort({ _id: 1 }).toArray();
-    return found.map(({ _id, before, after }) => ({ change: _id, before, after }));
+    return found.map(({ _id, before, after, occurredAt }) => ({
+      change: _id,
+      before,
+      after,
+      ...(occurredAt === undefined ? {} : { occurredAt }),
+    }));
   }
 
   async _getChange({
     change,
   }: {
     change: string;
-  }): Promise<{ context: string; before: string; after: string }[]> {
+  }): Promise<{ context: string; before: string; after: string; occurredAt?: string }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.changes.findOne({ _id: change });
     return found === null
       ? []
-      : [{ context: found.context, before: found.before, after: found.after }];
+      : [{
+          context: found.context,
+          before: found.before,
+          after: found.after,
+          ...(found.occurredAt === undefined ? {} : { occurredAt: found.occurredAt }),
+        }];
   }
 }

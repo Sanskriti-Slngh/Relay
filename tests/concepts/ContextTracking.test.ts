@@ -6,6 +6,7 @@ import {
   ChangeNotDifferent,
   ContextNotFound,
   ContextTrackingConcept,
+  VersionConflict,
 } from "../../src/concepts/ContextTracking.ts";
 
 const configuredUrl = process.env.MONGODB_URL;
@@ -137,6 +138,26 @@ describe("ContextTracking concept", () => {
       .toBeInstanceOf(AttachmentNotFound);
   });
 
+  test("permanently removes a ContextNote and its attachments while preserving Review evidence", async () => {
+    const { context } = await concept.record({ scope: "club", text: "Original policy" });
+    const { attachment } = await concept.attachAt({ context, subject: "procedure", anchor: "step" });
+    const { change } = await concept.change({ context, text: "Updated policy", expectedVersion: 1 });
+
+    await expect(concept.remove({ context, expectedVersion: 1 })).rejects.toBeInstanceOf(VersionConflict);
+    expect(await concept.remove({ context, expectedVersion: 2 })).toEqual({});
+    expect(await concept._get({ context })).toEqual([]);
+    expect(await concept._getAttachment({ attachment })).toEqual([]);
+    expect(await concept._attachments({ context })).toEqual([]);
+    expect(await concept._getChange({ change })).toEqual([expect.objectContaining({
+      context,
+      before: "Original policy",
+      after: "Updated policy",
+      occurredAt: expect.any(String),
+    })]);
+    await expect(concept.attach({ context, subject: "procedure" })).rejects.toBeInstanceOf(ContextNotFound);
+    await expect(concept.remove({ context })).rejects.toBeInstanceOf(ContextNotFound);
+  });
+
   test("refuses attachments, corrections, and changes for nonexistent ContextNotes", async () => {
     await expect(concept.attach({ context: "missing-context", subject: "procedure" })).rejects
       .toBeInstanceOf(ContextNotFound);
@@ -181,18 +202,20 @@ describe("ContextTracking concept", () => {
       { scope: "club", text: "Do the inspection after opening." },
     ]);
     expect(await concept._changes({ context })).toEqual([
-      {
+      expect.objectContaining({
         change,
         before: "Do the inspection before opening.",
         after: "Do the inspection after opening.",
-      },
+        occurredAt: expect.any(String),
+      }),
     ]);
     expect(await concept._getChange({ change })).toEqual([
-      {
+      expect.objectContaining({
         context,
         before: "Do the inspection before opening.",
         after: "Do the inspection after opening.",
-      },
+        occurredAt: expect.any(String),
+      }),
     ]);
     expect(await concept._getChange({ change: "missing-change" })).toEqual([]);
   });

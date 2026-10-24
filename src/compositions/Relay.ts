@@ -134,6 +134,11 @@ const DetachRemovedStepContext = reaction(({ step, attachment }) =>
     .then(ContextTracking.detach({ attachment })),
 );
 
+const RemoveDeletedContextQuestions = reaction(({ context }) =>
+  when(ContextTracking.remove({ context }).responds({}))
+    .then(ContextQuestioning.removeForSubject({ subject: context })),
+);
+
 const WorkspaceProcedures = former(
   "Relay.Reads.WorkspaceProcedures",
   ({ workspace }, { procedure, title, status, version, step, text, position, stepVersion }) =>
@@ -154,7 +159,7 @@ const WorkspaceProcedures = former(
 
 const WorkspaceContextHistory = former(
   "Relay.Reads.WorkspaceContextHistory",
-  ({ workspace }, { context, text, version, attachment, subject, anchor, change, before, after }) =>
+  ({ workspace }, { context, text, version, attachment, subject, anchor, change, before, after, occurredAt }) =>
     each(ContextTracking._notes({ scope: workspace }).is({ context, text }))
       .arranged(context)
       .where(ContextTracking._getVersion({ context }).is({ version }))
@@ -168,7 +173,8 @@ const WorkspaceContextHistory = former(
           .form({ attachment, subject, anchor }),
         changes: each(ContextTracking._changes({ context }).is({ change, before, after }))
           .arranged(change)
-          .form({ change, before, after }),
+          .where(whether(ContextTracking._getChange({ change }).is({ occurredAt })))
+          .form({ change, before, after, occurredAt }),
       }),
 );
 
@@ -615,6 +621,79 @@ const AttachContextNoteAtStep = endpoint(
   stringInput(
     ["user", "workspace", "context", "procedure", "step"],
     ["user", "workspace", "context", "procedure", "step"],
+  ),
+);
+
+const DetachContextNote = endpoint(
+  "/workspaces/context/detach",
+  ({ user, workspace, attachment, context, procedure }) =>
+    receive({ user, workspace, attachment, context, procedure })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "EDIT_CONTEXT",
+          command: "DETACH_CONTEXT_NOTE",
+        }).responds({}),
+      )
+      .then(
+        where(
+          ContextTracking._getAttachment({ attachment }).is({ context, subject: procedure }),
+          ContextTracking._get({ context }).is({ scope: workspace }),
+          ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" }),
+        )
+          .then(ContextTracking.detach({ attachment }))
+          .then(respond({ attachment }))
+          .named("attachment-in-active-workspace-procedure"),
+        where(
+          no(ContextTracking._getAttachment({ attachment }).is({ context, subject: procedure })),
+        )
+          .then(respond({ error: "ATTACHMENT_NOT_AVAILABLE" }))
+          .named("attachment-unavailable"),
+        where(
+          ContextTracking._getAttachment({ attachment }).is({ context, subject: procedure }),
+          no(ContextTracking._get({ context }).is({ scope: workspace })),
+        )
+          .then(respond({ error: "ATTACHMENT_NOT_AVAILABLE" }))
+          .named("context-outside-workspace"),
+        where(
+          ContextTracking._getAttachment({ attachment }).is({ context, subject: procedure }),
+          ContextTracking._get({ context }).is({ scope: workspace }),
+          no(ProcedureMaintaining._get({ procedure }).is({ space: workspace, status: "ACTIVE" })),
+        )
+          .then(respond({ error: "ATTACHMENT_NOT_AVAILABLE" }))
+          .named("procedure-unavailable"),
+      ),
+  stringInput(
+    ["user", "workspace", "attachment", "context", "procedure"],
+    ["user", "workspace", "attachment", "context", "procedure"],
+  ),
+);
+
+const DeleteContextNote = endpoint(
+  "/workspaces/context/delete",
+  ({ user, workspace, context, expectedVersion }) =>
+    receive({ user, workspace, context, expectedVersion })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "EDIT_CONTEXT",
+          command: "DELETE_CONTEXT_NOTE",
+        }).responds({}),
+      )
+      .then(
+        where(ContextTracking._get({ context }).is({ scope: workspace }))
+          .then(ContextTracking.remove({ context, expectedVersion }))
+          .then(respond({ context }))
+          .named("context-in-workspace"),
+        where(no(ContextTracking._get({ context }).is({ scope: workspace })))
+          .then(respond({ error: "CONTEXT_NOT_AVAILABLE" }))
+          .named("context-unavailable"),
+      ),
+  versionedStringInput(
+    ["user", "workspace", "context"],
+    ["user", "workspace", "context"],
   ),
 );
 
@@ -1145,6 +1224,7 @@ export const composition = {
       RequestReview,
       AddChangeCause,
       AddCauseAfterConcurrentRequestRefusal,
+      RemoveDeletedContextQuestions,
     },
     StepRemoval: { DetachRemovedStepContext },
     ProcedureOperations: {
@@ -1160,6 +1240,8 @@ export const composition = {
       RecordContextNote,
       AttachContextNote,
       AttachContextNoteAtStep,
+      DetachContextNote,
+      DeleteContextNote,
       CorrectContextNote,
       ChangeContextNote,
     },

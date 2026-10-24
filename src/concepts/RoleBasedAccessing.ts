@@ -123,6 +123,7 @@ export class RoleBasedAccessingConcept {
       assignmentsFor: (user: string, resource: string) => Promise<AssignmentDocument[]>;
       replaceAssignment: (user: string, resource: string, role: string) => Promise<string>;
       removeAssignments: (user: string, resource: string) => Promise<void>;
+      removeResourceAssignments: (resource: string, exceptUser?: string) => Promise<void>;
     }) => Promise<T>,
   ): Promise<T> {
     return inTransaction(this.storage, async (session) => work({
@@ -139,6 +140,9 @@ export class RoleBasedAccessingConcept {
       },
       removeAssignments: async (user, resource) => {
         await this.storage.assignments.deleteMany({ user, resource }, { session });
+      },
+      removeResourceAssignments: async (resource, exceptUser) => {
+        await this.storage.assignments.deleteMany({ resource, ...(exceptUser ? { user: { $ne: exceptUser } } : {}) }, { session });
       },
     }));
   }

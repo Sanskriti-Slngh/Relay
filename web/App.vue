@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { createRelayApi, RelayApiError, type ActivityEvent, type ContextNote, type ContextQuestion, type IssuedInvitation, type PendingInvitation, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMember, type WorkspaceMembership } from "./api.ts";
+import { createRelayApi, RelayApiError, type ActivityEvent, type Attachment, type ContextNote, type ContextQuestion, type IssuedInvitation, type PendingInvitation, type PendingReview, type Procedure, type ProcedureReviewHistory, type SessionState, type StepQuestion, type WorkspaceMember, type WorkspaceMembership } from "./api.ts";
 import ContextView from "./components/ContextView.vue";
 import OverviewView from "./components/OverviewView.vue";
 import PlaybooksView from "./components/PlaybooksView.vue";
@@ -9,6 +9,7 @@ import QuestionsView from "./components/QuestionsView.vue";
 import WorkspaceView from "./components/WorkspaceView.vue";
 import { confirmedAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
 import { recordAndAttachInlineContext } from "./inline-context.ts";
+import { replaceContextConnection } from "./replace-context.ts";
 import { refreshAfterVersionConflict } from "./version-conflict-recovery.ts";
 import { discardAfterSuccessfulAction, shouldConfirmDiscard } from "./unsaved-work.ts";
 
@@ -68,6 +69,8 @@ const canEditContext = computed(() => permissions.value.includes("EDIT_CONTEXT")
 const canReview = computed(() => permissions.value.includes("COMPLETE_REVIEW"));
 const canAnswer = computed(() => permissions.value.includes("ANSWER_QUESTION"));
 const hasWorkspace = computed(() => !!workspace.value);
+const activeWorkspaces = computed(() => workspaces.value.filter(({ status }) => status === "ACTIVE"));
+const archivedWorkspaces = computed(() => workspaces.value.filter(({ status }) => status === "ARCHIVED"));
 const ownershipConfigured = computed(() => workspaces.value.find(({ workspace: id }) => id === workspace.value)?.ownershipConfigured ?? false);
 const focusedReview = computed(() => reviews.value.find(({ review }) => review === focusedReviewId.value));
 const navigation: { id: Section; label: string }[] = [
@@ -263,6 +266,48 @@ async function selectClub(id: string, select?: HTMLSelectElement) {
   await runAction("select-workspace", async () => { await acceptSession(await api.selectWorkspace(id, csrfToken.value)); }, "Workspace selected.");
 }
 
+async function applyWorkspaceLifecycle(label: string, action: () => Promise<SessionState>, success: string) {
+  if (actionBusy.value) {
+    showValidationError("Please wait for the current workspace action to finish.");
+    return;
+  }
+  clearMessages();
+  actionBusy.value = label;
+  try {
+    await acceptSession(await action());
+    successMessage.value = success;
+  } catch (error) {
+    showError(error);
+  } finally {
+    actionBusy.value = "";
+  }
+}
+
+async function renameWorkspace({ name, onSuccess }: { name: string; onSuccess: () => void }) {
+  await applyWorkspaceLifecycle("rename-workspace", () => api.renameWorkspace(name, csrfToken.value), "Workspace renamed.");
+  if (!errorMessage.value) onSuccess();
+}
+
+async function archiveWorkspace() {
+  if (!confirmDiscardUnsavedWork()) return;
+  if (!window.confirm(`Archive "${workspaceName.value}"? Every member will lose access until the Owner restores it. All workspace knowledge will be preserved.`)) return;
+  await applyWorkspaceLifecycle("archive-workspace", () => api.archiveWorkspace(csrfToken.value), `"${workspaceName.value}" was archived and can be restored.`);
+}
+
+async function restoreWorkspace(club: WorkspaceMembership) {
+  await applyWorkspaceLifecycle(`restore-workspace-${club.workspace}`, () => api.restoreWorkspace(club.workspace, csrfToken.value), `"${club.name}" was restored.`);
+}
+
+async function deleteWorkspace(club: WorkspaceMembership) {
+  const confirmation = window.prompt(`Permanently delete "${club.name}"? This removes all Playbooks, Context, Reviews, Questions, memberships, invitations, and history. This cannot be undone.\n\nType the exact workspace name to continue:`);
+  if (confirmation === null) return;
+  if (confirmation !== club.name) {
+    showValidationError("The workspace name did not match. Nothing was deleted.");
+    return;
+  }
+  await applyWorkspaceLifecycle(`delete-workspace-${club.workspace}`, () => api.deleteWorkspace(club.workspace, confirmation, csrfToken.value), `"${club.name}" was permanently deleted.`);
+}
+
 async function acceptInvitation(payload?: { token: string; onSuccess: () => void }) {
   const token = (payload?.token ?? invitationToken.value).trim(); if (!token) return;
   await runAction("accept-invitation", async () => {
@@ -379,7 +424,90 @@ async function attachStepContext({ note, procedure, step, onSuccess }: { note: C
   }, "Context attached to the step.");
 }
 
-async function recordStepContext({ procedure, step, text, onSuccess, onRecordedOnly }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void; onRecordedOnly: (context: string) => void }) {
+async function detachContext({ note, attachment, onSuccess, skipConfirmation }: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean }) {
+  const procedure = procedures.value.find(({ procedure }) => procedure === attachment.subject);
+  const step = attachment.anchor ? procedure?.steps.find(({ step }) => step === attachment.anchor) : undefined;
+  const target = step
+    ? `Step ${step.position} of "${procedure?.title ?? "this Playbook"}"`
+    : `"${procedure?.title ?? "this Playbook"}"`;
+  if (!skipConfirmation && !window.confirm(`Remove this Context from ${target}? The shared Context Note and its change history will remain available.`)) return;
+  await runAction(
+    `detach-${attachment.attachment}`,
+    async () => {
+      await api.detachContextNote(attachment.attachment, note.context, attachment.subject, csrfToken.value);
+      contexts.value = contexts.value.map((item) => item.context === note.context
+        ? { ...item, attachments: item.attachments.filter((itemAttachment) => itemAttachment.attachment !== attachment.attachment) }
+        : item);
+      onSuccess?.();
+    },
+    `Context removed from ${step ? `Step ${step.position}` : "the Playbook"}. The shared note remains available.`,
+  );
+}
+
+async function deleteContextNote(note: ContextNote) {
+  const connectionCount = note.attachments.length;
+  const questionCount = contextQuestions.value.filter(({ context }) => context === note.context).length;
+  const confirmation = window.prompt(
+    `Delete this shared Context Note forever? This removes it from ${connectionCount} ${connectionCount === 1 ? "place" : "places"} and deletes ${questionCount} related ${questionCount === 1 ? "question" : "questions"}. Existing Review history remains as evidence. This cannot be undone.\n\nType DELETE to continue:`,
+  );
+  if (confirmation === null) return;
+  if (confirmation !== "DELETE") {
+    showValidationError("Type DELETE exactly to permanently delete the Context Note. Nothing was deleted.");
+    return;
+  }
+  await runAction(`delete-context-${note.context}`, async () => {
+    await api.deleteContextNote(note.context, note.version, csrfToken.value);
+    contexts.value = contexts.value.filter(({ context }) => context !== note.context);
+    contextQuestions.value = contextQuestions.value.filter(({ context }) => context !== note.context);
+    if (contextChangeResult.value?.context === note.context) contextChangeResult.value = undefined;
+  }, "Context Note permanently deleted from Shared context and every Playbook.");
+}
+
+async function replaceReviewContext({ currentNote, attachment, replacementNote, text, onSuccess }: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void }) {
+  if (actionBusy.value) {
+    showValidationError("Please wait for the current Review update to finish.");
+    return;
+  }
+  if ((!replacementNote && !text?.trim()) || (replacementNote && text?.trim())) {
+    showValidationError("Choose one existing Context Note or write one new Context Note.");
+    return;
+  }
+  clearMessages();
+  actionBusy.value = `replace-context-${attachment.attachment}`;
+  try {
+    const result = await replaceContextConnection({
+      replacementContext: replacementNote?.context,
+      record: text ? async () => (await api.recordContextNote(text.trim(), csrfToken.value)).context : undefined,
+      attach: (context) => attachment.anchor
+        ? api.attachContextNoteAtStep(context, attachment.subject, attachment.anchor, csrfToken.value)
+        : api.attachContextNote(context, attachment.subject, csrfToken.value),
+      detach: () => api.detachContextNote(attachment.attachment, currentNote.context, attachment.subject, csrfToken.value),
+    });
+    if (result.status !== "REPLACED") {
+      if (result.cause instanceof RelayApiError && (result.cause.status === 401 || result.cause.code === "CSRF_REJECTED")) {
+        showError(result.cause);
+        return;
+      }
+      await refreshData(false, true);
+      errorMessage.value = result.status === "RECORDED_ONLY"
+        ? "The new Context Note was saved, but it could not be attached. The original Context is still connected. Find the saved Note in Shared context before retrying."
+        : "The replacement Context was attached, but the original could not be removed. Both are shown in the Review; remove the original before resolving.";
+      return;
+    }
+    onSuccess();
+    const refreshed = await refreshData();
+    successMessage.value = refreshed
+      ? "Context replaced. The current connection is shown in this Review."
+      : "Context replaced, but Relay could not refresh the Review. Try Refresh.";
+  } catch (error) {
+    showError(error);
+    await refreshData(false, true);
+  } finally {
+    actionBusy.value = "";
+  }
+}
+
+async function recordStepContext({ procedure, step, text, onSuccess, onRecordedOnly, recordedOnlyHelp }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; onSuccess: () => void; onRecordedOnly?: (context: string) => void; recordedOnlyHelp?: string }) {
   if (actionBusy.value) {
     showValidationError("Please wait for the current workspace action to finish.");
     return;
@@ -402,14 +530,18 @@ async function recordStepContext({ procedure, step, text, onSuccess, onRecordedO
 
     actionBusy.value = "";
     const refreshed = await refreshData(false, true);
-    onRecordedOnly(result.context);
+    onRecordedOnly?.(result.context);
     if (result.cause instanceof RelayApiError && (result.cause.status === 401 || result.cause.code === "CSRF_REJECTED")) {
       clearWorkspaceState();
       errorMessage.value = "The note was saved, but your session ended before it could be attached. Sign in again, then attach the saved note under Use existing.";
     } else {
       errorMessage.value = refreshed
-        ? "The note was saved, but it could not be attached. It is selected under Use existing so you can retry without creating another note."
-        : "The note was saved, but it could not be attached or shown after refresh. Try Refresh, then attach the saved note under Use existing.";
+        ? recordedOnlyHelp ?? (onRecordedOnly
+          ? "The note was saved, but it could not be attached. It is selected under Use existing so you can retry without creating another note."
+          : "The note was saved, but it could not be attached. Find it in Shared context and attach it without creating another note.")
+        : recordedOnlyHelp ?? (onRecordedOnly
+          ? "The note was saved, but it could not be attached or shown after refresh. Try Refresh, then attach the saved note under Use existing."
+          : "The note was saved, but it could not be attached or shown after refresh. Try Refresh, then find it in Shared context.");
     }
   } catch (error) {
     showError(error);
@@ -460,19 +592,23 @@ async function confirmReview(review: PendingReview) {
 }
 
 async function requireReviewChanges(review: PendingReview) {
-  await runAction(`require-${review.review}`, async () => { await api.requireReviewChanges(review.review, review.procedure, review.version, csrfToken.value); }, "Review marked as requiring changes. Edit the playbook, then resolve the review.");
+  focusedReviewId.value = review.review;
+  await runAction(`require-${review.review}`, async () => { await api.requireReviewChanges(review.review, review.procedure, review.version, csrfToken.value); }, "Review marked as requiring changes. Update its Steps or Context attachments, then resolve it.");
 }
 
 async function resolveReview(review: PendingReview) {
+  if (!confirmDiscardUnsavedWork()) return;
   await runAction(`resolve-${review.review}`, async () => { await api.resolveReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review resolved. Its causes remain in review history.");
 }
 
 async function cancelReview(review: PendingReview) {
-  if (!window.confirm(`Cancel the review for "${review.title}"? Its causes will remain in review history.`)) return;
-  await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review cancelled. Its causes remain in review history.");
+  if (!confirmDiscardUnsavedWork()) return;
+  if (!window.confirm(`Cancel this review for "${review.title}" without making a decision? This closes the task as Cancelled. It does not undo the Context change, confirm that the Playbook is correct, or change its instructions. The reason for the review remains in history.`)) return;
+  await runAction(`cancel-${review.review}`, async () => { await api.cancelReview(review.review, review.procedure, review.version, csrfToken.value); }, "Review closed as Cancelled without confirming or updating the Playbook. Its reason remains in history.");
 }
 
 function editReviewedPlaybook(review: PendingReview) {
+  if (!confirmDiscardUnsavedWork()) return;
   clearMessages();
   focusedProcedure.value = review.procedure;
   focusedReviewId.value = review.review;
@@ -571,16 +707,17 @@ onUnmounted(() => {
     </section>
     <section v-else-if="!hasWorkspace" class="loading-screen onboarding-screen">
       <span class="brand-mark" aria-hidden="true">R</span><h1>Choose a club</h1><p>Create a new club or enter an invitation code.</p>
-      <div v-if="workspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in workspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
+      <div v-if="activeWorkspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in activeWorkspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
+      <div v-if="archivedWorkspaces.length" class="onboarding-card"><h2>Archived workspaces</h2><div v-for="club in archivedWorkspaces" :key="club.workspace" class="onboarding-archived-workspace"><strong>{{ club.name }}</strong><div><button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="restoreWorkspace(club)">{{ actionBusy === `restore-workspace-${club.workspace}` ? "Restoring…" : "Restore" }}</button><button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="deleteWorkspace(club)">{{ actionBusy === `delete-workspace-${club.workspace}` ? "Deleting…" : "Delete forever" }}</button></div></div></div>
       <form class="onboarding-card" @submit.prevent="createClub()"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">{{ actionBusy === "create-workspace" ? "Creating…" : "Create as Owner" }}</button></form>
       <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join club" }}</button></form>
-      <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
+      <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><p v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
     </section>
     <div v-else class="workspace-layout">
       <aside class="sidebar">
         <a class="brand-lockup sidebar-brand" href="#" @click.prevent="navigate({ section: 'overview' })"><span class="brand-mark" aria-hidden="true">R</span><span>Relay</span></a>
         <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
-        <select v-if="workspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"><option v-for="club in workspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
+        <select v-if="activeWorkspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"><option v-for="club in activeWorkspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
           <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
             <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
@@ -597,11 +734,11 @@ onUnmounted(() => {
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
-          <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
-          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
-          <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :action-busy="actionBusy" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" />
+          <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @detach-context="detachContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
+          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @detach="detachContext" @delete-note="deleteContextNote" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
+          <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :contexts="contexts" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @edit-step="editStep" @replace-context="replaceReviewContext" @detach-context="detachContext" @dirty-change="hasUnsavedWork = $event" />
           <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @dirty-change="hasUnsavedWork = $event" />
-          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" @dirty-change="hasUnsavedWork = $event" />
+          <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" @rename-workspace="renameWorkspace" @archive-workspace="archiveWorkspace" @restore-workspace="restoreWorkspace" @delete-workspace="deleteWorkspace" @dirty-change="hasUnsavedWork = $event" />
         </div>
       </section>
     </div>

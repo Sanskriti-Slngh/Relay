@@ -131,6 +131,99 @@ describe("multi-user Relay host", () => {
     expect((await call("/session", undefined, member)).body.workspace).toBe(secondClub.body.workspace);
   });
 
+  test("lets only the Owner rename, archive, restore, and permanently delete a workspace", async () => {
+    const owner = await register("workspace-lifecycle-owner@example.org");
+    const created = await call("/workspaces/create", { name: "Lifecycle Club" }, owner);
+    const workspace = created.body.workspace as string;
+    const procedure = await call("/api/workspaces/procedures/create", { title: "Preserved Playbook" }, owner);
+    const step = await call("/api/workspaces/procedures/steps/add", {
+      procedure: procedure.body.procedure,
+      text: "Preserved step",
+      expectedVersion: 1,
+    }, owner);
+    const context = await call("/api/workspaces/context/notes", { text: "Original context" }, owner);
+    await call("/api/workspaces/context/step-attachments", {
+      context: context.body.context,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+    }, owner);
+    await call("/api/workspaces/context/change", {
+      context: context.body.context,
+      text: "Changed context",
+      expectedVersion: 1,
+    }, owner);
+    await call("/api/workspaces/questions/steps/ask", {
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+      text: "Step question?",
+    }, owner);
+    await call("/api/workspaces/questions/context/ask", {
+      procedure: procedure.body.procedure,
+      context: context.body.context,
+      text: "Context question?",
+    }, owner);
+    await application.whenIdle();
+
+    const member = await register("workspace-lifecycle-member@example.org");
+    const invitation = await call("/invitations/create", { email: "workspace-lifecycle-member@example.org" }, owner);
+    expect((await call("/invitations/accept", { token: invitation.body.token }, member)).status).toBe(200);
+    expect((await call("/workspaces/rename", { name: "Member rename" }, member)).status).toBe(403);
+    expect((await call("/workspaces/archive", {}, member)).status).toBe(403);
+
+    const renamed = await call("/workspaces/rename", { name: "Lifecycle Club Renamed" }, owner);
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.workspaceName).toBe("Lifecycle Club Renamed");
+    expect((await call("/workspaces/delete", { workspace, confirmationName: "Lifecycle Club Renamed" }, owner)).body.error)
+      .toBe("WORKSPACE_MUST_BE_ARCHIVED");
+
+    const archived = await call("/workspaces/archive", {}, owner);
+    expect(archived.status).toBe(200);
+    expect(archived.body.workspace).toBeUndefined();
+    expect(archived.body.workspaces).toContainEqual(expect.objectContaining({
+      workspace,
+      name: "Lifecycle Club Renamed",
+      role: "Owner",
+      status: "ARCHIVED",
+    }));
+    expect((await call("/session", undefined, member)).body.workspace).toBeUndefined();
+    expect((await call("/session", undefined, member)).body.workspaces).not.toContainEqual(expect.objectContaining({ workspace }));
+    expect((await call("/workspaces/select", { workspace }, owner)).status).toBe(404);
+
+    const restored = await call("/workspaces/restore", { workspace }, owner);
+    expect(restored.status).toBe(200);
+    expect(restored.body).toEqual(expect.objectContaining({ workspace, workspaceName: "Lifecycle Club Renamed" }));
+    expect((await call("/api/workspaces/procedures", {}, owner)).body.procedures).toContainEqual(
+      expect.objectContaining({ procedure: procedure.body.procedure, title: "Preserved Playbook" }),
+    );
+    expect((await call("/api/workspaces/context", {}, owner)).body.contexts).toContainEqual(
+      expect.objectContaining({ context: context.body.context, text: "Changed context" }),
+    );
+
+    expect((await call("/workspaces/archive", {}, owner)).status).toBe(200);
+    expect((await call("/workspaces/delete", { workspace, confirmationName: "Lifecycle Club" }, owner)).body.error)
+      .toBe("WORKSPACE_CONFIRMATION_MISMATCH");
+    const deleted = await call("/workspaces/delete", { workspace, confirmationName: "Lifecycle Club Renamed" }, owner);
+    expect(deleted.status).toBe(200);
+    expect(deleted.body.workspaces).not.toContainEqual(expect.objectContaining({ workspace }));
+    expect((await call("/workspaces/restore", { workspace }, owner)).status).toBe(404);
+
+    const remaining = await Promise.all([
+      database.collection<{ _id: string }>("host_workspaces").countDocuments({ _id: workspace }),
+      database.collection("host_invitations").countDocuments({ workspace }),
+      database.collection("host_activity").countDocuments({ workspace }),
+      database.collection("roleBasedAccessing_assignments").countDocuments({ resource: workspace }),
+      database.collection("procedureMaintaining_procedures").countDocuments({ space: workspace }),
+      database.collection("procedureMaintaining_steps").countDocuments({ _id: step.body.step }),
+      database.collection("contextTracking_contextNotes").countDocuments({ scope: workspace }),
+      database.collection("contextTracking_attachments").countDocuments({ context: context.body.context }),
+      database.collection("contextTracking_changes").countDocuments({ context: context.body.context }),
+      database.collection("reviewing_reviews").countDocuments({ item: procedure.body.procedure }),
+      database.collection("stepQuestioning_questions").countDocuments({ subject: step.body.step }),
+      database.collection("contextQuestioning_questions").countDocuments({ subject: context.body.context }),
+    ]);
+    expect(remaining.every((count) => count === 0)).toBe(true);
+  });
+
   test("rejects missing and stale collaborative versions without changing state or activity", async () => {
     const officer = await register("versioned-officer@example.org");
     await call("/workspaces/create", { name: "Versioned Club" }, officer);
@@ -212,6 +305,12 @@ describe("multi-user Relay host", () => {
     const club = await call("/workspaces/create", { name: "Robotics" }, officer);
     const procedure = await call("/api/workspaces/procedures/create", { title: "Competition setup" }, officer);
     const step = await call("/api/workspaces/procedures/steps/add", { procedure: procedure.body.procedure, text: "Charge batteries", expectedVersion: 1 }, officer);
+    const context = await call("/api/workspaces/context/notes", { text: "Use the labeled charger" }, officer);
+    const attachment = await call("/api/workspaces/context/step-attachments", {
+      context: context.body.context,
+      procedure: procedure.body.procedure,
+      step: step.body.step,
+    }, officer);
     const invitation = await call("/invitations/create", { email: "member@example.org", role: "Officer" }, officer);
     expect(invitation.status).toBe(200);
     expect(invitation.body).toEqual(expect.objectContaining({
@@ -257,6 +356,12 @@ describe("multi-user Relay host", () => {
     expect(read.body.procedures[0].title).toBe("Competition setup");
     const forbiddenEdit = await call("/api/workspaces/procedures/rename", { procedure: procedure.body.procedure, title: "Forged edit", expectedVersion: 2, user: accepted.body.user?.id }, member);
     expect(forbiddenEdit.status).toBe(403);
+    expect((await call("/api/workspaces/context/detach", { attachment: attachment.body.attachment, context: context.body.context, procedure: procedure.body.procedure }, member)).status).toBe(403);
+    expect((await call("/api/workspaces/context/delete", { context: context.body.context, expectedVersion: 1 }, member)).status).toBe(403);
+    expect((await call("/api/workspaces/context", {}, member)).body.contexts[0].attachments).toContainEqual(
+      expect.objectContaining({ attachment: attachment.body.attachment }),
+    );
+    expect((await call("/api/workspaces/context/detach", { attachment: attachment.body.attachment, context: context.body.context, procedure: procedure.body.procedure }, officer)).status).toBe(200);
     const question = await call("/api/workspaces/questions/steps/ask", { procedure: procedure.body.procedure, step: step.body.step, text: "Which charger?" }, member);
     expect(question.status).toBe(200);
     const forbiddenAnswer = await call("/api/workspaces/questions/steps/answer", { question: question.body.question, answer: "Mine", expectedVersion: 1 }, member);

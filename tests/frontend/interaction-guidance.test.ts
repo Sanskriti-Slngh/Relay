@@ -30,7 +30,7 @@ describe("first-time interaction guidance", () => {
       "Choose Needs updating if the Playbook must change",
     );
     expect(reviewDecisionGuidance("CHANGES_REQUIRED")).toBe(
-      "First edit the Playbook. When its instructions match the changed context, return here and resolve the Review.",
+      "Update the affected Steps or Context attachments here, or open the full Playbook editor. Resolve only when the instructions are current.",
     );
   });
 

@@ -30,6 +30,7 @@ export interface WorkspaceMembership {
   role: string;
   permissions: string[];
   ownershipConfigured: boolean;
+  status: "ACTIVE" | "ARCHIVED";
 }
 
 export interface WorkspaceMember {
@@ -104,6 +105,7 @@ function messageFor(code: string): string {
     INVALID_INPUT: "Check the request and try again.",
     INVALID_REQUEST: "The requested change is not valid for the current record.",
     ATTACHMENT_ALREADY_EXISTS: "That context note is already attached to the selected target.",
+    ATTACHMENT_NOT_AVAILABLE: "That context attachment is no longer available. Refresh and try again.",
     CHANGE_NOT_DIFFERENT: "A meaningful change must differ from the current note.",
     REVIEW_NOT_PENDING_FOR_CONFIRMATION: "That review is no longer pending and cannot be confirmed again.",
     REVIEW_NOT_AVAILABLE: "That review is no longer pending or available in this workspace.",
@@ -118,6 +120,8 @@ function messageFor(code: string): string {
     CSRF_REJECTED: "Your session verification failed. Sign in again.",
     MEMBERSHIP_CONFLICT: "That membership changed or the requested role change is not allowed.",
     OWNERSHIP_REQUIRED: "Set the workspace Owner before managing roles.",
+    WORKSPACE_CONFIRMATION_MISMATCH: "Type the workspace name exactly to confirm permanent deletion.",
+    WORKSPACE_MUST_BE_ARCHIVED: "Archive the workspace before deleting it permanently.",
     VERSION_CONFLICT: "Someone changed this while you were working. Your draft is still here—compare it with the latest version before saving again.",
   };
   return messages[code] ?? "Relay could not complete the request. Please try again.";
@@ -218,6 +222,18 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
     },
     selectWorkspace(workspace: string, csrfToken: string) {
       return hostPost<SessionState>("/workspaces/select", { workspace }, csrfToken);
+    },
+    renameWorkspace(name: string, csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/rename", { name }, csrfToken);
+    },
+    archiveWorkspace(csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/archive", {}, csrfToken);
+    },
+    restoreWorkspace(workspace: string, csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/restore", { workspace }, csrfToken);
+    },
+    deleteWorkspace(workspace: string, confirmationName: string, csrfToken: string) {
+      return hostPost<SessionState>("/workspaces/delete", { workspace, confirmationName }, csrfToken);
     },
     workspaceMembers(csrfToken: string) {
       return hostPost<{ members: WorkspaceMember[] }>("/workspaces/members", {}, csrfToken);
@@ -338,6 +354,12 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         procedure,
         step,
       }, csrfToken);
+    },
+    detachContextNote(attachment: string, context: string, procedure: string, csrfToken: string) {
+      return post<{ attachment: string }>("/workspaces/context/detach", { attachment, context, procedure }, csrfToken);
+    },
+    deleteContextNote(context: string, expectedVersion: number, csrfToken: string) {
+      return post<{ context: string }>("/workspaces/context/delete", { context, expectedVersion }, csrfToken);
     },
     correctContextNote(context: string, text: string, expectedVersion: number, csrfToken: string) {
       return post<{ context: string }>("/workspaces/context/correct", { context, text, expectedVersion }, csrfToken);
