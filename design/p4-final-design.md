@@ -2,17 +2,19 @@
 
 ## 1. The Problem and Core Idea
 
-Student-club procedures often outlive the assumptions behind them. Relay keeps
-official procedures as ordered **Playbooks**, but also records the policies,
-decisions, and experience they depend on as reusable **Context Notes**. One Note
-can be attached to Steps in several Playbooks. When its meaning changes, Relay
-preserves the old and new text and asks an officer to reconsider every affected
-Playbook rather than rewriting instructions automatically.
+Imagine two club Playbooks that both rely on one room policy: access renews
+annually. When the policy changes to semesterly renewal, editing two sets of
+instructions by hand risks missing one or erasing why it changed. Relay keeps
+official procedures as ordered **Playbooks** and their shared policies,
+decisions, and experience as reusable **Context Notes**. One Note can support
+Steps in several Playbooks; a meaningful change preserves the exact annual and
+semester versions and asks an officer to reconsider every affected Playbook
+rather than rewriting instructions automatically.
 
 That idea is unchanged from the [first preserved repository snapshot of the P1 design](https://github.com/Sanskriti-Slngh/Relay/tree/703eb27dc7ea2d3b47c6d7ac5f61d6a572b746fb/design).
 ProcedureMaintaining, ContextTracking, Questioning, Reviewing, and
 RoleBasedAccessing still own independent kinds of state. The
-[composition](https://github.com/Sanskriti-Slngh/Relay/blob/21a6fac0bbd6f86bdd587f2acc41030b3ff9e5fd/design/compositions/Relay.md)
+[composition](https://github.com/Sanskriti-Slngh/Relay/blob/a0fc5c46ae1415e1f7562d2d800b4e0537c30a81/design/compositions/Relay.md)
 connects them through stable identities and reactions. In particular,
 ContextTracking records a meaningful Change; Reviewing only knows that a
 generic Item needs reconsideration for one or more generic Causes.
@@ -40,6 +42,11 @@ changing their purpose.
 - Creating Context beside a Step requires separate record and attach actions.
   If recording succeeds but attachment fails, Relay reports the partial
   success and reuses the saved Note for retry instead of creating a duplicate.
+- Detaching Context removes one connection but preserves the shared Note.
+  Permanent deletion requires an explicit `DELETE`, removes its attachments and
+  Questions, and keeps already-recorded Review evidence. Workspace archive is
+  similarly reversible, while owner-only deletion verifies the workspace name
+  before cascading through its data.
 
 These changes strengthen the original boundaries. Authentication remains a
 host concern, version checks remain with the concepts that own the records, and
@@ -54,14 +61,21 @@ spacing, separator-based grouping, and progressive disclosure. P4 deliberately
 keeps that system.
 
 The final pass improves moments where a person must understand a consequence
-or recover from a mistake. Empty workspaces now explain the three-step task;
-Context choices say whether they create Review work; and Reviews lead from the
-reason, through changed evidence and current instructions, to the next
-decision. Unsaved drafts are guarded during navigation, workspace changes,
-sign-out, and reload. Busy labels, partial-failure messages, and conflict panels
-make state changes visible. Reading measures, long-text wrapping, stacked
-Review evidence, and the tablet/mobile Playbook reflow make dense states more
-legible without adding permanent controls or another visual language.
+or recover from a mistake. An early Review repair screen showed Step editing,
+Context replacement, detachment, target details, and resolution together. It
+was complete but made the common room-policy task compete with uncommon repair
+choices. The final flow shows the changed evidence, opens the affected Step for
+direct editing, and keeps **Replace Context**, **Remove attachment**, and the
+full Playbook editor behind progressive disclosure. Saving never resolves the
+Review automatically, and an officer may resolve without editing after deciding
+the instructions already fit the semester policy. Multi-Cause evidence and
+multi-attachment selectors remain available when needed.
+
+Empty workspaces explain the three-step task, and Context choices say whether
+they create Review work. Unsaved drafts are guarded during navigation,
+workspace changes, sign-out, and reload. Busy labels, partial-failure messages,
+conflict panels, bounded reading measures, long-text wrapping, and mobile
+reflow make state changes legible without introducing another visual language.
 
 ## 4. Hard Design Decisions
 
@@ -81,12 +95,14 @@ legible without adding permanent controls or another visual language.
 
 ## 5. Final State and Remaining Tradeoffs
 
-The [P4 implementation](https://github.com/Sanskriti-Slngh/Relay/commit/21a6fac0bbd6f86bdd587f2acc41030b3ff9e5fd)
-supports the complete Owner/Member journey, persistence, access control,
-conflict recovery, and responsive interaction. The project owner deployed this
-commit and subsequently reported that its browser checks passed. Those were
-user-operated production checks, not agent-controlled observations; automated
-and source-level verification independently passed for the same commit.
+The [final code-changing P4 commit](https://github.com/Sanskriti-Slngh/Relay/commit/a0fc5c46ae1415e1f7562d2d800b4e0537c30a81)
+supports the complete Owner/Member journey, Context and workspace lifecycles,
+Review repair, conflict recovery, and responsive interaction. The project owner
+deployed earlier commit `21a6fac0bbd6f86bdd587f2acc41030b3ff9e5fd` and reported
+that its browser checks passed. Those were user-operated production checks, not
+agent-controlled observations. Final HEAD passes automated and source-level
+verification, but this audit does not treat the older deployment or an HTTP
+success as proof that production runs the final commit.
 
 Relay also has deliberate reliability limits. Reaction handling is not a
 crash-safe outbox, standalone-Mongo serialization assumes one application

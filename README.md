@@ -121,8 +121,9 @@ git diff --check
 ```
 
 Generated contracts under `generated/` are committed and checked by
-`sync-engine artifacts check`. The 28 nonfatal sync-engine advisories and their
-scope are documented in the [P4 deployment-verification record](mvp/p4-deployment-verification.md).
+`sync-engine artifacts check`. The final source check reports 30 nonfatal
+advisories; the earlier deployed-release count and scope remain documented in
+the [P4 deployment-verification record](mvp/p4-deployment-verification.md).
 
 ## Project materials
 
