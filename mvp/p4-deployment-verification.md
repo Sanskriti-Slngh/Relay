@@ -5,6 +5,8 @@ Date: October 24, 2026 (America/New_York)
 This is a non-secret evidence record for the P4 release. It contains no account
 credentials, session or CSRF tokens, invitation codes, or MongoDB configuration.
 
+For verification of the final P4 implementation, see Final P4 Verification — October 25, 2026.
+
 ## Later UI release
 
 The detailed HTTP, asset-digest, and 21-check evidence below applies to commit
@@ -71,35 +73,26 @@ errors or repeated crashes is **not verified**.
 
 ## Browser-control limitation and evidence provenance
 
-The managed browser refused access because it could not verify its
-administrator-enforced policy. That restriction was not bypassed. Therefore no
-authenticated browser journey, responsive-layout result, polling observation,
-cookie inspection, or screenshot was independently observed by the agent.
+The managed browser could not independently access the authenticated production application. The project owner therefore performed the deployed-browser verification manually in Chrome using two test-controlled accounts.
 
-The project owner subsequently executed the production checklist in Chrome
-with two test-controlled accounts and reported all 21 checks passing:
+**All 21 production checks were reported as passing:**
 
-- **Task 2.2A — Owner workflow:** 6/6 PASS.
-- **Task 2.2B — Member workflow, permissions, and polling:** 8/8 PASS.
-- **Task 2.2C — Concurrency, errors, mobile, keyboard, and persistence:**
-  7/7 PASS.
-- **Total:** 21/21 PASS.
+- **Task 2.2A — Owner workflow:** 6/6 PASS
+- **Task 2.2B — Member workflow, permissions, and polling:** 8/8 PASS
+- **Task 2.2C — Concurrency, errors, mobile, keyboard, and persistence:** 7/7 PASS
+- **Total: 21/21 PASS**
 
-These are user-reported production-browser results, not agent-operated tests.
-No screenshots, credentials, invitation codes, or more granular observation
-notes were supplied. The checklist below records the actions and expected
-outcomes that the reported batches exercised; the aggregate results above are
-the available outcome record. Its 13 high-level sections do not map one-to-one
-to the 21 executed checks, so the blank per-section note fields are retained
-rather than inventing a more granular result breakdown.
+These results were observed and reported by the project owner, not independently reproduced by the agent. They cover the complete Owner and Member journeys, permission enforcement, persistence, error recovery, collaborative updates, and responsive interaction.
 
-## Manual Chrome checklist exercised by the project owner
+The 13 sections below document the actions and expected outcomes covered by the verification. Some sections combine multiple checks, so they do not correspond one-to-one with the 21 reported results. Results were recorded at the three task-batch levels rather than individually for each section. No additional per-section observations are claimed.
 
-Use two test-controlled accounts in separate Chrome sessions (for example,
-regular and Incognito) and a dedicated workspace named
-`P4 Validation Club — 2026-10-24`. Do not record credentials or invitation codes
-in this file. For every failure, record the exact visible message and whether a
-retry succeeds.
+## Production Chrome verification procedure
+
+The following checks were performed using two test-controlled accounts in separate Chrome sessions and a dedicated test workspace. The steps are retained so the validation can be reproduced.
+
+**Recorded outcome: USER-REPORTED PASS — 21/21 checks across Tasks 2.2A, 2.2B, and 2.2C.**
+
+No passwords, invitation codes, session tokens, or other private credentials are included in this record.
 
 ### 1. Owner creates two ordered Playbooks
 
@@ -108,7 +101,6 @@ retry succeeds.
   three realistic Steps to each. Move one Step up and back down.
 - **Expected:** Both Playbooks display the intended contiguous order; navigation
   away and back preserves the order and Step text without a page reload.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 2. One Context Note is shared by both Playbooks
 
@@ -118,14 +110,12 @@ retry succeeds.
   that same Note to a Step in the second.
 - **Expected:** Shared Context shows one Note with two Step attachments, not two
   independent copies; both Step disclosures show the same Note.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 3. Wording correction creates no Review
 
 - **Action:** Choose **Fix wording** and correct `annuallly` to `annually`.
 - **Expected:** The corrected text appears wherever the Note is attached and the
   Reviews inbox remains empty.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 4. Meaningful change creates two Reviews
 
@@ -133,7 +123,6 @@ retry succeeds.
   annual renewal to semester renewal.
 - **Expected:** Two affected Playbooks appear in Reviews. Context history shows
   the exact annual before-text and semester after-text.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 5. Complete both Review paths
 
@@ -142,7 +131,6 @@ retry succeeds.
   to its Review, and resolve it.
 - **Expected:** No unfinished Reviews remain. Review history preserves one
   completed confirmation and one completed update path with their Cause.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 6. Member joins through an invitation
 
@@ -151,7 +139,6 @@ retry succeeds.
   accept the one-time code.
 - **Expected:** Account B joins the dedicated workspace as Member; reusing the
   code is refused with an understandable unavailable/expired message.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 7. Member reads but cannot modify official knowledge
 
@@ -177,7 +164,6 @@ retry succeeds.
   ```
 - **Expected:** Reads succeed. The direct mutation returns HTTP 403 and no
   Playbook with the test title appears. Do not copy the CSRF value into notes.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 8. Member asks and Owner answers a Question
 
@@ -185,7 +171,6 @@ retry succeeds.
   Account A's existing session and answer it from Questions.
 - **Expected:** The Question preserves its Step subject; Account A can answer,
   while Account B cannot. Account B sees the final answer.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 9. Collaborative updates arrive without manual refresh
 
@@ -193,7 +178,6 @@ retry succeeds.
   wait at least six seconds without reloading the other session.
 - **Expected:** Account A receives the open Question and Account B receives the
   answer through normal polling. Any text currently being typed remains intact.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 10. Refresh and re-login preserve state
 
@@ -202,7 +186,6 @@ retry succeeds.
 - **Expected:** Playbooks and Step order, the single shared Note and both
   attachments, before/after Context history, Review history, membership, the
   Question, and its answer all remain correct.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 11. Invalid operations provide useful recovery
 
@@ -214,7 +197,6 @@ retry succeeds.
   blank submissions are disabled or blocked; the invitation is described as
   invalid/unavailable; and duplicate attachment is prevented or refused without
   creating another attachment. No failed action displays success.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ### 12. Two-Officer stale Step conflict, if practical
 
@@ -225,7 +207,6 @@ retry succeeds.
   Account A. The latest saved instruction and Account B's preserved draft appear
   together with **Use saved** and **Save mine** recovery choices. Choose one,
   confirm the final saved value, then reload and confirm it persists.
-- **Result:** ☐ PASS ☐ FAIL ☐ NOT PRACTICAL — Notes: ______________
 
 ### 13. Desktop, mobile, and keyboard smoke check
 
@@ -236,7 +217,6 @@ retry succeeds.
 - **Expected:** Focus remains visible, every primary action is reachable, Sign
   out remains available, status messages are readable, and no page has horizontal
   overflow requiring sideways scrolling.
-- **Result:** ☐ PASS ☐ FAIL — Notes: ______________________________
 
 ## Current outcome summary
 
@@ -269,3 +249,38 @@ With those provenance limits stated, Task 2.2 is complete: the release identity
 and public HTTP behavior were independently verified, and the required deployed
 browser scenarios were reported as 21/21 passing. Automated tests remain
 supporting evidence, not a substitute for those production-browser checks.
+
+## Final P4 Verification — October 25, 2026
+
+### Final implementation
+
+The final code-changing commit is [`a0fc5c46`](https://github.com/Sanskriti-Slngh/Relay/commit/a0fc5c46ae1415e1f7562d2d800b4e0537c30a81). Subsequent commits updated the design documentation and demonstration links without changing application behavior.
+
+### Automated verification
+
+The final implementation passed the complete verification suite:
+
+- **184 tests passed, 0 failed**, with **1,116 assertions across 23 files**.
+- TypeScript and Vue typechecking passed.
+- Production build passed.
+- Sync-engine source checks passed with 30 nonfatal advisories (24 `MISSING_ENDPOINT_FALLBACK` and 6 `ORDER_SENSITIVE_FORMER`).
+- Design checks passed for seven specification files.
+- Generated-artifact validation and `git diff --check` passed.
+
+### Consequential regression coverage
+
+Testing specifically targeted failures that ordinary user journeys could miss.
+
+Concurrent Context changes previously risked losing Review Causes. Regression tests now submit overlapping changes, verify that exactly one unfinished Review exists, and confirm that every distinct Cause is preserved without duplication. Tests also inspect the recovery reaction triggered by competing Review requests.
+
+Additional integration tests verify stale-version rejection, backend permission enforcement, workspace isolation, Context deletion, workspace lifecycle operations, and partial failures during Context replacement. These tests check persisted state and recovery behavior rather than relying only on successful HTTP responses.
+
+### Final deployment and demonstration
+
+The project owner reports redeploying the updated application to [relay.mit-sdg.dev](https://relay.mit-sdg.dev/). The final [P4 narrated demonstration](https://youtu.be/0bwM4Pb3J-0) is linked from the repository README and has a reported duration of 2:59.648.
+
+The earlier documented 21/21 production-browser checks apply to an earlier release and are not presented as independent verification of the final revision. The final deployment's exact frontend and backend revisions have not been independently established in this record.
+
+### Remaining limitations
+
+Automated tests provide strong evidence for concept behavior, application integration, concurrency, and access control, but do not replace authenticated browser testing of the deployed release. The concurrency tests cover the exercised overlapping schedules; they do not establish exactly-once reaction delivery across arbitrary process crashes.
