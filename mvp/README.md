@@ -8,7 +8,7 @@ historical milestones as the current release.
 
 - [Final design summary](../design/p4-final-design.md)
 - [Deployment-verification record](./p4-deployment-verification.md)
-- [Final narrated demonstration](../recordings/p4.mp4) — completed 2:59.648 P4
+- [Final narrated demonstration](https://youtu.be/0bwM4Pb3J-0) — completed 2:59.648 P4
   submission recording
 - [Final demonstration recording plan](./p4-demo-recording-plan.md) — the plan
   retained alongside the completed recording
