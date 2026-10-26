@@ -1,7 +1,7 @@
 # Relay design index
 
-This directory contains Relay's current P4 design and the historical work that
-led to it. Start with the concise [final design summary](./p4-final-design.md).
+Start with the concise [P4 final design](./p4-final-design.md). The remaining
+files are either current technical specifications or preserved milestone work.
 
 ## Current P4 specifications
 
@@ -15,7 +15,7 @@ led to it. Start with the concise [final design summary](./p4-final-design.md).
 - [Collaborative version-control design](./version-control.md)
 - [P4 visual-design specification](./visual-design.md)
 
-## Product foundations and historical milestones
+## Preserved P1–P3 work
 
 - [Problem framing](./problem-framing.md) and
   [application pitch](./application-pitch.md)
@@ -35,5 +35,7 @@ as rendered [typography](../slide-catalog/typography-slide.png) and
 [typography](../slide-catalog/typography-slide.svg) and
 [color](../slide-catalog/color-slide.svg) sources.
 
-The current design notebook is stored in the private individual course
-repository and is intentionally excluded from this public project.
+The current personal design notebook is stored in the private individual course
+repository and is intentionally excluded from this public project. Generated
+wire artifacts live in [`generated/`](../generated/) and are supporting build
+outputs, not reviewed design prose.
