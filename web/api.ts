@@ -1,6 +1,6 @@
-import type { RelayP2MVPWire } from "../generated/wire.ts";
+import type { RelayWire } from "../generated/wire.ts";
 
-type Output<Path extends keyof RelayP2MVPWire> = RelayP2MVPWire[Path]["output"];
+type Output<Path extends keyof RelayWire> = RelayWire[Path]["output"];
 
 export type Procedure = Output<"/workspaces/procedures">["procedures"][number];
 export type Step = Procedure["steps"][number];

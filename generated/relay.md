@@ -1,7 +1,7 @@
-<!-- Generated from the Relay P2 MVP assembly. Do not edit. -->
+<!-- Generated from the Relay assembly. Do not edit. -->
 <!-- Manifest producer: @mit-sdg/sync-engine@1.1.0; concept specification: sync-engine.concept-specification@1; renderer: @mit-sdg/sync-engine@1.1.0. -->
 
-# Relay P2 MVP — assembled read-back
+# Relay — assembled read-back
 
 _Assembled by sync-engine from registered concepts and composition. Edit the concept_
 _specifications and composition source, then regenerate this file._

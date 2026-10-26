@@ -2,7 +2,7 @@ import { assembleApplication } from "./src/assembly.ts";
 
 export default {
   assemble: assembleApplication,
-  title: "Relay P2 MVP",
+  title: "Relay",
   design: {
     version: 1,
     documents: [
