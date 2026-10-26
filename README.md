@@ -1,5 +1,7 @@
 # Relay
 
+**Author**: Sanskriti Singh · MIT 6.1040 Software Studio · Fall 2026
+
 Relay helps student clubs keep repeatable procedures and the context behind
 them. When shared information changes meaningfully, Relay preserves the
 before-and-after evidence and asks officers to review every affected Playbook.
@@ -11,24 +13,16 @@ before-and-after evidence and asks officers to review every affected Playbook.
 
 ## Repository guide
 
-This public repository contains the application, reviewed design documents,
-generated contracts, tests, and deployment evidence. My private 6.1040
-repository remains separate because it contains individual course work and
-personal reflections; those reflections are not implementation records and are
-not reproduced here. Its [P4 design reflections](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-design-notebook.md)
-record my design reasoning and lessons, while the separate
-[implementation notebook](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-implementation-notebook.md)
-preserves technical progress, verification results, and AI-assisted records.
+This public repository contains Relay's implementation, specifications, tests, and deployment evidence. My [private 6.1040 repository](https://github.com/Sanskriti-Slngh/6.1040) contains my individual course work and design reflections.
 
-- [P4 final design](design/p4-final-design.md) is the short, reader-facing account
-  of the problem, design evolution, major decisions, and tradeoffs.
-- [Design index](design/README.md) links the current concept specifications and
-  preserved P1–P3 design work.
-- [P4 deployment verification](mvp/p4-deployment-verification.md) records test and
-  deployment evidence with its provenance and limitations.
-- [Milestone index](mvp/README.md) links the P2–P5 journeys and evidence.
-- [`generated/`](generated/) contains tool-generated contracts; [`tests/`](tests/)
-  contains automated verification. Neither is presented as personal reflection.
+- **[Final P4 design](design/p4-final-design.md)** — The problem, design evolution, major decisions, and tradeoffs.
+- **[Personal design reflections](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-design-notebook.md)** — My reasoning, alternatives, challenges, and lessons throughout P4.
+- **[Implementation notebook](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-implementation-notebook.md)** — Technical progress, verification records, and AI-assisted implementation logs, kept separate from my personal reflections.
+- **[Design specifications](design/README.md)** — Current concepts, composition, visual design, and preserved P1–P3 work.
+- **[Testing and deployment evidence](mvp/p4-deployment-verification.md)** — Automated verification, manual browser testing, and known limitations.
+- **[Milestone index](mvp/README.md)** — Deliverables and historical evidence from earlier milestones.
+
+The `generated/` directory contains tool-generated contracts, while `tests/` contains automated tests.  The earlier single-workspace host is retained for historical integration tests. The deployed multi-user application uses src/host/multiUserHttp.ts.
 
 ## What Relay supports
 
@@ -54,10 +48,17 @@ that same normalized email before accepting it.
 Requirements: [Bun 1.4.0](https://bun.sh/) and [Podman](https://podman.io/) with
 a working `podman compose` provider.
 
+On macOS, Podman may require a virtual machine. If one has not been
+created, run `podman machine init`, then `podman machine start`.
+If the machine already exists but is stopped, run only
+`podman machine start`. Ensure ports 3000, 5173, and 27018
+are available. Initial setup requires internet access to install
+Bun dependencies and download the MongoDB container image.
+
 From a fresh clone:
 
 ```sh
-bun install
+bun install --frozen-lockfile
 bun run db:up
 cp .env.example .env
 bun run dev
@@ -86,6 +87,10 @@ RELAY_DEMO_DATABASE=relay_demo_fresh bun run dev
 The name must differ from the database in `MONGODB_URL` and may contain only
 letters, numbers, `_`, and `-`.
 
+The API runs at http://127.0.0.1:3000. The local API health endpoint
+is http://127.0.0.1:3000/health. In production, the application
+serves both the frontend and API from one origin.
+
 ## Testing
 
 The full suite uses a real MongoDB server. Run `bun run db:up` first; tests use
@@ -104,6 +109,7 @@ git diff --check
 Generated contracts are committed and checked by `sync-engine artifacts check`.
 The current source check reports 30 nonfatal advisories; the release-specific
 counts and verification scope are in the [P4 evidence record](mvp/p4-deployment-verification.md).
+
 
 ## Deployment
 
