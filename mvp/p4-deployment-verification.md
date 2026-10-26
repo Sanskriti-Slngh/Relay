@@ -66,12 +66,6 @@ The automated tests are included in the submitted repository. The most important
 
 The most consequential regression was the loss of a Review Cause during concurrent Context changes. Individual concept invariants remained valid, but the composed application could lose evidence. The correction recovers a rejected concurrent Review request by adding its Cause to the existing Review. The composition tests now exercise both concurrent Context changes and the refusal-recovery path.
 
-The deployed browser workflow was also tested manually by the project owner
-using two Chrome sessions and controlled accounts. The
-[P4 manual browser checklist](./p4-manual-browser-checklist.md) records the
-checks, reported outcomes, and limits of release attribution. These manual
-results are distinct from the automated test results.
-
 ## Independently observed production evidence for `8eb920e`
 
 The following was observed directly on October 24 for the earlier `8eb920e`
@@ -108,20 +102,8 @@ revision active during every interaction was not independently established.
 - Member workflow, permissions, and polling: 8/8
 - Concurrency, errors, mobile, keyboard, and persistence: 7/7
 
-The run covered:
-
-- two ordered Playbooks sharing one Context Note;
-- wording correction without Review creation;
-- a meaningful Context change creating Reviews for both affected Playbooks;
-- the **Still correct** and **Needs updating** Review paths;
-- email-bound invitation acceptance and one-time-code rejection on reuse;
-- Member read access, hidden editing controls, and server rejection of a forged
-  mutation;
-- a Question attached to a Step and answered by an Officer;
-- polling without lost drafts;
-- persistence across reload and re-login;
-- stale-edit rejection with draft recovery; and
-- invalid-input feedback, keyboard access, and a 390-pixel responsive check.
+The [full manual checklist](./p4-manual-browser-checklist.md) records each check,
+its expected behavior, the reported result, and the limits of that evidence.
 
 ## Final deliverables and limits
 

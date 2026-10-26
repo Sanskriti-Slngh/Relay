@@ -1,6 +1,6 @@
 # Relay
 
-**Author**: Sanskriti Singh · MIT 6.1040 Software Studio · Fall 2026
+**Author:** Sanskriti Singh · MIT 6.1040 Software Design · Fall 2026
 
 Relay helps student clubs keep repeatable procedures and the context behind
 them. When shared information changes meaningfully, Relay preserves the
@@ -22,7 +22,7 @@ This public repository contains Relay's implementation, specifications, tests, a
 - **[Testing and deployment evidence](mvp/p4-deployment-verification.md)** — Automated verification, manual browser testing, and known limitations.
 - **[Milestone index](mvp/README.md)** — Deliverables and historical evidence from earlier milestones.
 
-The `generated/` directory contains tool-generated contracts, while `tests/` contains automated tests.  The earlier single-workspace host is retained for historical integration tests. The deployed multi-user application uses src/host/multiUserHttp.ts.
+The `generated/` directory contains tool-generated contracts, and `tests/` contains automated tests. The earlier single-workspace host is retained for integration testing, while the deployed application uses the multi-user host in `src/host/multiUserHttp.ts`.
 
 ## What Relay supports
 
