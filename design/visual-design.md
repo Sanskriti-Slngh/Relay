@@ -136,4 +136,4 @@ The two-slide study uses [MoMA's Josef Müller-Brockmann poster record](https://
 [Notion's writing guide](https://www.notion.com/help/writing-and-editing-basics),
 [EPITOME's card-catalog essay](https://epitome.hypotheses.org/2384), and
 [Radix Themes](https://www.radix-ui.com/themes). The tracked SVG files are the
-editable sources; the PNG files are submission-ready renders.
+editable sources; the PNG files are submission-ready renders. The earlier [color exploration](../slide-catalog/color-slide-early.png) and [typography exploration](../slide-catalog/typography-slide-early.png) are preserved to show the initial visual direction. These were inspiration boards, not specifications for the final application. The current slides above document the refined visual system used for P4.
