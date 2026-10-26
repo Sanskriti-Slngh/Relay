@@ -9,8 +9,9 @@ database configuration.
 - **October 24, 2026:** commit
   [`8eb920e`](https://github.com/Sanskriti-Slngh/Relay/commit/8eb920e9624838679d3b8a80d7932148a1dea9bf),
   observed deployment `a925054a-77ee-40ad-a65d-fd289f826b6d`. This is the
-  release for which HTTP responses, asset digests, and the 21-check browser run
-  below were recorded.
+  release for which the HTTP responses and asset digests below were recorded.
+  The manual browser checklist was completed on the same date, but does not
+  independently establish this revision for every interaction.
 - **Later UI release:** commit
   [`21a6fac`](https://github.com/Sanskriti-Slngh/Relay/commit/21a6fac0bbd6f86bdd587f2acc41030b3ff9e5fd)
   was deployed and its browser checks were reported as passing by the project
@@ -21,7 +22,8 @@ database configuration.
   Later commits changed documentation and demo links, not application behavior.
 
 The final implementation was redeployed to
-[relay.mit-sdg.dev](https://relay.mit-sdg.dev/).
+[relay.mit-sdg.dev](https://relay.mit-sdg.dev/), but this record does not
+independently establish the exact revision currently served.
 
 ## Automated verification
 
@@ -64,11 +66,16 @@ The automated tests are included in the submitted repository. The most important
 
 The most consequential regression was the loss of a Review Cause during concurrent Context changes. Individual concept invariants remained valid, but the composed application could lose evidence. The correction recovers a rejected concurrent Review request by adding its Cause to the existing Review. The composition tests now exercise both concurrent Context changes and the refusal-recovery path.
 
-The deployed browser workflow was also tested manually by the project owner using two Chrome sessions and controlled accounts. The [P4 manual browser checklist](./p4-manual-browser-checklist.md) records the individual Owner, Member, and robustness checks, their expected behavior, reported outcomes, and the release tested. These manual results are distinct from the automated test results.
+The deployed browser workflow was also tested manually by the project owner
+using two Chrome sessions and controlled accounts. The
+[P4 manual browser checklist](./p4-manual-browser-checklist.md) records the
+checks, reported outcomes, and limits of release attribution. These manual
+results are distinct from the automated test results.
 
-## Independently observed production evidence
+## Independently observed production evidence for `8eb920e`
 
-The following was observed directly on October 24:
+The following was observed directly on October 24 for the earlier `8eb920e`
+release and observed deployment `a925054a-77ee-40ad-a65d-fd289f826b6d`:
 
 - `GET /health` returned HTTP 200 with `{"status":"ok"}` and `Cache-Control:
   no-store`. The endpoint's live MongoDB ping established current connectivity,
@@ -91,7 +98,11 @@ available for verification.
 
 ## Project-owner browser verification
 
-On October 24, 2026, I manually tested the deployed application in two Chrome sessions using controlled Owner and Member accounts. I recorded 21 of 21 checks as passing, covering the Owner workflow, Member permissions and collaboration, concurrency, error handling, accessibility, and persistence.
+On October 24, 2026, I manually tested the deployed application in two Chrome
+sessions using controlled Owner and Member accounts. I recorded 21 of 21 checks
+as passing, covering the Owner workflow, Member permissions and collaboration,
+concurrency, error handling, accessibility, and persistence. The exact deployed
+revision active during every interaction was not independently established.
 
 - Owner workflow: 6/6
 - Member workflow, permissions, and polling: 8/8
