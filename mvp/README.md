@@ -10,6 +10,7 @@ current release.
 - [Deployment and test evidence](./p4-deployment-verification.md)
 - [Narrated demo](https://youtu.be/0bwM4Pb3J-0) (2:59.648)
 - [Live application](https://relay.mit-sdg.dev/)
+- [Manual browser verification — 21 checks](./p4-manual-browser-checklist.md)
 
 ## Earlier milestones
 

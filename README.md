@@ -11,6 +11,8 @@ before-and-after evidence and asks officers to review every affected Playbook.
 
 ## Repository guide
 
+My [P4 design reflections](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-design-notebook.md) record my design reasoning, decisions, and lessons. The separate [implementation notebook](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-implementation-notebook.md) preserves technical progress, verification results, and AI-assisted records. These documents serve different purposes and should not be treated as interchangeable.
+
 This public repository contains the application, reviewed design documents,
 generated contracts, tests, and deployment evidence. My private 6.1040
 repository remains separate because it contains individual course work and

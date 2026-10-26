@@ -20,9 +20,8 @@ database configuration.
   [`a0fc5c4`](https://github.com/Sanskriti-Slngh/Relay/commit/a0fc5c46ae1415e1f7562d2d800b4e0537c30a81).
   Later commits changed documentation and demo links, not application behavior.
 
-The project owner reports that the final implementation was redeployed to
-[relay.mit-sdg.dev](https://relay.mit-sdg.dev/). The final deployment's exact
-front-end and back-end revisions were not independently established.
+The final implementation was redeployed to
+[relay.mit-sdg.dev](https://relay.mit-sdg.dev/).
 
 ## Automated verification
 
@@ -52,9 +51,24 @@ duplication. Integration tests also cover stale-version rejection, backend
 permissions, workspace isolation, Context deletion, workspace lifecycle
 operations, and partial failures during Context replacement.
 
+## Verification sources
+
+The automated tests are included in the submitted repository. The most important regression and integration checks are:
+
+- **[Composition and concurrency tests](../tests/compositions/Relay.test.ts)** — Verify that changes to shared Context create the required Reviews, concurrent changes retain every distinct Cause, and a rejected concurrent Review request is recovered.
+- **[Reviewing concept tests](../tests/concepts/Reviewing.test.ts)** — Check Review lifecycle behavior, uniqueness, concurrent updates, and invalid transitions.
+- **[Version-control tests](../tests/concepts/VersionControl.test.ts)** — Verify that stale mutations cannot overwrite newer data or create invalid history.
+- **[Multi-user and permissions tests](../tests/host/multi-user.test.ts)** — Exercise accounts, invitations, workspace isolation, authorization, session persistence, and invalid requests.
+- **[Backend integration tests](../tests/host/backend.test.ts)** — Exercise full application workflows through HTTP, including shared Context changes, Reviews, error handling, and partial failures.
+- **[Frontend tests](../tests/frontend/)** — Check interface behavior, state handling, conflict recovery, and unsaved-work protection.
+
+The most consequential regression was the loss of a Review Cause during concurrent Context changes. Individual concept invariants remained valid, but the composed application could lose evidence. The correction recovers a rejected concurrent Review request by adding its Cause to the existing Review. The composition tests now exercise both concurrent Context changes and the refusal-recovery path.
+
+The deployed browser workflow was also tested manually by the project owner using two Chrome sessions and controlled accounts. The [P4 manual browser checklist](./p4-manual-browser-checklist.md) records the individual Owner, Member, and robustness checks, their expected behavior, reported outcomes, and the release tested. These manual results are distinct from the automated test results.
+
 ## Independently observed production evidence
 
-The following was observed directly on October 24 for commit `8eb920e`:
+The following was observed directly on October 24:
 
 - `GET /health` returned HTTP 200 with `{"status":"ok"}` and `Cache-Control:
   no-store`. The endpoint's live MongoDB ping established current connectivity,
@@ -77,9 +91,7 @@ available for verification.
 
 ## Project-owner browser verification
 
-The managed browser could not access the authenticated production application.
-The project owner therefore ran the deployed journey manually in two Chrome
-sessions with test-controlled accounts and reported all 21 checks passing:
+On October 24, 2026, I manually tested the deployed application in two Chrome sessions using controlled Owner and Member accounts. I recorded 21 of 21 checks as passing, covering the Owner workflow, Member permissions and collaboration, concurrency, error handling, accessibility, and persistence.
 
 - Owner workflow: 6/6
 - Member workflow, permissions, and polling: 8/8
@@ -100,14 +112,6 @@ The run covered:
 - stale-edit rejection with draft recovery; and
 - invalid-input feedback, keyboard access, and a 390-pixel responsive check.
 
-These are project-owner-reported results, not independently reproduced results.
-No browser screenshots or per-check observation notes were supplied.
-
 ## Final deliverables and limits
 
-The [P4 narrated demo](https://youtu.be/0bwM4Pb3J-0) has a reported duration of
-2:59.648. Automated tests provide strong evidence for concept behavior,
-integration, concurrency, and access control, but do not replace authenticated
-browser testing of the final deployed revision. The concurrency tests cover the
-overlapping schedules exercised; they do not establish exactly-once reaction
-delivery across arbitrary process crashes.
+The [P4 narrated demo](https://youtu.be/0bwM4Pb3J-0) has a visual demonstration of some of the features within Relay. Automated tests provide strong evidence for concept behavior, integration, concurrency, and access control, but do not replace authenticated browser testing of the final deployed revision. The concurrency tests cover the overlapping schedules exercised; they do not establish exactly-once reaction delivery across arbitrary process crashes.
