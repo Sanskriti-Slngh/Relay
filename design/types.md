@@ -1,4 +1,4 @@
-# Relay MVP Application Types
+# Relay Application Types
 
 The instances below preserve Relay's cross-concept identity relationships.
 RoleBasedAccessing receives a User identity supplied by the application; the
@@ -20,7 +20,7 @@ concrete Command
   An opaque application command passed through authorization unchanged.
 ```
 
-The P3 host provisions Owner and Officer Roles with `ASK_QUESTION`,
+The host provisions Owner and Officer Roles with `ASK_QUESTION`,
 `ANSWER_QUESTION`, `EDIT_PROCEDURE`, `EDIT_CONTEXT`, and `COMPLETE_REVIEW`.
 The Member Role has only `ASK_QUESTION`, which also authorizes workspace-scoped
 Procedure, ContextNote, and Question reads. Workspace creators receive Owner;

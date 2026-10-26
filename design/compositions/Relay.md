@@ -26,7 +26,7 @@ cannot establish a trustworthy User identity. The User value supplied to
 `RoleBasedAccessing.authorize` must come from that trusted boundary, never
 from an unverified request body.
 
-The P3 host stores accounts, club names, invitations, and sessions in MongoDB.
+The host stores accounts, club names, invitations, and sessions in MongoDB.
 Passwords are salted and hashed with scrypt; the browser receives only a
 random opaque session token in an HttpOnly, SameSite=Strict cookie. Only a
 SHA-256 digest of that token is stored. Sessions expire after eight hours and

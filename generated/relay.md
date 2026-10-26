@@ -47,10 +47,10 @@ Defined in [ContextTracking](../design/concepts/ContextTracking.md), line 1.
 
 #### Instances
 
-- `ContextTracking` — instance of `ContextTracking` — [Relay MVP Application Types](../design/types.md), line 42.
-  - `Anchor` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 45.
-  - `Scope` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 43.
-  - `Subject` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 44.
+- `ContextTracking` — instance of `ContextTracking` — [Relay Application Types](../design/types.md), line 42.
+  - `Anchor` is `ProcedureMaintaining.Step` — [Relay Application Types](../design/types.md), line 45.
+  - `Scope` is `ClubWorkspace` — [Relay Application Types](../design/types.md), line 43.
+  - `Subject` is `ProcedureMaintaining.Procedure` — [Relay Application Types](../design/types.md), line 44.
 
 ### ProcedureMaintaining
 
@@ -102,8 +102,8 @@ Defined in [ProcedureMaintaining](../design/concepts/ProcedureMaintaining.md), l
 
 #### Instances
 
-- `ProcedureMaintaining` — instance of `ProcedureMaintaining` — [Relay MVP Application Types](../design/types.md), line 39.
-  - `Space` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 40.
+- `ProcedureMaintaining` — instance of `ProcedureMaintaining` — [Relay Application Types](../design/types.md), line 39.
+  - `Space` is `ClubWorkspace` — [Relay Application Types](../design/types.md), line 40.
 
 ### Questioning
 
@@ -132,12 +132,12 @@ Defined in [Questioning](../design/concepts/Questioning.md), line 1.
 
 #### Instances
 
-- `ContextQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 51.
-  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 53.
-  - `Subject` is `ContextTracking.ContextNote` — [Relay MVP Application Types](../design/types.md), line 52.
-- `StepQuestioning` — instance of `Questioning` — [Relay MVP Application Types](../design/types.md), line 47.
-  - `Answerer` is `User` — [Relay MVP Application Types](../design/types.md), line 49.
-  - `Subject` is `ProcedureMaintaining.Step` — [Relay MVP Application Types](../design/types.md), line 48.
+- `ContextQuestioning` — instance of `Questioning` — [Relay Application Types](../design/types.md), line 51.
+  - `Answerer` is `User` — [Relay Application Types](../design/types.md), line 53.
+  - `Subject` is `ContextTracking.ContextNote` — [Relay Application Types](../design/types.md), line 52.
+- `StepQuestioning` — instance of `Questioning` — [Relay Application Types](../design/types.md), line 47.
+  - `Answerer` is `User` — [Relay Application Types](../design/types.md), line 49.
+  - `Subject` is `ProcedureMaintaining.Step` — [Relay Application Types](../design/types.md), line 48.
 
 ### Reviewing
 
@@ -178,9 +178,9 @@ Defined in [Reviewing](../design/concepts/Reviewing.md), line 1.
 
 #### Instances
 
-- `Reviewing` — instance of `Reviewing` — [Relay MVP Application Types](../design/types.md), line 55.
-  - `Cause` is `ContextTracking.Change` — [Relay MVP Application Types](../design/types.md), line 57.
-  - `Item` is `ProcedureMaintaining.Procedure` — [Relay MVP Application Types](../design/types.md), line 56.
+- `Reviewing` — instance of `Reviewing` — [Relay Application Types](../design/types.md), line 55.
+  - `Cause` is `ContextTracking.Change` — [Relay Application Types](../design/types.md), line 57.
+  - `Item` is `ProcedureMaintaining.Procedure` — [Relay Application Types](../design/types.md), line 56.
 
 ### RoleBasedAccessing
 
@@ -217,20 +217,20 @@ Defined in [RoleBasedAccessing](../design/concepts/RoleBasedAccessing.md), line 
 
 #### Instances
 
-- `RoleBasedAccessing` — instance of `RoleBasedAccessing` — [Relay MVP Application Types](../design/types.md), line 59.
-  - `Command` is `Command` — [Relay MVP Application Types](../design/types.md), line 63.
-  - `Permission` is `Permission` — [Relay MVP Application Types](../design/types.md), line 62.
-  - `Resource` is `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 61.
-  - `User` is `User` — [Relay MVP Application Types](../design/types.md), line 60.
+- `RoleBasedAccessing` — instance of `RoleBasedAccessing` — [Relay Application Types](../design/types.md), line 59.
+  - `Command` is `Command` — [Relay Application Types](../design/types.md), line 63.
+  - `Permission` is `Permission` — [Relay Application Types](../design/types.md), line 62.
+  - `Resource` is `ClubWorkspace` — [Relay Application Types](../design/types.md), line 61.
+  - `User` is `User` — [Relay Application Types](../design/types.md), line 60.
 
 ## Application types
 
 Concrete types:
 
-- `ClubWorkspace` — [Relay MVP Application Types](../design/types.md), line 10.
-- `Command` — [Relay MVP Application Types](../design/types.md), line 19.
-- `Permission` — [Relay MVP Application Types](../design/types.md), line 16.
-- `User` — [Relay MVP Application Types](../design/types.md), line 13.
+- `ClubWorkspace` — [Relay Application Types](../design/types.md), line 10.
+- `Command` — [Relay Application Types](../design/types.md), line 19.
+- `Permission` — [Relay Application Types](../design/types.md), line 16.
+- `User` — [Relay Application Types](../design/types.md), line 13.
 
 ## Formers
 

@@ -35,9 +35,9 @@ as rendered [typography](../slide-catalog/typography-slide.png) and
 [typography](../slide-catalog/typography-slide.svg) and
 [color](../slide-catalog/color-slide.svg) sources.
 
-The gray [`styles.css`](./styles.css) prototype was created with the initial
-MVP design and is preserved only as historical visual-development material. It
-is not loaded by the application; the current frontend imports
+The gray [`early-prototype-styles.css`](./early-prototype-styles.css) file was
+created with the initial MVP design and is preserved only as historical
+visual-development material. It is not loaded by the application; the current frontend imports
 [`web/styles.css`](../web/styles.css).
 
 The current personal design notebook is stored in the private individual course

@@ -6,7 +6,6 @@ dist/
 .env.*
 !.env.example
 .DS_Store
-/mvp/My Movie.mp4
 /design/design-notebook.md
 /mvp/design-notebook.md
 /.presentation-build/
