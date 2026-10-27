@@ -1,218 +1,167 @@
 # Relay visual system — P3 Beta
 
-## Audit and intent
+## Intent
 
-The earlier interface exposed Relay's complete behavior, but it gave nearly
-every object and action equal visual weight. Small type, uppercase metadata,
-stacked bordered panels, decorative symbols, and permanently expanded forms
-made the application read like a component inventory rather than a shared
-knowledge base. The redesign keeps the concept and sync-engine boundaries
-unchanged while making the interface document-first: people scan a quiet
-index, open one item, read it at a comfortable measure, and reveal a mutation
-only when they intend to perform it.
+The earlier interface exposed Relay's behavior, but it gave content, metadata,
+forms, and secondary actions nearly equal visual weight. Small type, uppercase
+metadata, stacked bordered panels, decorative symbols, and permanently expanded
+forms made the application read like a component inventory rather than a shared
+knowledge base.
 
-The intended character combines Linear's restraint, Notion's writing-first
-interaction model, and Kinfolk's editorial pacing. GitHub Primer informed the
-readable type scale and durable control patterns; Radix Themes informed the
-small semantic color system; Nielsen Norman Group's progressive-disclosure
-guidance informed when secondary actions and forms appear.
+P3 establishes a quieter, document-first hierarchy. A club member can scan a
+Playbook index, open one procedure, and read its Steps and supporting Context
+without first interpreting the implementation's concepts. An officer sees the
+same document with editing controls at the point where they apply. These changes
+affect presentation and disclosure, not Relay's concept or sync-engine
+boundaries.
+
+The system combines Linear's restraint, Notion's writing-first interaction, and
+Kinfolk's editorial pacing. GitHub Primer informed the readable type scale and
+durable controls; Radix Themes informed the semantic colors; Nielsen Norman
+Group's progressive-disclosure guidance informed when forms and secondary
+actions appear.
 
 ## Foundations
 
 - Canvas `#FAFAF8`; surface `#FFFFFF`; primary text `#202522`; secondary text
   `#59665E`; separator `#E5E8E3`; accent `#285D4B`.
 - Pending uses `#8A5216` on `#FFF4DF`; complete uses `#25684D` on `#ECF6EF`;
-  errors use `#A72C38`. Status always has a text label, so color is not the
-  sole signal.
-- Inter is bundled locally under its Open Font License and is the primary
-  face. Body copy is at least 15px in reading contexts,
-  with relaxed line height and a roughly 70-character document measure.
-  Metadata is secondary, not tiny or artificially uppercased.
-- Spacing follows a 4/8/12/16/24/32/48px scale. One-pixel separators establish
-  groups; borders, rounded containers, and shadows are reserved for controls
-  or genuinely distinct surfaces.
-- Every interactive element has a visible `:focus-visible` treatment. Native
-  buttons, inputs, radio controls, lists, headings, and `details` disclosures
-  retain semantic keyboard behavior.
+  errors use `#A72C38`. Every status also has a text label, so color is never
+  the only signal.
+- Inter is bundled locally under its Open Font License. Reading text is at least
+  15px with relaxed line height and a roughly 70-character measure. Metadata is
+  smaller but remains legible.
+- Spacing follows a 4/8/12/16/24/32/48px scale. Whitespace and one-pixel
+  separators form most groups; borders and rounded containers are reserved for
+  controls or genuinely distinct surfaces. Relay uses no decorative shadows or
+  gradients.
+- Interactive elements retain semantic HTML and visible `:focus-visible`
+  treatment. Essential actions do not depend on hover.
 
-## Page and interaction patterns
+## Information hierarchy
 
-The sidebar now shows a clear workspace name, role, quiet navigation, and the
-unanswered counts that demand attention. Workspace switching and invitations
-live on a dedicated Workspace page. The main column uses one consistent title
-edge and a bounded reading width. On narrow screens the sidebar becomes a
-compact header and the navigation remains reachable without hover.
+The application shell identifies the current workspace and Role, then provides
+stable navigation. The main column shares one title edge and a bounded reading
+width. Workspace switching, membership, invitations, and ownership live
+together instead of competing with Playbook content.
 
-Workspace management follows the club's state rather than presenting a generic
-settings form: club identity and the viewer's Role lead, followed by joined
-Members, Owner/Officer-only pending invitations, the invitation form, and other club
-memberships. Joined users and pending invitations remain separate. Member
-rows expose names and Roles to the club; email and invitation administration
-appear only to Owners and Officers. A newly issued code is a temporary success surface
-with Copy and expiry information. Reissue clearly states that the replacement
-invalidates the previous code, and the plaintext value is never persisted in
-the browser.
+The principal screens follow one consistent reading order:
 
-The Workspace page also keeps multi-club navigation available after onboarding.
-Every authenticated user can switch among joined clubs, create another club as
-its Owner, or enter an invitation to join another club as a Member. These
-account-level actions are separate from Officer-only membership administration.
-Workspace transitions clear the prior club's projections before loading the
-new club, while failed submissions keep the current club and local form input.
+- **Overview:** Playbooks lead. An Officer's unfinished Reviews and unanswered
+  Questions appear in an amber attention rail, while neutral Recent Activity
+  remains subordinate. Selecting a row opens that exact Playbook, Review, or
+  Question. The preview alternates Reviews and Questions so one inbox cannot
+  occupy every available row.
+- **Playbooks:** a scannable title index sits beside one document-like
+  procedure. Ordered Steps read continuously. Officer controls stay at the edge
+  of the relevant Step; Members see the same instructions without mutation
+  controls. Editing one Step preserves its stable identity, and polling does not
+  replace its unfinished draft.
+- **Shared Context:** the current Note leads. Dependencies, Questions, and
+  before-and-after history remain adjacent but collapsed until useful. Context
+  attached to a Step appears there under **Why this matters**, not in a detached
+  footer. An empty Step offers Officers **+ Add context** without showing a
+  placeholder to Members.
+- **Reviews and Questions:** open work comes first, with source and status
+  visible before expansion. Completed history uses quieter typography. An open
+  Review presents changed Context, the Playbook's current instructions, and the
+  decision as three distinct regions.
+- **Workspace:** club identity and the viewer's Role lead, followed by joined
+  Members, pending invitations, and other memberships. Joined users and pending
+  invitations remain separate. Email addresses and administrative actions are
+  visible only to authorized Roles.
 
-Role management stays compact within Member rows. Officers see only Member
-promotion/removal actions; Owners can additionally demote Officers and open a
-separate, explicit ownership-transfer form. The transfer form states the sole-
-Owner consequence, lets the current Owner choose their resulting role, and
-requires confirmation. Legacy workspaces show one setup action instead of an
-automatically guessed owner.
+This hierarchy preserves object identity across navigation. A Review link opens
+the affected Playbook with the changed Context still visible and a route back to
+the Review. Background refreshes replace server data without resetting local
+drafts or disclosures.
 
-Playbooks use a master-detail layout: a scannable title index and one focused,
-document-like procedure. Steps retain stable identity and order but read as a
-continuous numbered document. Each Officer sees a consistent right-hand Step
-toolbar for moving, editing, and removing; Members see the same instructions
-without mutation controls. Editing replaces only the selected Step with its
-textarea and Save/Cancel actions. Local drafts are keyed by stable Step
-identity, so polling does not replace unfinished text. Removal remains a
-confirmed destructive action.
+## Consequences and recovery
 
-Step-anchored Context appears beside its Step rather than in a generic
-Playbook footer. Attached notes use the quiet label **Why this matters**; an
-unattached Step offers only **+ Add context** to Officers and has no empty
-placeholder. Reusing a shared note and writing a new one remain available in
-that disclosure. Empty Playbooks similarly show only **+ Add step**. Questions
-remain adjacent to their source. These presentation changes use the existing
-Step and Context operations: normal Step edits preserve identity and do not
-request Reviews, while meaningful shared-Context changes retain their existing
-Review behavior.
+Relay distinguishes a wording correction from a meaningful information change
+before an officer saves. **Fix wording** changes the current text without
+creating Review work. **Information changed** preserves the exact before-and-
+after text and may create or update Reviews for affected active Playbooks. The
+form states the number of affected Playbooks before submission, so the user does
+not need to infer the consequence from an implementation term.
 
-Navigation preserves object identity. Overview rows focus the selected
-Playbook instead of merely opening the Playbooks section. Review links focus
-the affected Playbook with the changed Context still visible in a compact
-work banner and a direct return to the Review. Background refreshes replace
-server data without keying or resetting these local disclosure and draft
-states.
+After a meaningful change, Relay waits for the refreshed Review projection and
+matches the saved Change identity to returned Causes. Only then does it name the
+affected Playbooks and offer **Review affected Playbooks**. If the refreshed
+state cannot confirm that outcome, the interface reports the uncertainty rather
+than inventing a list. A wording correction receives a separate no-Review
+confirmation.
 
-Shared Context uses an editorial ledger. Update first requires a clear choice
-between a wording correction (no Review) and a meaningful information change
-(exact before/after history and potentially new Reviews). Attachments,
-questions, and history remain adjacent to the note but collapsed until useful.
-Before a meaningful update is submitted, Relay states the exact number of
-active Playbooks that will receive or update a Review. This explicit choice
-removes the need for a second browser confirmation. Confirming or resolving a
-Review is likewise a direct task action; destructive removal, archiving, and
-Review cancellation retain confirmation.
+An unfinished Review keeps both legitimate decisions visible: **Still correct**
+and **Needs updating**. The first completes the Review; the second keeps it open
+while the officer edits the Playbook and returns to resolve it. The scope note
+also explains that a Context Note may support the whole Playbook or one
+particular Step, avoiding the false implication that every displayed Step uses
+that Context.
 
-After a meaningful update, Relay now waits for the refreshed Review projection
-before naming an outcome. It matches the successful Change identity to the
-Causes returned by that projection, then shows the exact affected Playbook
-count and names with a direct **Review affected Playbooks** action. If refresh
-cannot confirm that state, Relay says so and offers no inferred list. Wording
-corrections retain their explicit no-Review confirmation.
+Concurrent-edit recovery appears only after the server rejects a stale save. An
+amber inline panel places the current saved text beside the preserved draft and
+offers consequence-based choices: use the saved version or retry the local
+version against the newly observed state. The server checks again before the
+retry. Answer conflicts respect the original answerer's ownership rather than
+offering an action the server would refuse.
 
-Questions and Reviews are inboxes. Open work is first, with source and status
-visible before expansion. The primary next action appears in the expanded row;
-less common alternatives sit under a plainly labeled disclosure. Completed
-history remains accessible with quieter typography and spacing.
+Destructive removal, Playbook archiving, ownership transfer, and Review
+cancellation retain confirmation. Invitation reissue states that the previous
+code becomes invalid. A newly issued code shows its expiry and can be copied,
+but its plaintext value is not persisted in the browser.
 
-Within a Playbook Step, opening **Why this matters** prioritizes the attached
-Context Notes as reading material. When Context already exists, the reuse and
-creation controls remain behind a quieter **Add another context** disclosure;
-an empty Step still reveals the first-add controls directly. The Reviews empty
-state says **All caught up** and explains that meaningful shared-information
-changes will place affected Playbooks there, without presenting an unrelated
-navigation action.
+## First use and progressive disclosure
 
-An open Review presents three intentionally distinct regions: exact changed
-Context as evidence, the Playbook's current ordered instructions, and the
-decision. The scope note says that Context may apply to the whole Playbook or
-to a particular Step, avoiding the false implication that every displayed Step
-is attached to that Context. Both legitimate pending decisions—**Still
-correct** and **Needs updating**—remain visible together. The existing
-edit-and-return path and resolve action remain unchanged for Reviews awaiting
-changes.
+A truly empty Officer workspace leads with one action: create the first
+Playbook. The Playbooks page opens that form immediately; a Member instead sees
+a concise explanation of the read-only state. Once content exists, routine Step
+editing remains available while archives, histories, dependencies, and full
+Question threads move behind labeled disclosures.
 
-Routine action labels use a readable 14px scale, while genuinely secondary
-metadata remains smaller. Evergreen identifies actions and current approved
-information; amber remains reserved for unfinished attention. Separators and
-spacing distinguish evidence, instructions, and decisions without adding
-cards, shadows, gradients, or decorative symbols.
+This selectivity is intentional. For example, an attached Context Note is
+useful reading, so **Why this matters** remains beside its Step. Adding a second
+Note is less common, so reuse and creation move under **Add another context**.
+Similarly, the Reviews empty state says **All caught up** and explains that a
+meaningful shared-information change will put affected Playbooks there; it does
+not offer an unrelated action merely to fill the page.
 
-Concurrent-edit recovery uses the same selective hierarchy. An amber inline
-panel appears only after the server refuses a stale save. It names the conflict
-in plain language, places the current saved text beside the preserved local
-draft, and offers consequence-based actions: use the saved version or save the
-local version against the newly observed state. The server checks again on the
-second action. On narrow screens the comparison stacks into one column. Answer
-conflicts respect original-answer ownership rather than presenting an action
-the server would refuse.
+Recent Activity follows the same rule. It sits below **Needs attention** and
+shows at most five server-recorded events, newest first. Amber rows mean
+unfinished work; neutral activity rows answer who changed what and when.
+Reorders, wording corrections, answer revisions, navigation, and polling stay
+out of the feed. Creating and immediately attaching inline Context reads as one
+useful “added context” event rather than two implementation-level operations.
 
-The Overview uses a deliberate 70/30 hierarchy on desktop. A dominant
-Playbooks column shows up to six substantial, readable rows, while an Officer
-attention rail shows up to four actual unanswered Questions or unfinished
-Reviews. Selecting a Playbook preserves its Procedure identity; selecting a
-task opens that exact Question or Review rather than only changing sections.
-Shared Context is intentionally absent because it is reference material, not
-the Overview's primary next action. Additional Playbooks remain one click away
-through **View all Playbooks**, so workspace growth does not turn the page into
-another dense index. On mobile the columns stack, and the attention list moves
-first only when pending work exists. Members never receive Officer task
-controls. Empty Officers receive one create action, while empty Members get a
-short role-appropriate explanation.
+## Responsive and accessible behavior
 
-The attention preview alternates unfinished Reviews and unanswered Questions
-when both exist, preventing either inbox from occupying every preview row.
-Question text is clamped only in the preview and opens the exact full item.
-When no work is pending, the amber treatment falls away so the empty state does
-not compete with Playbooks.
+- Below 960px, Review evidence and instructions stack.
+- Below 720px, the sidebar becomes a bottom navigation bar, the Playbook index
+  moves above the document, forms stack, and before/after comparisons become one
+  column.
+- Long user-authored text wraps instead of forcing page overflow. Narrow-screen
+  comparisons preserve the saved value and draft in reading order.
+- Primary content remains 15–18px; smaller text is reserved for supporting
+  metadata such as timestamps, counts, and Roles.
+- Keyboard focus remains visible, native controls retain their semantics, and
+  every status color is accompanied by text.
 
-For Officers, a compact **Recent activity** ledger sits directly below **Needs
-attention** in the same rail. The distinction is deliberate: amber attention
-rows are unfinished work, while neutral activity rows answer who changed what
-and when. At most five server-recorded events appear, newest first. Playbook
-events retain their Procedure identity and open that exact Playbook; long
-labels truncate visually while the full activity sentence remains available
-as an accessible title. Relative times carry full machine-readable and hover
-timestamps. Members do not receive the activity projection. On narrow screens
-the two rail sections stay together, with pending work still taking priority.
-The ledger favors meaningful continuity over exhaustive telemetry: archives,
-new or attached Context, completed Review decisions, and initial Question
-answers appear, while reordering, wording corrections, answer revisions,
-navigation, and polling do not. Inline Context creation and attachment reads as
-one natural “added context” event rather than two implementation-level rows.
-
-## First-use simplification
-
-The follow-up simplification pass removes page subtitles that repeated the
-heading or navigation label and shortens explanatory copy throughout the
-shell. A truly empty workspace now leads with one action: create the first
-Playbook. The empty Playbooks page opens its creation form immediately for an
-Officer, while Members receive a concise role-appropriate state.
-
-Playbook headers now show only the title and Step count. Question threads and
-archives remain available through labeled disclosures, while routine Step
-editing controls stay visible to Officers. Context Notes lead with their text;
-dependencies and history are collapsed. The update choice uses the user-facing
-labels **Fix wording** and **Information changed**, while continuing to invoke
-the existing correction and meaningful-change operations exactly as before.
-Questions and Reviews retain compact summary rows, with source text,
-before/after evidence, and lifecycle actions revealed only when a row is
-opened.
+These rules describe the implemented P3 interface. They are not a claim of
+exhaustive accessibility certification.
 
 ## Sources applied
 
-- [Nielsen Norman Group, Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/): frequent actions stay visible; advanced or destructive actions use explicit, labeled disclosure.
-- [Notion, Writing and editing basics](https://www.notion.com/help/writing-and-editing-basics) and [Updating the design of Notion pages](https://www.notion.com/en-gb/blog/updating-the-design-of-notion-pages): document-first reading, contextual controls, and reduced chrome.
-- [Linear, Conceptual model](https://linear.app/docs/conceptual-model): compact work lists, restrained hierarchy, and calm application framing.
-- [GitHub Primer, Typography](https://primer-docs-preview.github.com/product/getting-started/foundations/typography/): rem-based readable sizing, unitless line height, bounded line length, and emphasis that does not depend only on color.
-- [Radix Themes, Color](https://www.radix-ui.com/themes/docs/theme/color): a small neutral/accent scale and semantic colors designed for their UI purpose.
-- [Alex Hunting Studio, Kinfolk](https://alexhunting.studio/blogs/projects/kinfolk): editorial whitespace, confident scale contrast, and muted photographic color.
+- [Nielsen Norman Group, Progressive Disclosure](https://www.nngroup.com/articles/progressive-disclosure/): keep frequent actions visible and disclose advanced or destructive actions explicitly.
+- [Notion, Writing and editing basics](https://www.notion.com/help/writing-and-editing-basics) and [Updating the design of Notion pages](https://www.notion.com/en-gb/blog/updating-the-design-of-notion-pages): document-first reading and contextual controls.
+- [Linear, Conceptual model](https://linear.app/docs/conceptual-model): compact work lists and restrained hierarchy.
+- [GitHub Primer, Typography](https://primer-docs-preview.github.com/product/getting-started/foundations/typography/): readable sizing, line height, bounded measure, and emphasis that does not depend on color alone.
+- [Radix Themes, Color](https://www.radix-ui.com/themes/docs/theme/color): neutral, accent, and semantic color roles.
+- [Alex Hunting Studio, Kinfolk](https://alexhunting.studio/blogs/projects/kinfolk): editorial whitespace and scale contrast.
 
-The two-slide study additionally cites the exact visual references used in its
-collage: [MoMA's Josef Müller-Brockmann poster record](https://www.moma.org/collection/works/7916),
-[Kinfolk Issue 58](https://magazinecafestore.com/products/kinfolk-magazine-issue-58),
-[Notion's writing and editing guide](https://www.notion.com/help/writing-and-editing-basics),
+The two-slide study additionally cites the exact references used in its collage:
+[MoMA's Josef Müller-Brockmann poster record](https://www.moma.org/collection/works/7916),
+[Kinfolk Issue 58](https://www.kinfolk.com/product/issue-58/),
+[Notion's writing guide](https://www.notion.com/help/writing-and-editing-basics),
 [EPITOME's card-catalog essay](https://epitome.hypotheses.org/2384), and
 [Radix Themes](https://www.radix-ui.com/themes). The tracked SVG files are the
-editable study source; the PNG files are the submission-ready renders.
-
+editable sources; the PNG files are the submission-ready renders.
