@@ -17,13 +17,19 @@ database configuration.
   was deployed and its browser checks were reported as passing by the project
   owner. No independent deployment identity, asset comparison, screenshots, or
   per-check notes were supplied.
-- **Final implementation:** commit
+- **Earlier 184-test implementation:** commit
   [`a0fc5c4`](https://github.com/Sanskriti-Slngh/Relay/commit/a0fc5c46ae1415e1f7562d2d800b4e0537c30a81).
-  Later commits changed documentation and demo links, not application behavior.
+  This release remains historical evidence for the expanded P4 application and
+  its concurrency correction.
+- **Current code-changing P4 implementation:** commit
+  [`8c163889`](https://github.com/Sanskriti-Slngh/Relay/commit/8c1638897719b00de7e8cbfc76c6bf02806236d9).
+  This release adds the final interaction-design corrections and is the source
+  revision for the current local verification reported below.
 
-The final implementation was redeployed to
-[relay.mit-sdg.dev](https://relay.mit-sdg.dev/), but this record does not
-independently establish the exact revision currently served.
+Relay is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/), but the
+local results below do not by themselves establish which exact revision the
+live application currently serves. Live evidence is identified separately by
+release wherever that association was established.
 
 ## Automated verification
 
@@ -32,7 +38,7 @@ typechecking, the production build, generated-artifact validation, and
 `git diff --check`. Sync-engine source and design checks passed with 28
 documented nonfatal advisories.
 
-The final implementation passed:
+The earlier `a0fc5c4` implementation passed:
 
 - 184 tests with 1,116 assertions across 23 files and no failures;
 - TypeScript and Vue typechecking;
@@ -42,10 +48,20 @@ The final implementation passed:
 - design checks for seven specification files; and
 - generated-artifact validation and `git diff --check`.
 
-The same code was rechecked after the documentation cleanup on October 26:
+The same `a0fc5c4` code was rechecked after the documentation cleanup on October 26:
 184 tests passed with 1,113 `expect()` calls, and typechecking, the production
 build, all sync-engine checks, artifact validation, and `git diff --check`
 passed again.
+
+The current `8c163889` interaction-design implementation was verified locally
+on October 26. Two complete runs each passed 189 tests across 23 files with no
+failures; Bun reported 1,134 `expect()` calls in the earlier run and 1,131 in
+the final documentation-verification run. This record preserves both observed
+counts rather than presenting the runtime assertion count as invariant.
+TypeScript and Vue typechecking, the production build, sync-engine source and
+design checks, generated-artifact validation, and `git diff --check` also
+passed. These are local repository results; they are not presented as
+verification of the live deployment.
 
 Regression tests specifically cover concurrent Context changes: exactly one
 unfinished Review must remain and retain every distinct Cause without
@@ -104,6 +120,14 @@ revision active during every interaction was not independently established.
 
 The [full manual checklist](./p4-manual-browser-checklist.md) records each check,
 its expected behavior, the reported result, and the limits of that evidence.
+
+On October 26, a final browser-check attempt against the local `8c163889`
+application could not proceed because the controlled browser's enforced
+security verification did not grant access. The 320-pixel **More** menu,
+390-pixel Context controls, viewport notification, and invitation guidance
+were therefore not newly observed in that attempt. No result from that blocked
+attempt is reported as a pass; the October 24 checklist remains historical
+project-owner evidence with the revision-attribution limits stated above.
 
 ## Final deliverables and limits
 

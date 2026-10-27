@@ -35,7 +35,7 @@ and [color](../slide-catalog/color-slide.png) slides document Relay's final
 visual system, with editable
 [typography](../slide-catalog/typography-slide.svg) and
 [color](../slide-catalog/color-slide.svg) sources. Earlier explorations are
-preserved separately as [typography](../slide-catalog/typograph-slide-early.png)
+preserved separately as [typography](../slide-catalog/typography-slide-early.png)
 and [color](../slide-catalog/color-slide-early.png) studies and explained in the
 [visual-design record](./visual-design.md).
 
