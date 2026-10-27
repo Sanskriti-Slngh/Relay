@@ -45,7 +45,7 @@ function isRemovedStep(kind: "step" | "context", question: StepQuestion | Contex
 <template>
   <header class="page-heading heading-with-action"><h1>Questions</h1><span class="status-count" :class="{ attention: openQuestions.length }">{{ openQuestions.length }} unanswered</span></header>
 
-  <div v-if="!openQuestions.length" class="empty-page-state"><h2>All answered</h2></div>
+  <div v-if="!openQuestions.length" class="empty-page-state"><h2>No unanswered questions</h2><p>Members ask Questions beside a Step or an attached Context Note. New Questions will appear here for an Officer to answer.</p></div>
   <div v-else class="inbox-list">
     <details v-for="entry in openQuestions" :key="`${entry.kind}-${entry.question.question}`" class="inbox-row" :open="entry.question.question === focusQuestion && entry.kind === focusKind">
       <summary><span class="status-dot pending-dot" aria-hidden="true"></span><span class="inbox-row-copy"><strong>{{ entry.question.text }}</strong><small>{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small></span><span class="row-status pending">Open</span></summary>

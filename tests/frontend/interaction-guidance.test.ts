@@ -2,8 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
   meaningfulChangeConsequence,
   meaningfulChangeActionLabel,
+  invitationAcceptanceGuidance,
+  invitedRegistrationGuidance,
   questionActionLabel,
   reviewDecisionGuidance,
+  sessionEndedMessage,
 } from "../../web/interaction-guidance.ts";
 
 describe("first-time interaction guidance", () => {
@@ -37,5 +40,42 @@ describe("first-time interaction guidance", () => {
   test("presents question creation as an action before a thread exists", () => {
     expect(questionActionLabel(0)).toBe("Ask a question");
     expect(questionActionLabel(2)).toBe("Questions (2)");
+  });
+
+  test("explains the email-bound invitation prerequisite without disclosing account state", () => {
+    expect(invitedRegistrationGuidance).toContain("exact email address");
+    expect(invitationAcceptanceGuidance).toContain("signed in");
+    expect(invitationAcceptanceGuidance).toContain("exact email address");
+  });
+
+  test("distinguishes session expiration with and without unrecoverable drafts", () => {
+    expect(sessionEndedMessage(false)).toBe(
+      "Your session expired, so Relay signed you out. Sign in again.",
+    );
+    expect(sessionEndedMessage(true)).toContain("cannot be recovered");
+    expect(sessionEndedMessage(true)).toContain("unsaved text was cleared");
+  });
+
+  test("keeps action feedback in a dismissible viewport notification", async () => {
+    const app = await Bun.file(new URL("../../web/App.vue", import.meta.url)).text();
+    const styles = await Bun.file(new URL("../../web/styles.css", import.meta.url)).text();
+    expect(app).toContain('class="notification-region"');
+    expect(app).toContain('role="alert"');
+    expect(app).toContain('aria-label="Dismiss error"');
+    expect(styles).toContain(".notification-region { position: fixed;");
+    expect(styles).toContain("top: 64px;");
+  });
+
+  test("makes revised prerequisite and empty-state guidance explicit", async () => {
+    const context = await Bun.file(new URL("../../web/components/ContextView.vue", import.meta.url)).text();
+    const playbooks = await Bun.file(new URL("../../web/components/PlaybooksView.vue", import.meta.url)).text();
+    const questions = await Bun.file(new URL("../../web/components/QuestionsView.vue", import.meta.url)).text();
+    expect(context).toContain("Attach this note to an active Playbook before asking a question.");
+    expect(context).toContain("already attached everywhere");
+    expect(playbooks).not.toContain("context-optional");
+    expect(playbooks).toContain("does not currently provide a way to restore them");
+    expect(questions).toContain("No unanswered questions");
+    const app = await Bun.file(new URL("../../web/App.vue", import.meta.url)).text();
+    expect(app).toContain("does not currently provide a way to restore it");
   });
 });

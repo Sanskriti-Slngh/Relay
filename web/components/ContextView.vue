@@ -67,6 +67,23 @@ function formatChangeTimestamp(value: string | null) {
 function attachmentPlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject)).size; }
 function affectedActivePlaybookCount(note: ContextNote) { return new Set(note.attachments.map(({ subject }) => subject).filter((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject))).size; }
 function activeAttachedProcedure(note: ContextNote) { return note.attachments.map(({ subject }) => subject).find((subject) => activeProcedures.value.some(({ procedure }) => procedure === subject)); }
+function isAttachedTo(note: ContextNote, procedure: string, step = "") {
+  return note.attachments.some(({ subject, anchor }) => subject === procedure && (anchor ?? "") === step);
+}
+function procedureHasAvailableTarget(note: ContextNote, procedure: Procedure) {
+  return !isAttachedTo(note, procedure.procedure) || procedure.steps.some(({ step }) => !isAttachedTo(note, procedure.procedure, step));
+}
+function attachmentTargetAlreadyUsed(note: ContextNote) {
+  const procedure = attachmentProcedure[note.context] ?? "";
+  return !!procedure && isAttachedTo(note, procedure, attachmentStep[note.context] ?? "");
+}
+function selectAttachmentProcedure(note: ContextNote) {
+  const procedure = activeProcedures.value.find(({ procedure: id }) => id === attachmentProcedure[note.context]);
+  if (!procedure) { attachmentStep[note.context] = ""; return; }
+  attachmentStep[note.context] = !isAttachedTo(note, procedure.procedure)
+    ? ""
+    : procedure.steps.find(({ step }) => !isAttachedTo(note, procedure.procedure, step))?.step ?? "";
+}
 function openUpdate(note: ContextNote) {
   updateOpen.value = note.context;
   updateMode[note.context] ??= "correct";
@@ -100,7 +117,8 @@ function attachContext(note: ContextNote) {
   const target = activeProcedures.value.find((item) => item.procedure === procedure);
   if (!target) { emit("validationError", "Choose an available active playbook before attaching this note."); return; }
   if (step && !target.steps.some((item) => item.step === step)) { emit("validationError", "Choose an available step from the selected playbook."); return; }
-  emit("attach", { note, procedure, step, onSuccess: () => { attachmentStep[note.context] = ""; } });
+  if (isAttachedTo(note, procedure, step)) { emit("validationError", "That Context Note is already attached to the selected target."); return; }
+  emit("attach", { note, procedure, step, onSuccess: () => { attachmentProcedure[note.context] = ""; attachmentStep[note.context] = ""; } });
 }
 function correctContext(note: ContextNote) {
   const text = (correctionDraft[note.context] ?? "").trim(); if (!text) return;
@@ -156,8 +174,9 @@ function askQuestion(note: ContextNote) {
             </div>
             <div class="context-action-row">
               <button type="button" :aria-expanded="!!questionComposer[note.context]" @click="questionComposer[note.context] = !questionComposer[note.context]">{{ contextQuestionLabel(note.context) }}</button>
-              <details v-if="canEdit && activeProcedures.length" class="context-attach-disclosure"><summary>Attach</summary><form class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="attachmentStep[note.context] = ''"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure">{{ procedure.title }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="">Whole playbook</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step">Step {{ step.position }} · {{ step.text }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context]">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></details>
+              <details v-if="canEdit && activeProcedures.length" class="context-attach-disclosure"><summary>Attach</summary><form class="attach-form" @submit.prevent="attachContext(note)"><label class="sr-only" :for="`procedure-for-${note.context}`">Choose a playbook</label><select :id="`procedure-for-${note.context}`" v-model="attachmentProcedure[note.context]" required @change="selectAttachmentProcedure(note)"><option value="" disabled>Choose a playbook…</option><option v-for="procedure in activeProcedures" :key="procedure.procedure" :value="procedure.procedure" :disabled="!procedureHasAvailableTarget(note, procedure)">{{ procedure.title }}{{ procedureHasAvailableTarget(note, procedure) ? "" : " · already attached everywhere" }}</option></select><label class="sr-only" :for="`step-for-${note.context}`">Optional step anchor</label><select :id="`step-for-${note.context}`" v-model="attachmentStep[note.context]" :disabled="!attachmentProcedure[note.context] || !stepsForProcedure(attachmentProcedure[note.context]).length"><option value="" :disabled="isAttachedTo(note, attachmentProcedure[note.context] ?? '')">Whole playbook{{ isAttachedTo(note, attachmentProcedure[note.context] ?? '') ? " · already attached" : "" }}</option><option v-for="step in stepsForProcedure(attachmentProcedure[note.context] ?? '')" :key="step.step" :value="step.step" :disabled="isAttachedTo(note, attachmentProcedure[note.context] ?? '', step.step)">Step {{ step.position }} · {{ step.text }}{{ isAttachedTo(note, attachmentProcedure[note.context] ?? '', step.step) ? " · already attached" : "" }}</option></select><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !attachmentProcedure[note.context] || attachmentTargetAlreadyUsed(note)">{{ actionBusy === `attach-${note.context}` ? "Attaching…" : "Attach" }}</button></form></details>
             </div>
+            <p v-if="!activeAttachedProcedure(note)" class="form-guidance context-question-prerequisite">Attach this note to an active Playbook before asking a question.</p>
           </div>
         </div>
         <div v-if="canEdit" class="context-header-actions">
@@ -173,7 +192,7 @@ function askQuestion(note: ContextNote) {
 
       <section v-if="questionComposer[note.context]" class="inline-disclosure context-question-disclosure">
         <div v-if="questionsForContext(note.context).length" class="subject-question-list"><article v-for="question in questionsForContext(note.context)" :key="question.question" class="subject-question" :class="{ 'question-open': question.status === 'OPEN' }"><strong>{{ question.status === "OPEN" ? "Awaiting answer" : "Answered" }}</strong><p>{{ question.text }}</p><p v-if="question.answer" class="question-answer"><span>Answer</span>{{ question.answer }}</p></article></div>
-        <form class="question-form" @submit.prevent="askQuestion(note)"><label :for="`question-${note.context}`">Ask about this context</label><div class="form-row"><input :id="`question-${note.context}`" v-model="questionDraft[note.context]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !activeAttachedProcedure(note) || !(questionDraft[note.context] ?? '').trim()">{{ actionBusy === `ask-context-${note.context}` ? "Sending…" : "Ask" }}</button></div></form><p v-if="!activeAttachedProcedure(note)" class="form-guidance">Attach this note to an active playbook before asking a question.</p>
+        <form v-if="activeAttachedProcedure(note)" class="question-form" @submit.prevent="askQuestion(note)"><label :for="`question-${note.context}`">Ask about this context</label><div class="form-row"><input :id="`question-${note.context}`" v-model="questionDraft[note.context]" placeholder="What needs clarification?" required maxlength="1000"><button class="button button-small button-secondary" type="submit" :disabled="!!actionBusy || !(questionDraft[note.context] ?? '').trim()">{{ actionBusy === `ask-context-${note.context}` ? "Sending…" : "Ask" }}</button></div></form><p v-else class="form-guidance">This note must be attached to an active Playbook before a new Question can be asked.</p>
       </section>
 
       <section v-if="updateOpen === note.context" class="update-disclosure">

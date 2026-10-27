@@ -9,6 +9,7 @@ import QuestionsView from "./components/QuestionsView.vue";
 import WorkspaceView from "./components/WorkspaceView.vue";
 import { confirmedAffectedPlaybooks, remainingAffectedPlaybooks, type ContextChangeResult } from "./context-change-result.ts";
 import { recordAndAttachInlineContext } from "./inline-context.ts";
+import { invitationAcceptanceGuidance, invitedRegistrationGuidance, sessionEndedMessage } from "./interaction-guidance.ts";
 import { replaceContextConnection } from "./replace-context.ts";
 import { refreshAfterVersionConflict } from "./version-conflict-recovery.ts";
 import { discardAfterSuccessfulAction, shouldConfirmDiscard } from "./unsaved-work.ts";
@@ -172,7 +173,11 @@ async function refreshData(announce = false, background = false): Promise<boolea
     const latestSession = await api.session();
     if (sequence !== refreshSequence) return false;
     if (!latestSession.authenticated) {
+      const hadUnsavedWork = hasUnsavedWork.value;
       clearWorkspaceState();
+      authMode.value = "signin";
+      errorMessage.value = sessionEndedMessage(hadUnsavedWork);
+      successMessage.value = "";
       return false;
     }
     csrfToken.value = latestSession.csrfToken ?? csrfToken.value;
@@ -418,7 +423,7 @@ async function removeStep({ procedure, step }: { procedure: Procedure; step: Pro
 
 async function archiveProcedure(procedure: Procedure) {
   const draftWarning = hasUnsavedWork.value ? " Unsaved text in this Playbook will be discarded." : "";
-  if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved.${draftWarning}`)) return;
+  if (!window.confirm(`Archive "${procedure.title}"? It will leave the active Playbooks list. Its Steps, Context attachments, and Review history will be preserved, but Relay does not currently provide a way to restore it.${draftWarning}`)) return;
   await runAction(`archive-${procedure.procedure}`, async () => {
     await discardAfterSuccessfulAction(
       () => api.archiveProcedure(procedure.procedure, procedure.version, csrfToken.value),
@@ -721,6 +726,7 @@ onUnmounted(() => {
         <div class="card-kicker">{{ authMode === 'signin' ? 'Sign in' : 'Create account' }}</div><h2>{{ authMode === 'signin' ? 'Welcome back' : 'Join Relay' }}</h2>
         <label v-if="authMode === 'register'" for="display-name">Name</label><input v-if="authMode === 'register'" id="display-name" v-model="displayName" autocomplete="name" required maxlength="100" :disabled="loginBusy">
         <label for="email">Email</label><input id="email" v-model="email" type="email" autocomplete="email" required maxlength="254" :disabled="loginBusy">
+        <p v-if="authMode === 'register'" class="form-guidance auth-guidance">{{ invitedRegistrationGuidance }}</p>
         <label for="password">Password</label><input id="password" v-model="password" type="password" :autocomplete="authMode === 'signin' ? 'current-password' : 'new-password'" required minlength="10" maxlength="128" :disabled="loginBusy">
         <button class="button button-primary button-wide" type="submit" :disabled="loginBusy">{{ loginBusy ? "Please wait…" : authMode === 'signin' ? "Sign in" : "Create account" }} <span aria-hidden="true">→</span></button>
         <button class="text-button auth-switch" type="button" :disabled="loginBusy" @click="authMode = authMode === 'signin' ? 'register' : 'signin'; clearMessages()">{{ authMode === 'signin' ? 'New to Relay? Create an account' : 'Already have an account? Sign in' }}</button>
@@ -732,7 +738,7 @@ onUnmounted(() => {
       <div v-if="activeWorkspaces.length" class="onboarding-card"><h2>Your clubs</h2><button v-for="club in activeWorkspaces" :key="club.workspace" class="button button-secondary button-wide" type="button" :disabled="!!actionBusy" @click="selectClub(club.workspace)">{{ club.name }} · {{ club.role }}</button></div>
       <div v-if="archivedWorkspaces.length" class="onboarding-card"><h2>Archived workspaces</h2><div v-for="club in archivedWorkspaces" :key="club.workspace" class="onboarding-archived-workspace"><strong>{{ club.name }}</strong><div><button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="restoreWorkspace(club)">{{ actionBusy === `restore-workspace-${club.workspace}` ? "Restoring…" : "Restore" }}</button><button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="deleteWorkspace(club)">{{ actionBusy === `delete-workspace-${club.workspace}` ? "Deleting…" : "Delete forever" }}</button></div></div></div>
       <form class="onboarding-card" @submit.prevent="createClub()"><h2>Create a club</h2><label for="club-name">Club name</label><input id="club-name" v-model="clubName" required maxlength="120" placeholder="Robotics Club"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !clubName.trim()">{{ actionBusy === "create-workspace" ? "Creating…" : "Create as Owner" }}</button></form>
-      <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join club" }}</button></form>
+      <form class="onboarding-card" @submit.prevent="acceptInvitation()"><h2>Accept an invitation</h2><p class="form-guidance onboarding-guidance">{{ invitationAcceptanceGuidance }}</p><label for="invite-token">One-time invitation code</label><input id="invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false"><button class="button button-primary button-wide" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join club" }}</button></form>
       <p v-if="errorMessage" class="inline-error" role="alert">{{ errorMessage }}</p><p v-if="successMessage" class="inline-success" role="status">{{ successMessage }}</p><button class="text-button" type="button" @click="signOut">Sign out</button>
     </section>
     <div v-else class="workspace-layout">
@@ -760,9 +766,11 @@ onUnmounted(() => {
           <div class="breadcrumb">{{ navigation.find((item) => item.id === section)?.label }}</div>
           <div class="topbar-actions"><button class="icon-button" type="button" :disabled="refreshing || !!actionBusy" aria-label="Refresh workspace" @click="refreshData(true)"><span :class="{ spinning: refreshing }" aria-hidden="true">↻</span></button><button class="mobile-sign-out" type="button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
         </header>
-        <div class="content-area">
+        <div v-if="errorMessage || successMessage" class="notification-region" aria-label="Workspace notifications">
           <div v-if="errorMessage" class="flash flash-error" role="alert"><span aria-hidden="true">!</span><p>{{ errorMessage }}</p><button type="button" aria-label="Dismiss error" @click="errorMessage = ''">×</button></div>
           <div v-if="successMessage" class="flash flash-success" role="status"><span aria-hidden="true">✓</span><p>{{ successMessage }}</p><button type="button" aria-label="Dismiss message" @click="successMessage = ''">×</button></div>
+        </div>
+        <div class="content-area">
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
           <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @detach-context="detachContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @detach="detachContext" @delete-note="deleteContextNote" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />

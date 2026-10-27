@@ -218,6 +218,19 @@ describe("Relay browser API client", () => {
     });
   });
 
+  test("keeps invitation failures generic while providing recovery steps", async () => {
+    const api = createRelayApi(async () => Response.json(
+      { error: "INVITATION_NOT_AVAILABLE" },
+      { status: 404 },
+    ));
+
+    await expect(api.acceptInvitation("unknown-token", "csrf")).rejects.toMatchObject({
+      status: 404,
+      code: "INVITATION_NOT_AVAILABLE",
+      message: "Relay could not accept that invitation. Check that you are signed in with the invited email address and that the code is correct. If it still does not work, ask an Owner or Officer for a new invitation.",
+    });
+  });
+
   test("distinguishes an invalid browser origin from an Officer permission denial", async () => {
     const api = createRelayApi(async () => Response.json(
       { error: "ORIGIN_REJECTED" },

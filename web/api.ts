@@ -99,7 +99,7 @@ function messageFor(code: string): string {
     ORIGIN_REJECTED: "Relay rejected a request from an untrusted site.",
     WORKSPACE_REQUIRED: "Choose or create a club workspace first.",
     WORKSPACE_NOT_AVAILABLE: "That club is not available to your account.",
-    INVITATION_NOT_AVAILABLE: "That invitation is invalid, expired, already used, or belongs to another email address.",
+    INVITATION_NOT_AVAILABLE: "Relay could not accept that invitation. Check that you are signed in with the invited email address and that the code is correct. If it still does not work, ask an Owner or Officer for a new invitation.",
     NOT_FOUND: "That record is no longer available in this workspace.",
     CONFLICT: "Relay could not apply this because the current state conflicts with the request.",
     INVALID_INPUT: "Check the request and try again.",

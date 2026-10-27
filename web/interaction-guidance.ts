@@ -17,3 +17,15 @@ export function reviewDecisionGuidance(status: string): string {
 export function questionActionLabel(questionCount: number): string {
   return questionCount ? `Questions (${questionCount})` : "Ask a question";
 }
+
+export const invitedRegistrationGuidance =
+  "Invited to a club? Use the exact email address associated with your invitation.";
+
+export const invitationAcceptanceGuidance =
+  "You must be signed in with the exact email address associated with the invitation.";
+
+export function sessionEndedMessage(hadUnsavedWork: boolean): string {
+  return hadUnsavedWork
+    ? "Your session expired, so Relay signed you out. Your unsaved text was cleared and cannot be recovered. Sign in again."
+    : "Your session expired, so Relay signed you out. Sign in again.";
+}
