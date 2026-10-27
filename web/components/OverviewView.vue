@@ -142,7 +142,7 @@ function fullTimestamp(value: string): string {
               <span class="activity-disclosure" aria-hidden="true"><span class="activity-more">More</span><span class="activity-less">Less</span></span>
             </summary>
             <div class="activity-detail">
-              <p>{{ activityDescription(event) }}</p>
+              <time :datetime="event.occurredAt">{{ fullTimestamp(event.occurredAt) }}</time>
               <button v-if="activityProcedureTarget(event)" class="text-button" type="button" @click="emit('navigate', { section: 'procedures', procedure: activityProcedureTarget(event) })">Open playbook</button>
             </div>
           </details>

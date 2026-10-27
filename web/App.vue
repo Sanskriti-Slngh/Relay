@@ -55,6 +55,7 @@ const pendingInvitations = ref<PendingInvitation[]>([]);
 const recentActivity = ref<ActivityEvent[]>([]);
 const contextChangeResult = ref<ContextChangeResult>();
 const hasUnsavedWork = ref(false);
+const mobileNavigationMore = ref<HTMLDetailsElement>();
 const playbooksEditorKey = ref(0);
 let refreshSequence = 0;
 let refreshTimer: number | undefined;
@@ -81,6 +82,15 @@ const navigation: { id: Section; label: string }[] = [
   { id: "questions", label: "Questions" },
   { id: "workspace", label: "Workspace" },
 ];
+const availableNavigation = computed(() => navigation.filter((item) =>
+  (item.id !== "reviews" || canReview.value) && (item.id !== "questions" || canAnswer.value),
+));
+const mobileOverflowNavigation = computed(() => availableNavigation.value.filter(({ id }) =>
+  id === "reviews" || id === "questions" || id === "workspace",
+));
+const mobileOverflowAttentionCount = computed(() =>
+  (canReview.value ? unfinishedCount.value : 0) + (canAnswer.value ? unansweredCount.value : 0),
+);
 
 function clearMessages() { errorMessage.value = ""; successMessage.value = ""; }
 
@@ -99,6 +109,12 @@ function navigate(target: { section: Section; procedure?: string; review?: strin
   startNewPlaybook.value = target.createPlaybook ?? false;
   hasUnsavedWork.value = false;
   section.value = target.section;
+}
+
+function navigateFromMobileMore(target: { section: Section }) {
+  navigate(target);
+  mobileNavigationMore.value?.removeAttribute("open");
+  mobileNavigationMore.value?.querySelector<HTMLElement>("summary")?.focus();
 }
 
 function clearWorkspaceUiState() {
@@ -725,9 +741,17 @@ onUnmounted(() => {
         <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
         <select v-if="activeWorkspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"><option v-for="club in activeWorkspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
-          <button v-for="item in navigation.filter((item) => (item.id !== 'reviews' || canReview) && (item.id !== 'questions' || canAnswer))" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
+          <button v-for="item in availableNavigation" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id, 'mobile-secondary-nav': mobileOverflowNavigation.some(({ id }) => id === item.id) }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
             <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
           </button>
+          <details ref="mobileNavigationMore" class="mobile-nav-more" :class="{ current: mobileOverflowNavigation.some(({ id }) => id === section) }">
+            <summary><span>More</span><span v-if="mobileOverflowAttentionCount" class="nav-count">{{ mobileOverflowAttentionCount }}</span></summary>
+            <div class="mobile-nav-menu">
+              <button v-for="item in mobileOverflowNavigation" :key="`mobile-${item.id}`" type="button" class="nav-link mobile-more-link" :class="{ active: section === item.id }" :aria-current="section === item.id ? 'page' : undefined" @click="navigateFromMobileMore({ section: item.id })">
+                <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
+              </button>
+            </div>
+          </details>
         </nav>
         <div class="sidebar-bottom"><div class="secure-note">{{ currentUser?.name }}</div><button type="button" class="sign-out-button" :disabled="!!actionBusy || refreshing" @click="signOut">Sign out</button></div>
       </aside>

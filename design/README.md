@@ -29,11 +29,15 @@ files are either current technical specifications or preserved milestone work.
 The original P1 sketches remain available as
 [workspace](./club-workspace.png), [Playbook](./playbook-detail.png),
 [Context change](./context-change.png), and
-[Review](./review-playbook.png) images. The P3 visual study remains available
-as rendered [typography](../slide-catalog/typography-slide.png) and
-[color](../slide-catalog/color-slide.png) slides, with editable
+[Review](./review-playbook.png) images. The visual studies began in P3 and were
+refined for P4. The current rendered [typography](../slide-catalog/typography-slide.png)
+and [color](../slide-catalog/color-slide.png) slides document Relay's final
+visual system, with editable
 [typography](../slide-catalog/typography-slide.svg) and
-[color](../slide-catalog/color-slide.svg) sources.
+[color](../slide-catalog/color-slide.svg) sources. Earlier explorations are
+preserved separately as [typography](../slide-catalog/typograph-slide-early.png)
+and [color](../slide-catalog/color-slide-early.png) studies and explained in the
+[visual-design record](./visual-design.md).
 
 The gray [`early-prototype-styles.css`](./early-prototype-styles.css) file was
 created with the initial MVP design and is preserved only as historical
