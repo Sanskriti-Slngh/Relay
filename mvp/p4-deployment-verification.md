@@ -25,11 +25,16 @@ database configuration.
   [`8c163889`](https://github.com/Sanskriti-Slngh/Relay/commit/8c1638897719b00de7e8cbfc76c6bf02806236d9).
   This release adds the final interaction-design corrections and is the source
   revision for the current local verification reported below.
+- **Current deployed repository revision:** commit
+  [`528c1c97`](https://github.com/Sanskriti-Slngh/Relay/commit/528c1c97b0cc255b26ad0c8c27a4dfcc75facaea),
+  selected by the project owner for platform deployment. Its application tree
+  is unchanged from `8c163889`; the intervening commits update evidence and
+  documentation only. The observed platform deployment identifier is
+  `8e767b2e-b314-4b98-a30c-1017453a90d5`.
 
-Relay is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/), but the
-local results below do not by themselves establish which exact revision the
-live application currently serves. Live evidence is identified separately by
-release wherever that association was established.
+Relay is available at [relay.mit-sdg.dev](https://relay.mit-sdg.dev/). Local
+verification and live HTTP observations remain identified separately below;
+neither is presented as a substitute for the other.
 
 ## Automated verification
 
@@ -106,26 +111,42 @@ These checks verify the release front end, public HTTP behavior, and database
 connectivity. Platform startup history and absence of earlier restarts were not
 available for verification.
 
-## October 26 live-revision check
+## Current deployment evidence for `528c1c97`
 
-After the `8c163889` application commit and the later evidence-only `efeff21`
-commit were pushed, a read-only request to the live application returned
-`index-BX3bAd6W.js` and `index-CRu-Ukdh.css`. Their SHA-256 digests were:
+The project owner selected full commit
+`528c1c97b0cc255b26ad0c8c27a4dfcc75facaea` for deployment. On October 26,
+read-only requests to the resulting live application consistently returned
+platform deployment identifier `8e767b2e-b314-4b98-a30c-1017453a90d5` and the
+following results:
 
-- JavaScript: `d83733ba6c03bd50966341738a829d293c49c085ece4c41b046fdef23358ff4f`
-- CSS: `b4ede1d1e96b02f6d6ab2b78cc7ba826813c9fbf05354d215862e08866db44fc`
+- `GET /`, `GET /health`, and unauthenticated `GET /session` returned HTTP 200.
+- `/health` returned `{"status":"ok"}` with `Cache-Control: no-store`,
+  establishing live database connectivity at the time of the request.
+- `/session` returned `{"authenticated":false}` with `Cache-Control: no-store`.
+- A login attempt for a deliberately nonexistent account from the exact
+  configured production Origin reached authentication and returned HTTP 401
+  with `INVALID_CREDENTIALS`; the same request with a foreign Origin returned
+  HTTP 403 with `ORIGIN_REJECTED`.
+- The live application returned `index-BX3bAd6W.js` and
+  `index-CRu-Ukdh.css`. Their SHA-256 digests were:
+  - JavaScript: `d83733ba6c03bd50966341738a829d293c49c085ece4c41b046fdef23358ff4f`
+  - CSS: `b4ede1d1e96b02f6d6ab2b78cc7ba826813c9fbf05354d215862e08866db44fc`
 
-The verified local production build of the `8c163889` application tree produced
+The production asset names and digests differed from the verified local build,
+so they are not presented as a byte-for-byte local-build comparison. The live
+JavaScript nevertheless contained the exact final interaction markers for
+invitation-address guidance, unrecoverable-draft session expiration, duplicate
+attachment prevention, the Playbook restoration limitation, and the revised
+Questions empty state. The live CSS contained the final viewport notification
+and mobile **More** navigation rules. Together with the recorded deployment
+selection and platform identifier, this establishes that the deployment
+contains the final `8c163889` application changes packaged by `528c1c97`.
+
+For comparison, the verified local production build produced
 `index-CtV7UDag.js` and `index-D5y0AuC1.css`, with these digests:
 
 - JavaScript: `e193404bf1c8104de686c7260e3cb1994fd1505d5081d9976465ccd3a4c6b4cd`
 - CSS: `9f44d24f3899cb1518d1debf5ba24f8b0b700de88539e097d0c512a91d664eea`
-
-The live assets therefore did not match the current local build. Access to the
-course deployment console was unavailable because its enforced browser security
-verification did not grant access, so no new deployment was initiated and no
-deployment identifier or deployed SHA was recorded. This check does not claim
-that the live application serves `8c163889` or `efeff21`.
 
 ## Project-owner browser verification
 
@@ -142,13 +163,14 @@ revision active during every interaction was not independently established.
 The [full manual checklist](./p4-manual-browser-checklist.md) records each check,
 its expected behavior, the reported result, and the limits of that evidence.
 
-On October 26, a final browser-check attempt against the local `8c163889`
-application could not proceed because the controlled browser's enforced
-security verification did not grant access. The 320-pixel **More** menu,
-390-pixel Context controls, viewport notification, and invitation guidance
-were therefore not newly observed in that attempt. No result from that blocked
-attempt is reported as a pass; the October 24 checklist remains historical
-project-owner evidence with the revision-attribution limits stated above.
+On October 26, final browser-check attempts against both the local application
+and deployment `8e767b2e-b314-4b98-a30c-1017453a90d5` could not proceed because
+the controlled browser's enforced security verification did not grant access.
+The 320-pixel **More** menu, 390-pixel Context controls, viewport notification,
+and invitation guidance were therefore not newly observed in those attempts.
+No result from a blocked attempt is reported as a pass; the October 24 checklist
+remains historical project-owner evidence with the revision-attribution limits
+stated above.
 
 ## Final deliverables and limits
 
