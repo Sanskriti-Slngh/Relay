@@ -106,6 +106,27 @@ These checks verify the release front end, public HTTP behavior, and database
 connectivity. Platform startup history and absence of earlier restarts were not
 available for verification.
 
+## October 26 live-revision check
+
+After the `8c163889` application commit and the later evidence-only `efeff21`
+commit were pushed, a read-only request to the live application returned
+`index-BX3bAd6W.js` and `index-CRu-Ukdh.css`. Their SHA-256 digests were:
+
+- JavaScript: `d83733ba6c03bd50966341738a829d293c49c085ece4c41b046fdef23358ff4f`
+- CSS: `b4ede1d1e96b02f6d6ab2b78cc7ba826813c9fbf05354d215862e08866db44fc`
+
+The verified local production build of the `8c163889` application tree produced
+`index-CtV7UDag.js` and `index-D5y0AuC1.css`, with these digests:
+
+- JavaScript: `e193404bf1c8104de686c7260e3cb1994fd1505d5081d9976465ccd3a4c6b4cd`
+- CSS: `9f44d24f3899cb1518d1debf5ba24f8b0b700de88539e097d0c512a91d664eea`
+
+The live assets therefore did not match the current local build. Access to the
+course deployment console was unavailable because its enforced browser security
+verification did not grant access, so no new deployment was initiated and no
+deployment identifier or deployed SHA was recorded. This check does not claim
+that the live application serves `8c163889` or `efeff21`.
+
 ## Project-owner browser verification
 
 On October 24, 2026, I manually tested the deployed application in two Chrome
