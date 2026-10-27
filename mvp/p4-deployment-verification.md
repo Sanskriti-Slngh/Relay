@@ -107,4 +107,4 @@ its expected behavior, the reported result, and the limits of that evidence.
 
 ## Final deliverables and limits
 
-The [P4 narrated demo](https://youtu.be/0bwM4Pb3J-0) has a visual demonstration of some of the features within Relay. Automated tests provide strong evidence for concept behavior, integration, concurrency, and access control, but do not replace authenticated browser testing of the final deployed revision. The concurrency tests cover the overlapping schedules exercised; they do not establish exactly-once reaction delivery across arbitrary process crashes.
+The [P4 narrated demo](https://youtu.be/0bwM4Pb3J-0) (2:59.648) demonstrates selected user-facing features. Automated tests provide strong evidence for concept behavior, integration, concurrency, and access control, but do not replace authenticated browser testing of the final deployed revision. The concurrency tests cover the overlapping schedules exercised; they do not establish exactly-once reaction delivery across arbitrary process crashes.
