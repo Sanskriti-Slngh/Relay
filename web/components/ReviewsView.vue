@@ -135,9 +135,12 @@ function completeReview(review: PendingReview) {
   else emit("confirm", review);
 }
 function openOther(review: PendingReview) {
-  if (review.status === "PENDING") emit("requireChanges", review);
   const firstStep = affectedStepList(review)[0]?.step ?? null;
   openPreview(review, firstStep);
+}
+
+function ensureNeedsUpdating(review: PendingReview) {
+  if (review.status === "PENDING") emit("requireChanges", review);
 }
 
 function openPreview(review: PendingReview, stepId: string | null) {
@@ -230,6 +233,7 @@ function saveStepEdit(step: Step) {
   const procedure = previewProcedure.value;
   const text = stepDraft.value.trim();
   if (!procedure || !text) return;
+  ensureNeedsUpdating(preview.value.review);
   emit("editStep", {
     procedure,
     step,
@@ -286,6 +290,7 @@ function submitReplace() {
     : undefined;
   const text = replacementMode.value === "new" ? newContextDraft.value.trim() : undefined;
   if ((!replacementNote && !text) || (replacementNote && text)) return;
+  if (preview.value) ensureNeedsUpdating(preview.value.review);
   emit("replaceContext", {
     currentNote: connection.note,
     attachment: connection.attachment,
@@ -302,6 +307,7 @@ function submitReplace() {
 function submitDetach() {
   const connection = previewConnections.value.find(({ attachment }) => attachment.attachment === manageAttachment.value);
   if (!connection) return;
+  if (preview.value) ensureNeedsUpdating(preview.value.review);
   emit("detachContext", {
     note: connection.note,
     attachment: connection.attachment,
