@@ -68,7 +68,7 @@ These results are evidence from the October 24 testing session. I could not inde
 
 ### Final deployment verification
 
-The final P4 revision is preserved in commit [`f8b88bfd`](https://github.com/Sanskriti-Slngh/Relay/commit/f8b88bfd8d06e17692c359fd7133ce71f5b1ebb1). Earlier interaction-complete commits ([`8c163889`](https://github.com/Sanskriti-Slngh/Relay/commit/8c1638897719b00de7e8cbfc76c6bf02806236d9), [`528c1c97`](https://github.com/Sanskriti-Slngh/Relay/commit/528c1c97b0cc255b26ad0c8c27a4dfcc75facaea)) are preserved in history. The deployed repository revision matches the final head and adds documentation and verification updates with no application-code change.
+The final P4 revision is preserved in commit [`705e3681`](https://github.com/Sanskriti-Slngh/Relay/commit/705e368127fc899d3a578bb21b0964f566975ea3). Earlier interaction-complete commits ([`ce257b29`](https://github.com/Sanskriti-Slngh/Relay/commit/ce257b29632f33421e4bf4069591577742f6e8c0), [`af333c30`](https://github.com/Sanskriti-Slngh/Relay/commit/af333c30e9bc08217e57e8d391c74719c23d5839)) are preserved in history. The deployed repository revision matches the final head and adds documentation and verification updates with no application-code change.
 
 On October 26, I checked the live deployment and observed:
 

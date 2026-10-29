@@ -6,7 +6,7 @@ Two Playbooks in a club lean on one room-access policy: _access renews annually_
 
 Relay keeps official procedures as ordered **Playbooks** and keeps the policies, decisions, and lessons behind them as reusable **Context Notes**. One Note can support Steps in several Playbooks. A meaningful change preserves the exact old and new text and asks an Officer to reconsider every affected Playbook — Relay never silently rewrites instructions underneath them.
 
-The core idea hasn't moved since [P1](https://github.com/Sanskriti-Slngh/Relay/tree/703eb27dc7ea2d3b47c6d7ac5f61d6a572b746fb/design). Five concepts — **ProcedureMaintaining**, **ContextTracking**, **Questioning**, **Reviewing**, **RoleBasedAccessing** — each own one kind of state. The [composition](https://github.com/Sanskriti-Slngh/Relay/blob/f8b88bfd8d06e17692c359fd7133ce71f5b1ebb1/design/compositions/Relay.md) wires them through stable identities. In particular, ContextTracking records a meaningful Change; Reviewing only knows that a generic Item needs reconsideration for one or more generic Causes.
+The core idea hasn't moved since [P1](https://github.com/Sanskriti-Slngh/Relay/tree/703eb27dc7ea2d3b47c6d7ac5f61d6a572b746fb/design). Five concepts — **ProcedureMaintaining**, **ContextTracking**, **Questioning**, **Reviewing**, **RoleBasedAccessing** — each own one kind of state. The [composition](https://github.com/Sanskriti-Slngh/Relay/blob/705e368127fc899d3a578bb21b0964f566975ea3/design/compositions/Relay.md) wires them through stable identities. In particular, ContextTracking records a meaningful Change; Reviewing only knows that a generic Item needs reconsideration for one or more generic Causes.
 
 ## 2. From P1 concept to a working app
 
@@ -33,7 +33,7 @@ Instead `ContextTracking.correct` now writes a Change record tagged `kind: "corr
 
 ## 5. From P3 visual design to P4
 
-[P3](https://github.com/Sanskriti-Slngh/Relay/tree/49de6564819582b70e1a8b350991a26a0069a6cc) established Relay's editorial, document-first look. P4 keeps that system and fixes the pages where officers still had to work too hard to understand a consequence.
+[P3](https://github.com/Sanskriti-Slngh/Relay/tree/b607d9059104cff9f36f5e12c48e56b6d51565bb) established Relay's editorial, document-first look. P4 keeps that system and fixes the pages where officers still had to work too hard to understand a consequence.
 
 - **Reviews, now one surface.** The old Review repair screen showed Step editing, Context replacement, detachment, target details, and resolution all at once — complete but noisy, and it forced officers to piece together the data model (what Change affects which Step?). The new flow is Context-first. Each Review opens with lavender change cards showing a word-level diff. Small Step pills under each change say which Playbooks and Steps that change affects. Clicking a pill opens the Playbook preview modal, scrolled to that Step. The modal is the only repair surface: every Step is visible for context, affected Steps get a thin amber accent on the left, a small pencil opens an inline textarea, and each changed attachment has a Manage button offering **Replace Context** or **Detach from this Step** — both local to the attachment. Unchanged attachments appear in grey, so officers see the full picture without mistaking supporting context for work. The main page ends with one decision: **Complete Review** or **Other**. This change gives officers one map of change → affected Step → repair without ever reading the composition's internal structure.
 - **Rewriting the shared Note is deliberately not a local repair option.** A small Global note at the bottom of the modal sends officers to the Context page for that edit — because the Note is shared across Playbooks and changing it there is what generates fresh Reviews. The interaction mirrors the composition's semantics.
@@ -51,7 +51,7 @@ Everywhere: unsaved drafts are guarded during navigation, workspace changes, sig
 
 ## 7. Final state and remaining limits
 
-The [final P4 code commit](https://github.com/Sanskriti-Slngh/Relay/commit/f8b88bfd8d06e17692c359fd7133ce71f5b1ebb1) supports the full Owner/Member journey, Context and workspace lifecycles, Review repair, conflict recovery, responsive interaction, and the final interaction fixes. The separate [deployment record](../mvp/p4-deployment-verification.md) distinguishes local verification from release-specific live evidence.
+The [final P4 code commit](https://github.com/Sanskriti-Slngh/Relay/commit/705e368127fc899d3a578bb21b0964f566975ea3) supports the full Owner/Member journey, Context and workspace lifecycles, Review repair, conflict recovery, responsive interaction, and the final interaction fixes. The separate [deployment record](../mvp/p4-deployment-verification.md) distinguishes local verification from release-specific live evidence.
 
 Relay has deliberate reliability limits:
 - Reaction handling is not a crash-safe outbox.
