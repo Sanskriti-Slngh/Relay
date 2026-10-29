@@ -42,8 +42,8 @@ Defined in [ContextTracking](../design/concepts/ContextTracking.md), line 1.
 - `_attachments(context: ContextNote) : many (attachment: Attachment, subject: Subject, anchor?: Anchor)`
 - `_getAttachment(attachment: Attachment) : optional (context: ContextNote, subject: Subject, anchor?: Anchor)`
 - `_atAnchor(anchor: Anchor) : many (attachment: Attachment, context: ContextNote, subject: Subject)`
-- `_changes(context: ContextNote) : many (change: Change, before: String, after: String, occurredAt?: String)`
-- `_getChange(change: Change) : optional (context: ContextNote, before: String, after: String, occurredAt?: String)`
+- `_changes(context: ContextNote) : many (change: Change, before: String, after: String, occurredAt?: String, kind?: String)`
+- `_getChange(change: Change) : optional (context: ContextNote, before: String, after: String, occurredAt?: String, kind?: String)`
 
 #### Instances
 

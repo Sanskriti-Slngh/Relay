@@ -10,8 +10,11 @@ impact of a later change can be identified.
 A piece of context is recorded once and attached to the subjects that rely on
 it. If the underlying information later changes, the shared context is changed
 once while its attachments continue to identify every subject that depended
-on it. A correction replaces the current text without recording a change;
-a change preserves the exact previous and new text.
+on it. Every edit — correction or change — preserves the exact previous and
+new text as a Change tagged with its kind. Only a change (kind "change")
+indicates that attached subjects may need reconsideration; a correction
+(kind "correction") records what was fixed without implying that attached
+subjects need review.
 
 ## Types
 
@@ -42,7 +45,9 @@ a set of Changes with
   a before String
   an after String
   an optional occurredAt String
+  an optional kind String
 
+Rule: a Change's kind is either "change" or "correction"
 Rule: there is at most one Attachment with the same context, subject, and optional anchor
 ```
 
@@ -111,6 +116,8 @@ correct (context: ContextNote, text: String, expectedVersion?: Number) : returns
     refuses VERSION_CONFLICT "The ContextNote changed after it was loaded."
   where context is known
   then
+    create a new Change with context, before set to context's current text, after set to text, and kind set to "correction"
+    set change occurredAt to the current timestamp
     replace context text with text
     increment context version
     returns change
@@ -127,7 +134,7 @@ change (context: ContextNote, text: String, expectedVersion?: Number) : returns 
     refuses CHANGE_NOT_DIFFERENT "The new text must differ from the current text."
   where context is known and text is not context's current text
   then
-    create a new Change with context, before set to context's current text, and after set to text
+    create a new Change with context, before set to context's current text, after set to text, and kind set to "change"
     set change occurredAt to the current timestamp
     replace context text with text
     increment context version
@@ -155,10 +162,11 @@ _atAnchor (anchor: Anchor) : many (attachment: Attachment, context: ContextNote,
   answers Attachments located at the given Anchor
   answers no rows when the Anchor has no Attachments
   orders rows by stable Attachment identity
-_changes (context: ContextNote) : many (change: Change, before: String, after: String, occurredAt?: String)
+_changes (context: ContextNote) : many (change: Change, before: String, after: String, occurredAt?: String, kind?: String)
   answers the exact before and after text for each Change to the ContextNote, including preserved Changes after the ContextNote is removed
+  answers each Change's kind ("change" or "correction") when recorded
   answers no rows when the identity has no Changes
   orders rows by stable Change identity
-_getChange (change: Change) : optional (context: ContextNote, before: String, after: String, occurredAt?: String)
+_getChange (change: Change) : optional (context: ContextNote, before: String, after: String, occurredAt?: String, kind?: String)
   answers no row for an unknown Change
 ```
