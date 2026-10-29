@@ -29,6 +29,7 @@ type ChangeDocument = Document & {
   before: string;
   after: string;
   occurredAt?: string;
+  kind?: "change" | "correction";
 };
 
 type ContextTrackingStorage = {
@@ -224,7 +225,7 @@ export class ContextTrackingConcept {
     context: string;
     text: string;
     expectedVersion?: number;
-  }): Promise<Record<string, never>> {
+  }): Promise<{ change: string }> {
     return inTransaction(this.storage, async (session) => {
       const current = await this.storage.contextNotes.findOne({ _id: context }, { session });
       if (current === null) throw new ContextNotFound("There is no such ContextNote.");
@@ -237,7 +238,12 @@ export class ContextTrackingConcept {
       if (result.matchedCount !== 1) {
         throw new VersionConflict(`ContextNote ${context} changed during its correction.`);
       }
-      return {};
+      const change = crypto.randomUUID();
+      await this.storage.changes.insertOne(
+        { _id: change, context, before: current.text, after: text, occurredAt: new Date().toISOString(), kind: "correction" },
+        { session },
+      );
+      return { change };
     });
   }
 
@@ -268,7 +274,7 @@ export class ContextTrackingConcept {
 
       const change = crypto.randomUUID();
       await this.storage.changes.insertOne(
-        { _id: change, context, before: current.text, after: text, occurredAt: new Date().toISOString() },
+        { _id: change, context, before: current.text, after: text, occurredAt: new Date().toISOString(), kind: "change" },
         { session },
       );
       return { change };
@@ -343,14 +349,15 @@ export class ContextTrackingConcept {
     context,
   }: {
     context: string;
-  }): Promise<{ change: string; before: string; after: string; occurredAt?: string }[]> {
+  }): Promise<{ change: string; before: string; after: string; occurredAt?: string; kind?: string }[]> {
     await ensureConnected(this.storage);
     const found = await this.storage.changes.find({ context }).sort({ _id: 1 }).toArray();
-    return found.map(({ _id, before, after, occurredAt }) => ({
+    return found.map(({ _id, before, after, occurredAt, kind }) => ({
       change: _id,
       before,
       after,
       ...(occurredAt === undefined ? {} : { occurredAt }),
+      ...(kind === undefined ? {} : { kind }),
     }));
   }
 

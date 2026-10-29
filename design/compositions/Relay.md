@@ -117,7 +117,7 @@ application-level relationships do not make either concept depend on the
 other.
 
 [CorrectContextNote](reaction:Relay.ContextOperations.CorrectContextNote)
-authorizes and calls `ContextTracking.correct`. It does not trigger a Review.
+authorizes and calls `ContextTracking.correct`. It returns `{ context, change }` but does not trigger a Review.
 [ChangeContextNote](reaction:Relay.ContextOperations.ChangeContextNote)
 authorizes and calls
 `ContextTracking.change`; a meaningful change preserves its exact before and
@@ -275,6 +275,12 @@ replaces only the answer text; it preserves the Question, subject, state, and
 answerer. This keeps ordinary Members and other Officers from rewriting
 someone else's response.
 
+[RemoveStepQuestion](reaction:Relay.QuestionOperations.RemoveStepQuestion) and
+[RemoveContextQuestion](reaction:Relay.QuestionOperations.RemoveContextQuestion)
+authorize with `ANSWER_QUESTION`, scope the Question to the selected workspace,
+and permanently remove the Question together with any recorded answer. The UI
+requires an explicit irreversible-action warning before invoking either route.
+
 [GetQuestions](reaction:Relay.ReadOperations.GetQuestions) returns both
 [WorkspaceStepQuestions](former:Relay.Reads.WorkspaceStepQuestions) and
 [WorkspaceContextQuestions](former:Relay.Reads.WorkspaceContextQuestions).
@@ -291,6 +297,8 @@ Relay.QuestionOperations.AnswerStepQuestion at /workspaces/questions/steps/answe
 Relay.QuestionOperations.AnswerContextQuestion at /workspaces/questions/context/answer
 Relay.QuestionOperations.ReviseStepQuestionAnswer at /workspaces/questions/steps/revise
 Relay.QuestionOperations.ReviseContextQuestionAnswer at /workspaces/questions/context/revise
+Relay.QuestionOperations.RemoveStepQuestion at /workspaces/questions/steps/remove
+Relay.QuestionOperations.RemoveContextQuestion at /workspaces/questions/context/remove
 Relay.ReadOperations.GetQuestions at /workspaces/questions
 ```
 
@@ -414,7 +422,7 @@ are specified in [version-control.md](../version-control.md).
   `/workspaces/context/delete` accepts `{ context, expectedVersion }`, returns the
   deleted Context identity, and permanently removes the shared Note from every
   Playbook after a version-checked workspace authorization.
-  Correction accepts `{ context, text, expectedVersion }` and returns `{ context }`; meaningful
+  Correction accepts `{ context, text, expectedVersion }` and returns `{ context, change }`; meaningful
   change accepts the same fields and returns `{ context, change }`.
 - `/workspaces/context` accepts `{}` and returns `{ contexts }`, including each
   note's current text, attachment identities/subjects/optional anchors, and

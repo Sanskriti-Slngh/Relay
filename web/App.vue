@@ -579,7 +579,10 @@ async function recordStepContext({ procedure, step, text, onSuccess, onRecordedO
 
 async function correctContext({ note, text, expectedVersion, onSuccess }: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }) {
   contextChangeResult.value = undefined;
-  await runAction(`correct-${note.context}`, async () => { await api.correctContextNote(note.context, text, expectedVersion, csrfToken.value); onSuccess(); }, "Wording corrected. No review was created.");
+  await runAction(`correct-${note.context}`, async () => {
+    await api.correctContextNote(note.context, text, expectedVersion, csrfToken.value);
+    onSuccess();
+  }, "Wording corrected. No review was created.");
 }
 
 async function changeContext({ note, text, expectedVersion, onSuccess }: { note: ContextNote; text: string; expectedVersion: number; onSuccess: () => void }) {
@@ -680,6 +683,25 @@ async function reviseQuestionAnswer({ kind, question, answer, expectedVersion, o
   }, "Answer updated. The original question and answer ownership are preserved.");
 }
 
+async function removeQuestion({ kind, question, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; onSuccess?: () => void }) {
+  const answerWarning = question.answer ? " and its answer" : "";
+  if (!window.confirm(`Permanently delete this Question${answerWarning}? It will be deleted forever. This cannot be undone.`)) return;
+  await runAction(`remove-question-${question.question}`, async () => {
+    if (kind === "step") {
+      await api.removeStepQuestion(question.question, question.version, csrfToken.value);
+      stepQuestions.value = stepQuestions.value.filter(({ question: id }) => id !== question.question);
+    } else {
+      await api.removeContextQuestion(question.question, question.version, csrfToken.value);
+      contextQuestions.value = contextQuestions.value.filter(({ question: id }) => id !== question.question);
+    }
+    if (focusedQuestionId.value === question.question && focusedQuestionKind.value === kind) {
+      focusedQuestionId.value = "";
+      focusedQuestionKind.value = "";
+    }
+    onSuccess?.();
+  }, "Question permanently deleted.");
+}
+
 function formatIdentity(identity: string) { return identity.length > 13 ? `${identity.slice(0, 7)}…${identity.slice(-4)}` : identity; }
 
 onMounted(async () => {
@@ -747,7 +769,15 @@ onUnmounted(() => {
         <div class="workspace-chip"><span><small>Current workspace</small><strong :title="workspace">{{ workspaceName || formatIdentity(workspace) }}</strong><small>{{ role }}</small></span><span class="workspace-online" aria-label="Connected"></span></div>
         <select v-if="activeWorkspaces.length > 1" class="workspace-select" :value="workspace" aria-label="Select club workspace" :disabled="!!actionBusy" @change="selectClub(($event.target as HTMLSelectElement).value, $event.target as HTMLSelectElement)"><option v-for="club in activeWorkspaces" :key="club.workspace" :value="club.workspace">{{ club.name }} · {{ club.role }}</option></select>
         <nav class="primary-nav" aria-label="Main navigation">
-          <button v-for="item in availableNavigation" :key="item.id" type="button" class="nav-link" :class="{ active: section === item.id, 'mobile-secondary-nav': mobileOverflowNavigation.some(({ id }) => id === item.id) }" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
+          <button v-for="item in availableNavigation" :key="item.id" type="button" class="nav-link" :class="[`nav-link-${item.id}`, { active: section === item.id, 'mobile-secondary-nav': mobileOverflowNavigation.some(({ id }) => id === item.id), 'has-attention': (item.id === 'reviews' && unfinishedCount) }]" :aria-current="section === item.id ? 'page' : undefined" @click="navigate({ section: item.id })">
+            <span class="nav-icon" aria-hidden="true">
+              <svg v-if="item.id === 'overview'" viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg>
+              <svg v-else-if="item.id === 'procedures'" viewBox="0 0 20 20"><path d="M5 3h10v14H5z"/><path d="M8 7h4M8 10h4M8 13h4"/></svg>
+              <svg v-else-if="item.id === 'context'" viewBox="0 0 20 20"><path d="M4 4h9a2 2 0 0 1 2 2v10H6a2 2 0 0 1-2-2V4z"/><path d="M4 14a2 2 0 0 1 2-2h9"/></svg>
+              <svg v-else-if="item.id === 'reviews'" viewBox="0 0 20 20"><path d="M4 5h12M4 10h12M4 15h8"/></svg>
+              <svg v-else-if="item.id === 'questions'" viewBox="0 0 20 20"><path d="M7 7a3 3 0 1 1 4.5 2.6c-.9.5-1.5 1.1-1.5 2.4"/><circle cx="10" cy="15" r=".8" fill="currentColor" stroke="none"/></svg>
+              <svg v-else-if="item.id === 'workspace'" viewBox="0 0 20 20"><circle cx="7" cy="8" r="2.4"/><circle cx="14" cy="9" r="2"/><path d="M3 16c.6-2 2.2-3 4-3s3.4 1 4 3"/><path d="M11.5 16c.4-1.3 1.5-2 3-2s2.5.7 2.5 2"/></svg>
+            </span>
             <span>{{ item.label }}</span><span v-if="item.id === 'reviews' && unfinishedCount" class="nav-count">{{ unfinishedCount }}</span><span v-if="item.id === 'questions' && unansweredCount" class="nav-count">{{ unansweredCount }}</span>
           </button>
           <details ref="mobileNavigationMore" class="mobile-nav-more" :class="{ current: mobileOverflowNavigation.some(({ id }) => id === section) }">
@@ -772,10 +802,10 @@ onUnmounted(() => {
         </div>
         <div class="content-area">
           <OverviewView v-if="section === 'overview'" :procedures="procedures" :reviews="reviews" :step-questions="stepQuestions" :context-questions="contextQuestions" :activity="recentActivity" :can-edit="canEdit" :can-review="canReview" :can-answer="canAnswer" @navigate="navigate" />
-          <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @detach-context="detachContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
-          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @detach="detachContext" @delete-note="deleteContextNote" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
+          <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :members="workspaceMembers" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :can-remove-questions="canAnswer" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @remove-question="removeQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @detach-context="detachContext" @correct-context="correctContext" @change-context="changeContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
+          <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @detach="detachContext" @delete-note="deleteContextNote" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @answer-question="answerQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :contexts="contexts" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @edit-step="editStep" @replace-context="replaceReviewContext" @detach-context="detachContext" @dirty-change="hasUnsavedWork = $event" />
-          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @dirty-change="hasUnsavedWork = $event" />
+          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @remove="removeQuestion" @dirty-change="hasUnsavedWork = $event" />
           <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" @rename-workspace="renameWorkspace" @archive-workspace="archiveWorkspace" @restore-workspace="restoreWorkspace" @delete-workspace="deleteWorkspace" @dirty-change="hasUnsavedWork = $event" />
         </div>
       </section>

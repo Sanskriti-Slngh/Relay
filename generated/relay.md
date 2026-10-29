@@ -26,7 +26,7 @@ Defined in [ContextTracking](../design/concepts/ContextTracking.md), line 1.
 - `remove(context: ContextNote, expectedVersion?: Number) : returns ()`
   - Refuses `CONTEXT_NOT_FOUND`: There is no such ContextNote.
   - Refuses `VERSION_CONFLICT`: The ContextNote changed after it was loaded.
-- `correct(context: ContextNote, text: String, expectedVersion?: Number) : returns ()`
+- `correct(context: ContextNote, text: String, expectedVersion?: Number) : returns (change: Change)`
   - Refuses `CONTEXT_NOT_FOUND`: There is no such ContextNote.
   - Refuses `VERSION_CONFLICT`: The ContextNote changed after it was loaded.
 - `change(context: ContextNote, text: String, expectedVersion?: Number) : returns (change: Change)`
@@ -120,6 +120,9 @@ Defined in [Questioning](../design/concepts/Questioning.md), line 1.
   - Refuses `QUESTION_NOT_FOUND`: There is no such Question.
   - Refuses `VERSION_CONFLICT`: The Question changed after it was loaded.
   - Refuses `QUESTION_ANSWER_NOT_EDITABLE`: Only the original answerer can revise an ANSWERED Question.
+- `remove(question: Question, expectedVersion?: Number) : returns ()`
+  - Refuses `QUESTION_NOT_FOUND`: There is no such Question.
+  - Refuses `VERSION_CONFLICT`: The Question changed after it was loaded.
 - `removeForSubject(subject: Subject) : returns ()`
 
 #### Queries
@@ -129,6 +132,7 @@ Defined in [Questioning](../design/concepts/Questioning.md), line 1.
 - `_questions() : many (question: Question, subject: Subject, text: String, status: QuestionStatus, answer?: String, answerer?: Answerer)`
 - `_get(question: Question) : optional (subject: Subject, text: String, status: QuestionStatus, answer?: String, answerer?: Answerer)`
 - `_getVersion(question: Question) : optional (version: Number)`
+- `_getAskedAt(question: Question) : optional (askedAt: String)`
 
 #### Instances
 
@@ -269,7 +273,7 @@ Authored path: `Relay.Reads.WorkspaceContextHistory`.
 - Covered by [Relay](../design/compositions/Relay.md), line 160.
 
 ```former
-Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (context, text, version, attachment, subject, anchor, change, before, after, occurredAt); promises exactly one record — forms:
+Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (context, text, version, attachment, subject, anchor, change, before, after, occurredAt, kind); promises exactly one record — forms:
   each ContextTracking._notes (scope: workspace) has (context, text)
     where ContextTracking._getVersion (context) has (version)
     arranged by context
@@ -281,13 +285,14 @@ Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (c
           anchor
           attachment
           subject
-      changes: each ContextTracking._changes (context) has (after, before, change)
+      changes: each ContextTracking._changes (context) has (after, before, change, kind)
         where whether ContextTracking._getChange (change) has (occurredAt)
         arranged by change
         form a record of
           after
           before
           change
+          kind
           occurredAt
       context
       text
@@ -297,19 +302,21 @@ Former "Relay.Reads.WorkspaceContextHistory" — inputs (workspace); bindings (c
 ### Relay.Reads.WorkspaceContextQuestions
 
 Authored path: `Relay.Reads.WorkspaceContextQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 280.
+- Covered by [Relay](../design/compositions/Relay.md), line 286.
 
 ```former
-Former "Relay.Reads.WorkspaceContextQuestions" — inputs (workspace); bindings (question, context, questionText, questionStatus, answer, answerer, contextText, version); promises exactly one record — forms:
+Former "Relay.Reads.WorkspaceContextQuestions" — inputs (workspace); bindings (question, context, questionText, questionStatus, answer, answerer, askedAt, contextText, version); promises exactly one record — forms:
   each ContextQuestioning._questions () has (question, status: questionStatus, subject: context, text: questionText)
     where ContextTracking._get (context) has (scope: workspace, text: contextText)
     where whether ContextQuestioning._get (question) has (answer)
     where whether ContextQuestioning._get (question) has (answerer)
+    where whether ContextQuestioning._getAskedAt (question) has (askedAt)
     where ContextQuestioning._getVersion (question) has (version)
     arranged by question
     form a record of
       answer
       answerer
+      askedAt
       context
       question
       status: questionStatus
@@ -374,20 +381,22 @@ Former "Relay.Reads.WorkspaceReviewHistory" — inputs (workspace); bindings (pr
 ### Relay.Reads.WorkspaceStepQuestions
 
 Authored path: `Relay.Reads.WorkspaceStepQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 285.
 
 ```former
-Former "Relay.Reads.WorkspaceStepQuestions" — inputs (workspace); bindings (question, step, questionText, questionStatus, answer, answerer, procedure, title, stepText, stepStatus, version); promises exactly one record — forms:
+Former "Relay.Reads.WorkspaceStepQuestions" — inputs (workspace); bindings (question, step, questionText, questionStatus, answer, answerer, askedAt, procedure, title, stepText, stepStatus, version); promises exactly one record — forms:
   each StepQuestioning._questions () has (question, status: questionStatus, subject: step, text: questionText)
     where ProcedureMaintaining._getStep (step) has (procedure, status: stepStatus, text: stepText)
     where ProcedureMaintaining._get (procedure) has (space: workspace, title)
     where whether StepQuestioning._get (question) has (answer)
     where whether StepQuestioning._get (question) has (answerer)
+    where whether StepQuestioning._getAskedAt (question) has (askedAt)
     where StepQuestioning._getVersion (question) has (version)
     arranged by question
     form a record of
       answer
       answerer
+      askedAt
       procedure
       question
       status: questionStatus
@@ -1373,7 +1382,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 262.
-- Covered by [Relay](../design/compositions/Relay.md), line 291.
+- Covered by [Relay](../design/compositions/Relay.md), line 297.
 
 ```reaction
 when RequestBoundary.request (answer, expectedVersion, path: "/workspaces/questions/context/answer", question, requestId, user, workspace)
@@ -1385,7 +1394,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 262.
-- Covered by [Relay](../design/compositions/Relay.md), line 291.
+- Covered by [Relay](../design/compositions/Relay.md), line 297.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1401,7 +1410,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 262.
-- Covered by [Relay](../design/compositions/Relay.md), line 291.
+- Covered by [Relay](../design/compositions/Relay.md), line 297.
 
 ```reaction
 when ContextQuestioning.answer (answer, answerer: user, expectedVersion, question), asked by Relay.QuestionOperations.AnswerContextQuestion:question-in-workspace#2
@@ -1415,7 +1424,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 262.
-- Covered by [Relay](../design/compositions/Relay.md), line 291.
+- Covered by [Relay](../design/compositions/Relay.md), line 297.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1431,7 +1440,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 262.
-- Covered by [Relay](../design/compositions/Relay.md), line 291.
+- Covered by [Relay](../design/compositions/Relay.md), line 297.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerContextQuestion
@@ -1446,7 +1455,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 261.
-- Covered by [Relay](../design/compositions/Relay.md), line 290.
+- Covered by [Relay](../design/compositions/Relay.md), line 296.
 
 ```reaction
 when RequestBoundary.request (answer, expectedVersion, path: "/workspaces/questions/steps/answer", question, requestId, user, workspace)
@@ -1458,7 +1467,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 261.
-- Covered by [Relay](../design/compositions/Relay.md), line 290.
+- Covered by [Relay](../design/compositions/Relay.md), line 296.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1475,7 +1484,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 261.
-- Covered by [Relay](../design/compositions/Relay.md), line 290.
+- Covered by [Relay](../design/compositions/Relay.md), line 296.
 
 ```reaction
 when StepQuestioning.answer (answer, answerer: user, expectedVersion, question), asked by Relay.QuestionOperations.AnswerStepQuestion:question-in-workspace#2
@@ -1489,7 +1498,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 261.
-- Covered by [Relay](../design/compositions/Relay.md), line 290.
+- Covered by [Relay](../design/compositions/Relay.md), line 296.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1506,7 +1515,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AnswerStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 261.
-- Covered by [Relay](../design/compositions/Relay.md), line 290.
+- Covered by [Relay](../design/compositions/Relay.md), line 296.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ANSWER_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AnswerStepQuestion
@@ -1521,7 +1530,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when RequestBoundary.request (context, path: "/workspaces/questions/context/ask", procedure, requestId, text, user, workspace)
@@ -1533,7 +1542,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1549,7 +1558,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1566,7 +1575,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when ContextQuestioning.ask (subject: context, text, question), asked by Relay.QuestionOperations.AskContextQuestion:context-available#2
@@ -1580,7 +1589,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1595,7 +1604,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskContextQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 256.
-- Covered by [Relay](../design/compositions/Relay.md), line 289.
+- Covered by [Relay](../design/compositions/Relay.md), line 295.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_CONTEXT_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskContextQuestion
@@ -1612,7 +1621,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 254.
-- Covered by [Relay](../design/compositions/Relay.md), line 288.
+- Covered by [Relay](../design/compositions/Relay.md), line 294.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/questions/steps/ask", procedure, requestId, step, text, user, workspace)
@@ -1624,7 +1633,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 254.
-- Covered by [Relay](../design/compositions/Relay.md), line 288.
+- Covered by [Relay](../design/compositions/Relay.md), line 294.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1639,7 +1648,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 254.
-- Covered by [Relay](../design/compositions/Relay.md), line 288.
+- Covered by [Relay](../design/compositions/Relay.md), line 294.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1655,7 +1664,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 254.
-- Covered by [Relay](../design/compositions/Relay.md), line 288.
+- Covered by [Relay](../design/compositions/Relay.md), line 294.
 
 ```reaction
 when StepQuestioning.ask (subject: step, text, question), asked by Relay.QuestionOperations.AskStepQuestion:step-available#2
@@ -1669,7 +1678,7 @@ then
 
 Authored path: `Relay.QuestionOperations.AskStepQuestion`.
 - Covered by [Relay](../design/compositions/Relay.md), line 254.
-- Covered by [Relay](../design/compositions/Relay.md), line 288.
+- Covered by [Relay](../design/compositions/Relay.md), line 294.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "ASK_STEP_QUESTION", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.AskStepQuestion
@@ -1681,11 +1690,159 @@ then
   RequestBoundary.respond (error: "QUESTION_SUBJECT_NOT_AVAILABLE", requestId)
 ```
 
+### Relay.QuestionOperations.RemoveContextQuestion
+
+Authored path: `Relay.QuestionOperations.RemoveContextQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 301.
+
+```reaction
+when RequestBoundary.request (expectedVersion, path: "/workspaces/questions/context/remove", question, requestId, user, workspace)
+then
+  RoleBasedAccessing.authorize (command: "REMOVE_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user)
+```
+
+### Relay.QuestionOperations.RemoveContextQuestion:question-in-workspace#2
+
+Authored path: `Relay.QuestionOperations.RemoveContextQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 301.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveContextQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/context/remove", question, requestId, user, workspace)
+  ContextQuestioning._get (question) has (subject: context)
+  ContextTracking._get (context) has (scope: workspace)
+then
+  ContextQuestioning.remove (expectedVersion, question)
+```
+
+### Relay.QuestionOperations.RemoveContextQuestion:question-in-workspace#3
+
+Authored path: `Relay.QuestionOperations.RemoveContextQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 301.
+
+```reaction
+when ContextQuestioning.remove (expectedVersion, question), asked by Relay.QuestionOperations.RemoveContextQuestion:question-in-workspace#2
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/context/remove", question, requestId, user, workspace)
+then
+  RequestBoundary.respond (question, requestId)
+```
+
+### Relay.QuestionOperations.RemoveContextQuestion:question-outside-workspace#2
+
+Authored path: `Relay.QuestionOperations.RemoveContextQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 301.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveContextQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/context/remove", question, requestId, user, workspace)
+  ContextQuestioning._get (question) has (subject: context)
+  no ContextTracking._get (context) has (scope: workspace)
+then
+  RequestBoundary.respond (error: "QUESTION_NOT_AVAILABLE", requestId)
+```
+
+### Relay.QuestionOperations.RemoveContextQuestion:question-unavailable#2
+
+Authored path: `Relay.QuestionOperations.RemoveContextQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 279.
+- Covered by [Relay](../design/compositions/Relay.md), line 301.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_CONTEXT_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveContextQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/context/remove", question, requestId, user, workspace)
+  no ContextQuestioning._get (question)
+then
+  RequestBoundary.respond (error: "QUESTION_NOT_AVAILABLE", requestId)
+```
+
+### Relay.QuestionOperations.RemoveStepQuestion
+
+Authored path: `Relay.QuestionOperations.RemoveStepQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 300.
+
+```reaction
+when RequestBoundary.request (expectedVersion, path: "/workspaces/questions/steps/remove", question, requestId, user, workspace)
+then
+  RoleBasedAccessing.authorize (command: "REMOVE_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user)
+```
+
+### Relay.QuestionOperations.RemoveStepQuestion:question-in-workspace#2
+
+Authored path: `Relay.QuestionOperations.RemoveStepQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 300.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveStepQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/steps/remove", question, requestId, user, workspace)
+  StepQuestioning._get (question) has (subject: step)
+  ProcedureMaintaining._getStep (step) has (procedure)
+  ProcedureMaintaining._get (procedure) has (space: workspace)
+then
+  StepQuestioning.remove (expectedVersion, question)
+```
+
+### Relay.QuestionOperations.RemoveStepQuestion:question-in-workspace#3
+
+Authored path: `Relay.QuestionOperations.RemoveStepQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 300.
+
+```reaction
+when StepQuestioning.remove (expectedVersion, question), asked by Relay.QuestionOperations.RemoveStepQuestion:question-in-workspace#2
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/steps/remove", question, requestId, user, workspace)
+then
+  RequestBoundary.respond (question, requestId)
+```
+
+### Relay.QuestionOperations.RemoveStepQuestion:question-outside-workspace#2
+
+Authored path: `Relay.QuestionOperations.RemoveStepQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 300.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveStepQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/steps/remove", question, requestId, user, workspace)
+  StepQuestioning._get (question) has (subject: step)
+  ProcedureMaintaining._getStep (step) has (procedure)
+  no ProcedureMaintaining._get (procedure) has (space: workspace)
+then
+  RequestBoundary.respond (error: "QUESTION_NOT_AVAILABLE", requestId)
+```
+
+### Relay.QuestionOperations.RemoveStepQuestion:question-unavailable#2
+
+Authored path: `Relay.QuestionOperations.RemoveStepQuestion`.
+- Covered by [Relay](../design/compositions/Relay.md), line 278.
+- Covered by [Relay](../design/compositions/Relay.md), line 300.
+
+```reaction
+when RoleBasedAccessing.authorize (command: "REMOVE_STEP_QUESTION", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.RemoveStepQuestion
+where
+  earlier, RequestBoundary.request (expectedVersion, path: "/workspaces/questions/steps/remove", question, requestId, user, workspace)
+  no StepQuestioning._get (question)
+then
+  RequestBoundary.respond (error: "QUESTION_NOT_AVAILABLE", requestId)
+```
+
 ### Relay.QuestionOperations.ReviseContextQuestionAnswer
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 270.
-- Covered by [Relay](../design/compositions/Relay.md), line 293.
+- Covered by [Relay](../design/compositions/Relay.md), line 299.
 
 ```reaction
 when RequestBoundary.request (answer, expectedVersion, path: "/workspaces/questions/context/revise", question, requestId, user, workspace)
@@ -1697,7 +1854,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 270.
-- Covered by [Relay](../design/compositions/Relay.md), line 293.
+- Covered by [Relay](../design/compositions/Relay.md), line 299.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1713,7 +1870,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 270.
-- Covered by [Relay](../design/compositions/Relay.md), line 293.
+- Covered by [Relay](../design/compositions/Relay.md), line 299.
 
 ```reaction
 when ContextQuestioning.reviseAnswer (answer, answerer: user, expectedVersion, question), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer:answered-question-in-workspace#2
@@ -1727,7 +1884,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 270.
-- Covered by [Relay](../design/compositions/Relay.md), line 293.
+- Covered by [Relay](../design/compositions/Relay.md), line 299.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1743,7 +1900,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseContextQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 270.
-- Covered by [Relay](../design/compositions/Relay.md), line 293.
+- Covered by [Relay](../design/compositions/Relay.md), line 299.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_CONTEXT_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseContextQuestionAnswer
@@ -1758,7 +1915,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 269.
-- Covered by [Relay](../design/compositions/Relay.md), line 292.
+- Covered by [Relay](../design/compositions/Relay.md), line 298.
 
 ```reaction
 when RequestBoundary.request (answer, expectedVersion, path: "/workspaces/questions/steps/revise", question, requestId, user, workspace)
@@ -1770,7 +1927,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 269.
-- Covered by [Relay](../design/compositions/Relay.md), line 292.
+- Covered by [Relay](../design/compositions/Relay.md), line 298.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1787,7 +1944,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 269.
-- Covered by [Relay](../design/compositions/Relay.md), line 292.
+- Covered by [Relay](../design/compositions/Relay.md), line 298.
 
 ```reaction
 when StepQuestioning.reviseAnswer (answer, answerer: user, expectedVersion, question), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer:answered-question-in-workspace#2
@@ -1801,7 +1958,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 269.
-- Covered by [Relay](../design/compositions/Relay.md), line 292.
+- Covered by [Relay](../design/compositions/Relay.md), line 298.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1818,7 +1975,7 @@ then
 
 Authored path: `Relay.QuestionOperations.ReviseStepQuestionAnswer`.
 - Covered by [Relay](../design/compositions/Relay.md), line 269.
-- Covered by [Relay](../design/compositions/Relay.md), line 292.
+- Covered by [Relay](../design/compositions/Relay.md), line 298.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "REVISE_STEP_QUESTION_ANSWER", permission: "ANSWER_QUESTION", resource: workspace, user), asked by Relay.QuestionOperations.ReviseStepQuestionAnswer
@@ -1884,8 +2041,8 @@ then
 ### Relay.ReadOperations.GetQuestions
 
 Authored path: `Relay.ReadOperations.GetQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
-- Covered by [Relay](../design/compositions/Relay.md), line 294.
+- Covered by [Relay](../design/compositions/Relay.md), line 284.
+- Covered by [Relay](../design/compositions/Relay.md), line 302.
 
 ```reaction
 when RequestBoundary.request (path: "/workspaces/questions", requestId, user, workspace)
@@ -1896,8 +2053,8 @@ then
 ### Relay.ReadOperations.GetQuestions#2
 
 Authored path: `Relay.ReadOperations.GetQuestions`.
-- Covered by [Relay](../design/compositions/Relay.md), line 278.
-- Covered by [Relay](../design/compositions/Relay.md), line 294.
+- Covered by [Relay](../design/compositions/Relay.md), line 284.
+- Covered by [Relay](../design/compositions/Relay.md), line 302.
 
 ```reaction
 when RoleBasedAccessing.authorize (command: "GET_QUESTIONS", permission: "ASK_QUESTION", resource: workspace, user), asked by Relay.ReadOperations.GetQuestions
@@ -2290,9 +2447,11 @@ not listed here have no explicit input contract.
 - `/workspaces/questions` — requires `user`, `workspace`
 - `/workspaces/questions/context/answer` — requires `user`, `workspace`, `question`, `answer`, `expectedVersion`
 - `/workspaces/questions/context/ask` — requires `user`, `workspace`, `procedure`, `context`, `text`
+- `/workspaces/questions/context/remove` — requires `user`, `workspace`, `question`, `expectedVersion`
 - `/workspaces/questions/context/revise` — requires `user`, `workspace`, `question`, `answer`, `expectedVersion`
 - `/workspaces/questions/steps/answer` — requires `user`, `workspace`, `question`, `answer`, `expectedVersion`
 - `/workspaces/questions/steps/ask` — requires `user`, `workspace`, `procedure`, `step`, `text`
+- `/workspaces/questions/steps/remove` — requires `user`, `workspace`, `question`, `expectedVersion`
 - `/workspaces/questions/steps/revise` — requires `user`, `workspace`, `question`, `answer`, `expectedVersion`
 - `/workspaces/reviews` — requires `user`, `workspace`
 - `/workspaces/reviews/cancel` — requires `user`, `workspace`, `review`, `procedure`, `expectedVersion`

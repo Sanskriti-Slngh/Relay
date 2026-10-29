@@ -159,7 +159,7 @@ const WorkspaceProcedures = former(
 
 const WorkspaceContextHistory = former(
   "Relay.Reads.WorkspaceContextHistory",
-  ({ workspace }, { context, text, version, attachment, subject, anchor, change, before, after, occurredAt }) =>
+  ({ workspace }, { context, text, version, attachment, subject, anchor, change, before, after, occurredAt, kind }) =>
     each(ContextTracking._notes({ scope: workspace }).is({ context, text }))
       .arranged(context)
       .where(ContextTracking._getVersion({ context }).is({ version }))
@@ -171,10 +171,10 @@ const WorkspaceContextHistory = former(
           .arranged(attachment)
           .where(whether(ContextTracking._getAttachment({ attachment }).is({ anchor })))
           .form({ attachment, subject, anchor }),
-        changes: each(ContextTracking._changes({ context }).is({ change, before, after }))
+        changes: each(ContextTracking._changes({ context }).is({ change, before, after, kind }))
           .arranged(change)
           .where(whether(ContextTracking._getChange({ change }).is({ occurredAt })))
-          .form({ change, before, after, occurredAt }),
+          .form({ change, before, after, occurredAt, kind }),
       }),
 );
 
@@ -231,6 +231,7 @@ const WorkspaceStepQuestions = former(
       questionStatus,
       answer,
       answerer,
+      askedAt,
       procedure,
       title,
       stepText,
@@ -256,6 +257,7 @@ const WorkspaceStepQuestions = former(
         ProcedureMaintaining._get({ procedure }).is({ space: workspace, title }),
         whether(StepQuestioning._get({ question }).is({ answer })),
         whether(StepQuestioning._get({ question }).is({ answerer })),
+        whether(StepQuestioning._getAskedAt({ question }).is({ askedAt })),
         StepQuestioning._getVersion({ question }).is({ version }),
       )
       .form({
@@ -265,6 +267,7 @@ const WorkspaceStepQuestions = former(
         status: questionStatus,
         answer,
         answerer,
+        askedAt,
         procedure,
         title,
         subjectText: stepText,
@@ -275,7 +278,7 @@ const WorkspaceStepQuestions = former(
 
 const WorkspaceContextQuestions = former(
   "Relay.Reads.WorkspaceContextQuestions",
-  ({ workspace }, { question, context, questionText, questionStatus, answer, answerer, contextText, version }) =>
+  ({ workspace }, { question, context, questionText, questionStatus, answer, answerer, askedAt, contextText, version }) =>
     each(
       ContextQuestioning._questions({}).is({
         question,
@@ -289,6 +292,7 @@ const WorkspaceContextQuestions = former(
         ContextTracking._get({ context }).is({ scope: workspace, text: contextText }),
         whether(ContextQuestioning._get({ question }).is({ answer })),
         whether(ContextQuestioning._get({ question }).is({ answerer })),
+        whether(ContextQuestioning._getAskedAt({ question }).is({ askedAt })),
         ContextQuestioning._getVersion({ question }).is({ version }),
       )
       .form({
@@ -298,6 +302,7 @@ const WorkspaceContextQuestions = former(
         status: questionStatus,
         answer,
         answerer,
+        askedAt,
         subjectText: contextText,
         version,
       }),
@@ -989,6 +994,80 @@ const ReviseContextQuestionAnswer = endpoint(
   ),
 );
 
+const RemoveStepQuestion = endpoint(
+  "/workspaces/questions/steps/remove",
+  ({ user, workspace, question, step, procedure, expectedVersion }) =>
+    receive({ user, workspace, question, expectedVersion })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "ANSWER_QUESTION",
+          command: "REMOVE_STEP_QUESTION",
+        }).responds({}),
+      )
+      .then(
+        where(
+          StepQuestioning._get({ question }).is({ subject: step }),
+          ProcedureMaintaining._getStep({ step }).is({ procedure }),
+          ProcedureMaintaining._get({ procedure }).is({ space: workspace }),
+        )
+          .then(StepQuestioning.remove({ question, expectedVersion }))
+          .then(respond({ question }))
+          .named("question-in-workspace"),
+        where(no(StepQuestioning._get({ question }).is({})))
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-unavailable"),
+        where(
+          StepQuestioning._get({ question }).is({ subject: step }),
+          ProcedureMaintaining._getStep({ step }).is({ procedure }),
+          no(ProcedureMaintaining._get({ procedure }).is({ space: workspace })),
+        )
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-outside-workspace"),
+      ),
+  versionedStringInput(
+    ["user", "workspace", "question"],
+    ["user", "workspace", "question"],
+  ),
+);
+
+const RemoveContextQuestion = endpoint(
+  "/workspaces/questions/context/remove",
+  ({ user, workspace, question, context, expectedVersion }) =>
+    receive({ user, workspace, question, expectedVersion })
+      .then(
+        RoleBasedAccessing.authorize({
+          user,
+          resource: workspace,
+          permission: "ANSWER_QUESTION",
+          command: "REMOVE_CONTEXT_QUESTION",
+        }).responds({}),
+      )
+      .then(
+        where(
+          ContextQuestioning._get({ question }).is({ subject: context }),
+          ContextTracking._get({ context }).is({ scope: workspace }),
+        )
+          .then(ContextQuestioning.remove({ question, expectedVersion }))
+          .then(respond({ question }))
+          .named("question-in-workspace"),
+        where(no(ContextQuestioning._get({ question }).is({})))
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-unavailable"),
+        where(
+          ContextQuestioning._get({ question }).is({ subject: context }),
+          no(ContextTracking._get({ context }).is({ scope: workspace })),
+        )
+          .then(respond({ error: "QUESTION_NOT_AVAILABLE" }))
+          .named("question-outside-workspace"),
+      ),
+  versionedStringInput(
+    ["user", "workspace", "question"],
+    ["user", "workspace", "question"],
+  ),
+);
+
 const ListProcedures = endpoint(
   "/workspaces/procedures",
   ({ user, workspace }) =>
@@ -1252,6 +1331,8 @@ export const composition = {
       AnswerContextQuestion,
       ReviseStepQuestionAnswer,
       ReviseContextQuestionAnswer,
+      RemoveStepQuestion,
+      RemoveContextQuestion,
     },
     ReviewOperations: { ConfirmReview, RequireReviewChanges, ResolveReview, CancelReview },
     ReadOperations: {

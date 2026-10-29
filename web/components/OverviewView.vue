@@ -112,7 +112,7 @@ function fullTimestamp(value: string): string {
       <aside class="overview-attention" :class="{ 'is-empty': !hasAttention }" aria-labelledby="overview-attention-title">
         <header class="attention-panel-header"><h2 id="overview-attention-title">Needs attention</h2><span v-if="hasAttention">{{ reviewItems.length + questionItems.length }}</span></header>
         <div v-if="hasAttention" class="attention-item-list">
-          <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" type="button" @click="openAttentionItem(item)">
+          <button v-for="item in attentionItems" :key="`${item.kind}-${item.id}`" class="attention-item" :class="`attention-item-${item.kind}`" type="button" @click="openAttentionItem(item)">
             <span class="attention-item-kind">{{ item.kind === "review" ? "Review" : "Question" }}</span>
             <strong :class="{ 'clamped-copy': item.kind === 'question' }">{{ item.title }}</strong>
             <small class="clamped-source">{{ item.detail }}</small>

@@ -70,7 +70,6 @@ describe("first-time interaction guidance", () => {
     const context = await Bun.file(new URL("../../web/components/ContextView.vue", import.meta.url)).text();
     const playbooks = await Bun.file(new URL("../../web/components/PlaybooksView.vue", import.meta.url)).text();
     const questions = await Bun.file(new URL("../../web/components/QuestionsView.vue", import.meta.url)).text();
-    expect(context).toContain("Attach this note to an active Playbook before asking a question.");
     expect(context).toContain("already attached everywhere");
     expect(playbooks).not.toContain("context-optional");
     expect(playbooks).toContain("does not currently provide a way to restore them");

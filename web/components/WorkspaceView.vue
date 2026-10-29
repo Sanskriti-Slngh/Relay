@@ -37,14 +37,17 @@ const newClubName = ref("");
 const invitationToken = ref("");
 const showCreateClub = ref(false);
 const showJoinClub = ref(false);
+const showInviteForm = ref(false);
 const copyStatus = ref("");
 const transferTarget = ref("");
 const formerOwnerRole = ref<"Officer" | "Member">("Officer");
 const transferConfirmed = ref(false);
 const editingWorkspaceName = ref(false);
 const workspaceNameDraft = ref("");
+const openAdminSection = ref<"rename" | "transfer" | "archive" | "">("");
 const transferableMembers = computed(() => props.members.filter((member) => member.user !== props.user?.id));
 const activeWorkspaces = computed(() => props.workspaces.filter(({ status }) => status === "ACTIVE"));
+const otherActiveWorkspaces = computed(() => activeWorkspaces.value.filter(({ workspace }) => workspace !== props.workspace));
 const archivedWorkspaces = computed(() => props.workspaces.filter(({ status }) => status === "ARCHIVED"));
 const hasUnsavedWork = computed(() => hasMeaningfulDraft([inviteEmail.value, newClubName.value, invitationToken.value]) ||
   (editingWorkspaceName.value && workspaceNameDraft.value.trim() !== props.workspaceName) || !!transferTarget.value || transferConfirmed.value);
@@ -77,6 +80,10 @@ function toggleCreateClub() {
 function toggleJoinClub() {
   showJoinClub.value = !showJoinClub.value;
   if (showJoinClub.value) showCreateClub.value = false;
+}
+
+function toggleInviteForm() {
+  showInviteForm.value = !showInviteForm.value;
 }
 
 async function copyCode() {
@@ -123,32 +130,36 @@ function cancelWorkspaceRename() {
   workspaceNameDraft.value = props.workspaceName;
   editingWorkspaceName.value = false;
 }
+
+function toggleAdminSection(section: "rename" | "transfer" | "archive", event: Event) {
+  event.preventDefault();
+  if (openAdminSection.value === section) {
+    openAdminSection.value = "";
+    if (section === "rename") cancelWorkspaceRename();
+    return;
+  }
+  openAdminSection.value = section;
+  if (section === "rename") {
+    workspaceNameDraft.value = props.workspaceName;
+    editingWorkspaceName.value = true;
+  }
+}
 </script>
 
 <template>
   <header class="page-heading"><h1>Workspace</h1></header>
 
   <section class="workspace-identity" aria-labelledby="club-name">
-    <div><h2 id="club-name">{{ workspaceName }}</h2><p>{{ user?.name }}</p></div>
-    <span>{{ role }}</span>
-  </section>
-
-  <section v-if="role === 'Owner'" class="workspace-settings-section" aria-labelledby="workspace-settings-title">
-    <h2 id="workspace-settings-title">Workspace settings</h2>
-    <p>Rename this workspace, or archive it to hide it from every member while keeping its knowledge recoverable.</p>
-    <form v-if="editingWorkspaceName" class="workspace-access-form disclosure-form" @submit.prevent="renameWorkspace">
-      <label for="workspace-name-edit">Workspace name</label>
-      <div class="form-row"><input id="workspace-name-edit" v-model="workspaceNameDraft" required maxlength="120"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !workspaceNameDraft.trim() || workspaceNameDraft.trim() === workspaceName">{{ actionBusy === "rename-workspace" ? "Renaming…" : "Save name" }}</button><button class="button button-quiet" type="button" :disabled="!!actionBusy" @click="cancelWorkspaceRename">Cancel</button></div>
-    </form>
-    <div v-else class="workspace-management-actions"><button class="button button-secondary" type="button" :disabled="!!actionBusy" @click="beginWorkspaceRename">Rename workspace</button><button class="button button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('archiveWorkspace')">{{ actionBusy === "archive-workspace" ? "Archiving…" : "Archive workspace" }}</button></div>
+    <div class="workspace-identity-copy"><h2 id="club-name">{{ workspaceName }}</h2><p>{{ user?.name }}</p></div>
+    <span class="role-chip" :class="`role-chip-${role.toLowerCase()}`">{{ role }}</span>
   </section>
 
   <section class="workspace-settings-section workspace-access" aria-labelledby="your-clubs-title">
-    <header class="workspace-access-header">
-      <div><h2 id="your-clubs-title">Your clubs</h2><p>Switch clubs or add another workspace.</p></div>
-      <div class="workspace-access-actions">
-        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" :aria-expanded="showCreateClub" aria-controls="create-club-form" @click="toggleCreateClub">Create club</button>
-        <button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" :aria-expanded="showJoinClub" aria-controls="join-club-form" @click="toggleJoinClub">Join another club</button>
+    <header class="workspace-section-header compact-header">
+      <h2 id="your-clubs-title">{{ otherActiveWorkspaces.length ? "Switch club" : "Your clubs" }}</h2>
+      <div class="header-actions">
+        <button class="link-action" type="button" :disabled="!!actionBusy" :aria-expanded="showCreateClub" aria-controls="create-club-form" @click="toggleCreateClub">Create club</button>
+        <button class="link-action" type="button" :disabled="!!actionBusy" :aria-expanded="showJoinClub" aria-controls="join-club-form" @click="toggleJoinClub">Join club</button>
       </div>
     </header>
 
@@ -162,11 +173,10 @@ function cancelWorkspaceRename() {
       <div class="form-row"><input id="additional-invite-token" v-model="invitationToken" required maxlength="64" spellcheck="false" autocomplete="off"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !invitationToken.trim()">{{ actionBusy === "accept-invitation" ? "Joining…" : "Join as Member" }}</button></div>
     </form>
 
-    <div class="club-switch-list" aria-label="Club workspaces">
-      <div v-for="club in activeWorkspaces" :key="club.workspace" class="club-switch-row" :class="{ current: club.workspace === workspace }">
+    <div v-if="otherActiveWorkspaces.length" class="club-switch-list" aria-label="Other clubs">
+      <div v-for="club in otherActiveWorkspaces" :key="club.workspace" class="club-switch-row">
         <div><strong>{{ club.name }}</strong><small>{{ club.role }}</small></div>
-        <span v-if="club.workspace === workspace">Current</span>
-        <button v-else class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Switch to ${club.name}`" @click="emit('select', club.workspace)">{{ actionBusy === "select-workspace" ? "Switching…" : "Switch" }}</button>
+        <button class="role-toggle-btn" type="button" :disabled="!!actionBusy" :aria-label="`Switch to ${club.name}`" @click="emit('select', club.workspace)">{{ actionBusy === "select-workspace" ? "Switching…" : "Switch" }}</button>
       </div>
     </div>
     <div v-if="archivedWorkspaces.length" class="archived-workspace-list">
@@ -174,26 +184,48 @@ function cancelWorkspaceRename() {
       <p>Restore a workspace to recover it. Permanent deletion removes all of its data and cannot be undone.</p>
       <div v-for="club in archivedWorkspaces" :key="club.workspace" class="club-switch-row archived-workspace-row">
         <div><strong>{{ club.name }}</strong><small>Archived · {{ club.role }}</small></div>
-        <div class="workspace-management-actions"><button class="button button-small button-secondary" type="button" :disabled="!!actionBusy" @click="emit('restoreWorkspace', club)">{{ actionBusy === `restore-workspace-${club.workspace}` ? "Restoring…" : "Restore" }}</button><button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="emit('deleteWorkspace', club)">{{ actionBusy === `delete-workspace-${club.workspace}` ? "Deleting…" : "Delete forever" }}</button></div>
+        <div class="workspace-management-actions"><button class="role-toggle-btn" type="button" :disabled="!!actionBusy" @click="emit('restoreWorkspace', club)">{{ actionBusy === `restore-workspace-${club.workspace}` ? "Restoring…" : "Restore" }}</button><button class="icon-x-btn" type="button" :disabled="!!actionBusy" aria-label="Delete workspace forever" :title="`Delete ${club.name} forever`" @click="emit('deleteWorkspace', club)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button></div>
       </div>
     </div>
   </section>
 
   <section class="workspace-settings-section" aria-labelledby="members-title">
-    <header class="workspace-section-header"><h2 id="members-title">Members</h2><span>{{ members.length }}</span></header>
+    <header class="workspace-section-header compact-header">
+      <div class="section-title-row"><h2 id="members-title">Members</h2><span class="section-count">{{ members.length }}</span></div>
+      <button v-if="canInvite" class="link-action" type="button" :disabled="!!actionBusy" :aria-expanded="showInviteForm" aria-controls="inline-invite-form" @click="toggleInviteForm">{{ showInviteForm ? "Close" : "Invite member" }}</button>
+    </header>
+
+    <form v-if="canInvite && showInviteForm" id="inline-invite-form" class="workspace-access-form disclosure-form" @submit.prevent="invite">
+      <label for="workspace-invite-email">Member email</label>
+      <div class="form-row"><input id="workspace-invite-email" v-model="inviteEmail" type="email" required maxlength="254" placeholder="member@example.org"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !inviteEmail.trim()">{{ actionBusy === "invite-member" ? "Generating…" : "Generate invite code" }}</button></div>
+      <p class="form-hint">Relay doesn't send email. Generate a one-time code and share it with the invitee.</p>
+      <output v-if="createdInvite" class="invite-output">
+        <span>{{ createdInvite.reissued ? `Replacement code for ${createdInvite.email}` : `Code for ${createdInvite.email}` }}</span>
+        <div class="invite-code-row"><strong class="invite-code">{{ createdInvite.token }}</strong><button class="button button-small button-secondary" type="button" @click="copyCode">Copy</button></div>
+        <small>{{ createdInvite.reissued ? "This replaces the previous code." : "Share it securely. It works once for this email." }} Expires {{ formatExpiry(createdInvite.expiresAt) }}.</small>
+        <small v-if="copyStatus" role="status">{{ copyStatus }}</small>
+      </output>
+    </form>
+
     <div class="management-list">
       <div v-for="member in members" :key="member.user" class="management-row">
-        <div><strong>{{ member.name }}</strong><small v-if="member.email">{{ member.email }}</small></div>
+        <div class="management-row-copy"><strong>{{ member.name }}</strong><small v-if="member.email">{{ member.email }}</small></div>
         <div class="member-actions">
-          <span>{{ member.role }}</span>
-          <template v-if="canManage(member)">
-            <button v-if="member.role === 'Member'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Promote ${member.name} to Officer`" @click="emit('changeRole', { member, role: 'Officer' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Make Officer" }}</button>
-            <button v-if="role === 'Owner' && member.role === 'Officer'" class="button button-small button-quiet" type="button" :disabled="!!actionBusy" :aria-label="`Demote ${member.name} to Member`" @click="emit('changeRole', { member, role: 'Member' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Make Member" }}</button>
-            <button class="button button-small button-quiet danger-text" type="button" :disabled="!!actionBusy" :aria-label="`Remove ${member.name} from workspace`" @click="emit('removeMember', member)">{{ actionBusy === `remove-member-${member.user}` ? "Removing…" : "Remove" }}</button>
-          </template>
+          <span class="role-chip" :class="`role-chip-${member.role.toLowerCase()}`">{{ member.role }}</span>
+          <details v-if="canManage(member)" class="manage-menu">
+            <summary aria-label="Manage member">Manage</summary>
+            <div class="manage-menu-items">
+              <button v-if="member.role === 'Member'" class="manage-menu-item" type="button" :disabled="!!actionBusy" @click="emit('changeRole', { member, role: 'Officer' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Change role to Officer" }}</button>
+              <button v-if="role === 'Owner' && member.role === 'Officer'" class="manage-menu-item" type="button" :disabled="!!actionBusy" @click="emit('changeRole', { member, role: 'Member' })">{{ actionBusy === `role-${member.user}` ? "Updating…" : "Change role to Member" }}</button>
+              <button class="manage-menu-item danger-text" type="button" :disabled="!!actionBusy" @click="emit('removeMember', member)">{{ actionBusy === `remove-member-${member.user}` ? "Removing…" : "Remove member" }}</button>
+            </div>
+          </details>
         </div>
       </div>
     </div>
+    <p v-if="canInvite && !pendingInvitations.length" class="members-invite-hint">No pending invitations.</p>
   </section>
 
   <section v-if="!ownershipConfigured && role === 'Officer'" class="workspace-settings-section ownership-setup" aria-labelledby="ownership-setup-title">
@@ -202,39 +234,53 @@ function cancelWorkspaceRename() {
     <button class="button button-primary" type="button" :disabled="!!actionBusy" @click="emit('claimOwnership')">{{ actionBusy === "claim-ownership" ? "Claiming…" : "Claim ownership" }}</button>
   </section>
 
-  <section v-if="role === 'Owner' && transferableMembers.length" class="workspace-settings-section" aria-labelledby="transfer-title">
-    <h2 id="transfer-title">Transfer ownership</h2>
-    <p>The selected member becomes the only Owner. Choose the role you will keep.</p>
-    <form class="ownership-transfer-form" @submit.prevent="transfer">
-      <label for="new-owner">New Owner</label>
-      <select id="new-owner" v-model="transferTarget" required :disabled="!!actionBusy"><option value="" disabled>Select a member</option><option v-for="member in transferableMembers" :key="member.user" :value="member.user">{{ member.name }} · {{ member.role }}</option></select>
-      <label for="former-owner-role">Your role after transfer</label>
-      <select id="former-owner-role" v-model="formerOwnerRole" :disabled="!!actionBusy"><option value="Officer">Officer</option><option value="Member">Member</option></select>
-      <label class="confirmation-check"><input v-model="transferConfirmed" type="checkbox" :disabled="!!actionBusy"> I understand that only the new Owner can transfer ownership again.</label>
-      <button class="button button-primary" type="submit" :disabled="!!actionBusy || !transferTarget || !transferConfirmed">{{ actionBusy === "transfer-ownership" ? "Transferring…" : "Transfer ownership" }}</button>
-    </form>
-  </section>
-
-  <section v-if="canInvite" class="workspace-settings-section" aria-labelledby="pending-invitations-title">
-    <header class="workspace-section-header"><h2 id="pending-invitations-title">Pending invitations</h2><span>{{ pendingInvitations.length }}</span></header>
-    <p v-if="!pendingInvitations.length" class="quiet-empty">None pending.</p>
-    <div v-else class="management-list">
+  <section v-if="canInvite && pendingInvitations.length" class="workspace-settings-section" aria-labelledby="pending-invitations-title">
+    <header class="workspace-section-header compact-header">
+      <div class="section-title-row"><h2 id="pending-invitations-title">Pending invitations</h2><span class="section-count">{{ pendingInvitations.length }}</span></div>
+    </header>
+    <div class="management-list">
       <div v-for="invitation in pendingInvitations" :key="invitation.invitation" class="management-row invitation-row">
         <div><strong>{{ invitation.email }}</strong><small>Pending · Expires {{ formatExpiry(invitation.expiresAt) }}</small></div>
-        <button class="button button-small button-quiet" type="button" :disabled="!!actionBusy" @click="emit('reissue', invitation)">{{ actionBusy === `reissue-invitation-${invitation.invitation}` ? "Reissuing…" : "Reissue code" }}</button>
+        <button class="role-toggle-btn" type="button" :disabled="!!actionBusy" @click="emit('reissue', invitation)">{{ actionBusy === `reissue-invitation-${invitation.invitation}` ? "Reissuing…" : "Reissue code" }}</button>
       </div>
     </div>
   </section>
 
-  <section v-if="canInvite" class="workspace-settings-section" aria-labelledby="invite-member-title">
-    <h2 id="invite-member-title">Invite a member</h2>
-    <form class="invite-form" @submit.prevent="invite"><label for="workspace-invite-email">Email</label><div class="form-row"><input id="workspace-invite-email" v-model="inviteEmail" type="email" required maxlength="254" placeholder="member@example.org"><button class="button button-primary" type="submit" :disabled="!!actionBusy || !inviteEmail.trim()">{{ actionBusy === "invite-member" ? "Creating…" : "Create code" }}</button></div></form>
-    <output v-if="createdInvite" class="invite-output">
-      <span>{{ createdInvite.reissued ? `Replacement code for ${createdInvite.email}` : `Code for ${createdInvite.email}` }}</span>
-      <div class="invite-code-row"><strong class="invite-code">{{ createdInvite.token }}</strong><button class="button button-small button-secondary" type="button" @click="copyCode">Copy</button></div>
-      <small>{{ createdInvite.reissued ? "This replaces the previous code." : "Share it securely. It works once for this email." }} Expires {{ formatExpiry(createdInvite.expiresAt) }}.</small>
-      <small v-if="copyStatus" role="status">{{ copyStatus }}</small>
-    </output>
-  </section>
+  <details v-if="role === 'Owner'" class="workspace-administration quiet-history">
+    <summary><span class="admin-summary-chevron" aria-hidden="true"></span>Advanced workspace management</summary>
+    <div class="workspace-administration-content">
+      <details class="administrative-disclosure" :open="openAdminSection === 'rename'" @toggle="($event.target as HTMLDetailsElement).open ? openAdminSection = 'rename' : openAdminSection === 'rename' && (openAdminSection = '')">
+        <summary @click="toggleAdminSection('rename', $event)"><span class="admin-summary-chevron" aria-hidden="true"></span>Rename workspace</summary>
+        <div class="admin-section-body">
+          <form class="admin-stacked-form" @submit.prevent="renameWorkspace">
+            <label for="workspace-name-edit">Workspace name</label>
+            <input id="workspace-name-edit" v-model="workspaceNameDraft" required maxlength="120" class="admin-stacked-input">
+            <div class="admin-stacked-actions"><button class="role-toggle-btn" type="submit" :disabled="!!actionBusy || !workspaceNameDraft.trim() || workspaceNameDraft.trim() === workspaceName">{{ actionBusy === "rename-workspace" ? "Renaming…" : "Save" }}</button><button class="link-action" type="button" :disabled="!!actionBusy" @click="cancelWorkspaceRename(); openAdminSection = ''">Cancel</button></div>
+          </form>
+        </div>
+      </details>
+      <details v-if="transferableMembers.length" class="administrative-disclosure" :open="openAdminSection === 'transfer'" @toggle="($event.target as HTMLDetailsElement).open ? openAdminSection = 'transfer' : openAdminSection === 'transfer' && (openAdminSection = '')">
+        <summary @click="toggleAdminSection('transfer', $event)"><span class="admin-summary-chevron" aria-hidden="true"></span>Transfer ownership</summary>
+        <div class="admin-section-body">
+          <p>The selected member becomes the only Owner. Choose the role you will keep.</p>
+          <form class="admin-stacked-form" @submit.prevent="transfer">
+            <label for="new-owner">New Owner</label>
+            <select id="new-owner" v-model="transferTarget" required :disabled="!!actionBusy" class="admin-stacked-input"><option value="" disabled>Select a member</option><option v-for="member in transferableMembers" :key="member.user" :value="member.user">{{ member.name }} · {{ member.role }}</option></select>
+            <label for="former-owner-role">Your role after transfer</label>
+            <select id="former-owner-role" v-model="formerOwnerRole" :disabled="!!actionBusy" class="admin-stacked-input"><option value="Officer">Officer</option><option value="Member">Member</option></select>
+            <label class="confirmation-check"><input v-model="transferConfirmed" type="checkbox" :disabled="!!actionBusy"><span>I understand that only the new Owner can transfer ownership again.</span></label>
+            <div class="admin-stacked-actions"><button class="role-toggle-btn" type="submit" :disabled="!!actionBusy || !transferTarget || !transferConfirmed">{{ actionBusy === "transfer-ownership" ? "Transferring…" : "Transfer ownership" }}</button></div>
+          </form>
+        </div>
+      </details>
+      <details class="administrative-disclosure" :open="openAdminSection === 'archive'" @toggle="($event.target as HTMLDetailsElement).open ? openAdminSection = 'archive' : openAdminSection === 'archive' && (openAdminSection = '')">
+        <summary @click="toggleAdminSection('archive', $event)"><span class="admin-summary-chevron" aria-hidden="true"></span>Archive workspace</summary>
+        <div class="admin-section-body">
+          <p>Hide this workspace from every member while keeping its knowledge recoverable.</p>
+          <div class="admin-stacked-actions"><button class="role-toggle-btn danger-text" type="button" :disabled="!!actionBusy" @click="emit('archiveWorkspace')">{{ actionBusy === "archive-workspace" ? "Archiving…" : "Archive workspace" }}</button></div>
+        </div>
+      </details>
+    </div>
+  </details>
 
 </template>

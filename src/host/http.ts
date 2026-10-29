@@ -122,6 +122,7 @@ function injectTrustedIdentity(
     "/api/workspaces/context/correct", "/api/workspaces/context/change",
     "/api/workspaces/questions/steps/answer", "/api/workspaces/questions/context/answer",
     "/api/workspaces/questions/steps/revise", "/api/workspaces/questions/context/revise",
+    "/api/workspaces/questions/steps/remove", "/api/workspaces/questions/context/remove",
     "/api/workspaces/reviews/confirm", "/api/workspaces/reviews/require-changes",
     "/api/workspaces/reviews/resolve", "/api/workspaces/reviews/cancel",
   ]);
@@ -285,6 +286,7 @@ export function createRelayHttpHandler(
     if (
       response.ok &&
       (pathname === "/api/workspaces/context/change" ||
+        pathname === "/api/workspaces/context/correct" ||
         pathname === "/api/workspaces/procedures/steps/remove")
     ) {
       await application.whenIdle();

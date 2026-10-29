@@ -53,6 +53,8 @@ const VERSIONED_PATHS = new Set([
   "/api/workspaces/questions/context/answer",
   "/api/workspaces/questions/steps/revise",
   "/api/workspaces/questions/context/revise",
+  "/api/workspaces/questions/steps/remove",
+  "/api/workspaces/questions/context/remove",
   "/api/workspaces/reviews/confirm",
   "/api/workspaces/reviews/require-changes",
   "/api/workspaces/reviews/resolve",
@@ -347,7 +349,7 @@ export function createMultiUserRelayHttpHandler(
         : undefined;
       const result = await conceptHandler(inject(request, body, session));
       if (result.status === 409 && VERSIONED_PATHS.has(pathname)) return errorResponse(409, "VERSION_CONFLICT");
-      if (result.ok && (pathname === "/api/workspaces/context/change" || pathname === "/api/workspaces/procedures/steps/remove")) await application.whenIdle();
+      if (result.ok && (pathname === "/api/workspaces/context/change" || pathname === "/api/workspaces/context/correct" || pathname === "/api/workspaces/procedures/steps/remove")) await application.whenIdle();
       if (result.ok && activityType) {
         try {
           const output = await result.clone().json() as Record<string, unknown>;

@@ -441,6 +441,18 @@ export function createRelayApi(fetcher: FetchLike = fetch) {
         expectedVersion,
       }, csrfToken);
     },
+    removeStepQuestion(question: string, expectedVersion: number, csrfToken: string) {
+      return post<{ question: string }>("/workspaces/questions/steps/remove", {
+        question,
+        expectedVersion,
+      }, csrfToken);
+    },
+    removeContextQuestion(question: string, expectedVersion: number, csrfToken: string) {
+      return post<{ question: string }>("/workspaces/questions/context/remove", {
+        question,
+        expectedVersion,
+      }, csrfToken);
+    },
   };
 }
 

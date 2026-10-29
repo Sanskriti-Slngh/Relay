@@ -177,14 +177,18 @@ describe("ContextTracking concept", () => {
     expect(await concept._changes({ context: "missing-context" })).toEqual([]);
   });
 
-  test("corrects text without creating a Change record", async () => {
+  test("corrects text and records a correction Change", async () => {
     const { context } = await concept.record({ scope: "club", text: "Initial typo" });
 
-    expect(await concept.correct({ context, text: "Corrected wording" })).toEqual({});
+    const result = await concept.correct({ context, text: "Corrected wording" });
+    expect(result).toHaveProperty("change");
+    expect(typeof result.change).toBe("string");
     expect(await concept._get({ context })).toEqual([
       { scope: "club", text: "Corrected wording" },
     ]);
-    expect(await concept._changes({ context })).toEqual([]);
+    const changes = await concept._changes({ context });
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({ before: "Initial typo", after: "Corrected wording", kind: "correction" });
   });
 
   test("changes text and preserves the exact before and after values", async () => {

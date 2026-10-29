@@ -10,6 +10,7 @@ type QuestionDocument = Document & {
   status: QuestionStatus;
   answer?: string;
   answerer?: string;
+  askedAt?: string;
   version: number;
 };
 
@@ -92,6 +93,7 @@ export class QuestioningConcept {
       subject,
       text,
       status: "OPEN",
+      askedAt: new Date().toISOString(),
       version: 1,
     });
     return { question };
@@ -153,6 +155,28 @@ export class QuestioningConcept {
     throw new QuestionAnswerNotEditable(
       "Only the original answerer can revise an ANSWERED Question.",
     );
+  }
+
+  async remove({
+    question,
+    expectedVersion,
+  }: {
+    question: string;
+    expectedVersion?: number;
+  }): Promise<Record<string, never>> {
+    await ensureStorage(this.storage);
+    const result = await this.storage.questions.deleteOne({
+      _id: question,
+      ...(!expectedVersion ? {} : { version: expectedVersion }),
+    });
+    if (result.deletedCount === 1) return {};
+
+    const found = await this.storage.questions.findOne(
+      { _id: question },
+      { projection: { _id: 1 } },
+    );
+    if (found === null) throw new QuestionNotFound("There is no such Question.");
+    throw new VersionConflict("The Question changed after it was loaded.");
   }
 
   async removeForSubject({ subject }: { subject: string }): Promise<Record<string, never>> {
@@ -227,5 +251,14 @@ export class QuestioningConcept {
     await ensureStorage(this.storage);
     const found = await this.storage.questions.findOne({ _id: question }, { projection: { version: 1 } });
     return found === null ? [] : [{ version: found.version }];
+  }
+
+  async _getAskedAt({ question }: { question: string }): Promise<{ askedAt: string }[]> {
+    await ensureConnected(this.storage);
+    const found = await this.storage.questions.findOne(
+      { _id: question, askedAt: { $exists: true } },
+      { projection: { askedAt: 1 } },
+    );
+    return found?.askedAt ? [{ askedAt: found.askedAt }] : [];
   }
 }

@@ -372,11 +372,15 @@ describe("multi-user Relay host", () => {
     expect(forbiddenRevision.status).toBe(403);
     const officerRevision = await call("/api/workspaces/questions/steps/revise", { question: question.body.question, answer: "Use the blue labeled charger.", expectedVersion: 2 }, officer);
     expect(officerRevision.status).toBe(200);
+    expect((await call("/api/workspaces/questions/steps/remove", { question: question.body.question, expectedVersion: 3 }, member)).status).toBe(403);
     const questionHistory = await call("/api/workspaces/questions", {}, member);
     expect(questionHistory.body.stepQuestions).toContainEqual(expect.objectContaining({
       question: question.body.question,
       answer: "Use the blue labeled charger.",
     }));
+    expect((await call("/api/workspaces/questions/steps/remove", { question: question.body.question, expectedVersion: 3 }, officer)).status).toBe(200);
+    expect((await call("/api/workspaces/questions", {}, member)).body.stepQuestions)
+      .not.toContainEqual(expect.objectContaining({ question: question.body.question }));
 
     const original = await call("/invitations/create", { email: "replacement@example.org" }, officer);
     const replacement = await call("/invitations/reissue", { invitation: original.body.invitation }, officer);

@@ -29,6 +29,7 @@ export type RelayWire = {
           "after": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["after"]>>;
           "before": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["before"]>>;
           "change": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>[0], ["change"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["change"]>]>>;
+          "kind": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_changes"]>>>, ["kind"]>>;
           "occurredAt": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getChange"]>>>, ["occurredAt"]>> | null;
         })[];
         "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_getVersion"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_notes"]>>>, ["context"]>]>>;
@@ -250,8 +251,9 @@ export type RelayWire = {
       "contextQuestions": ({
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answer"]>> | null;
         "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>>>, ["answerer"]>> | null;
+        "askedAt": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getAskedAt"]>>>, ["askedAt"]>> | null;
         "context": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>[0], ["context"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["subject"]>]>>;
-        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["question"]>]>>;
+        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getAskedAt"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["status"]>>;
         "subjectText": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextTracking"]["_get"]>>>, ["text"]>>;
         "text": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_questions"]>>>, ["text"]>>;
@@ -260,8 +262,9 @@ export type RelayWire = {
       "stepQuestions": ({
         "answer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answer"]>> | null;
         "answerer": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>>>, ["answerer"]>> | null;
+        "askedAt": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getAskedAt"]>>>, ["askedAt"]>> | null;
         "procedure": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_get"]>[0], ["procedure"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["procedure"]>]>>;
-        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["question"]>]>>;
+        "question": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getAskedAt"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_getVersion"]>[0], ["question"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["question"]>]>>;
         "status": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["status"]>>;
         "step": Jsonify<AllOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>[0], ["step"]>, AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_questions"]>>>, ["subject"]>]>>;
         "subjectStatus": Jsonify<AtPath<QueryRow<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ProcedureMaintaining"]["_getStep"]>>>, ["status"]>>;
@@ -300,6 +303,18 @@ export type RelayWire = {
       "question": Jsonify<AtPath<Awaited<ReturnType<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["ask"]>>, ["question"]>>;
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_SUBJECT_NOT_AVAILABLE" };
+  };
+  "/workspaces/questions/context/remove": {
+    input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["remove"]>[0], ["expectedVersion"]>>;
+      "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["remove"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["_get"]>[0], ["question"]>]>>;
+      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["ContextQuestioning"]["remove"]>[0], ["question"]>>;
+    };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions/context/revise": {
     input: {
@@ -342,6 +357,18 @@ export type RelayWire = {
       "step": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["ask"]>[0], ["subject"]>>;
     };
     error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_SUBJECT_NOT_AVAILABLE" };
+  };
+  "/workspaces/questions/steps/remove": {
+    input: {
+      "expectedVersion": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["remove"]>[0], ["expectedVersion"]>>;
+      "question": Jsonify<OneOf<[AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["remove"]>[0], ["question"]>, AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["_get"]>[0], ["question"]>]>>;
+      "user": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["user"]>>;
+      "workspace": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["RoleBasedAccessing"]["authorize"]>[0], ["resource"]>>;
+    };
+    output: {
+      "question": Jsonify<AtPath<Parameters<(typeof ApplicationConceptSet.concepts)["StepQuestioning"]["remove"]>[0], ["question"]>>;
+    };
+    error: { error: AppWideError | "INVALID_INPUT" | "NOT_AUTHORIZED" | "QUESTION_NOT_AVAILABLE" | "QUESTION_NOT_FOUND" | "VERSION_CONFLICT" };
   };
   "/workspaces/questions/steps/revise": {
     input: {

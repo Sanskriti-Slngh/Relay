@@ -44,7 +44,7 @@ created with the initial MVP design and is preserved only as historical
 visual-development material. It is not loaded by the application; the current frontend imports
 [`web/styles.css`](../web/styles.css).
 
-The current personal design notebook is stored in the private individual course
-repository and is intentionally excluded from this public project. Generated
-wire artifacts live in [`generated/`](../generated/) and are supporting build
-outputs, not reviewed design prose.
+Personal design reflections live in the private individual course repository
+linked from the project README. Generated wire artifacts live in
+[`generated/`](../generated/) and are supporting build outputs, not reviewed
+design prose.

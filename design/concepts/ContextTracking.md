@@ -102,7 +102,7 @@ remove (context: ContextNote, expectedVersion?: Number) : returns ()
     preserve its Changes as immutable evidence for existing Review history
     returns
 
-correct (context: ContextNote, text: String, expectedVersion?: Number) : returns ()
+correct (context: ContextNote, text: String, expectedVersion?: Number) : returns (change: Change)
   where context is unknown
   then
     refuses CONTEXT_NOT_FOUND "There is no such ContextNote."
@@ -113,7 +113,7 @@ correct (context: ContextNote, text: String, expectedVersion?: Number) : returns
   then
     replace context text with text
     increment context version
-    returns
+    returns change
 
 change (context: ContextNote, text: String, expectedVersion?: Number) : returns (change: Change)
   where context is unknown

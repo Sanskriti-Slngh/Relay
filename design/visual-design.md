@@ -1,5 +1,113 @@
 # Relay visual system — P4 Code Complete
 
+## Playbooks document-first refinement (2026-10-29)
+
+The Playbooks screen now treats the selected Playbook as the page's editorial
+headline; the section label is intentionally quiet. Steps form a consistent
+numbered reading sequence, and Step-attached Context appears automatically in a
+subordinate gray-green block. Long Notes use a three-line preview with an
+accessible Show more control, while Steps with no Context show no placeholder.
+
+Step actions occupy one stable lower-right cluster. Edit and Questions remain
+visible as labeled SVG affordances through accessible names and tooltips; reorder
+and deletion live in a focused overflow menu with text labels. The menu reduces
+repeated action copy without making essential editing or communication hover-only.
+
+The pencil opens one in-place work surface containing Step wording and Context
+management. Context is still saved through its independent actions and version
+checks. Officers must explicitly choose **Fix wording** or **Information changed**,
+and the latter states the Review consequence before saving. No combined Step and
+Context transaction was introduced.
+
+Double-click editing was deliberately omitted. It would duplicate the pencil,
+complicate text selection, and provide little benefit once the persistent action
+is adjacent to every Step. Subtle hover and `:focus-within` treatment identify the
+active Step without layout movement; mobile retains 44px action targets and stacked
+editing controls.
+
+The final interaction pass gives each Step one explicit presentation mode:
+reading, editing, or Questions. The pencil and speech-bubble controls coordinate
+that mode instead of opening competing panels. Moving from a dirty editor to
+Questions requires an explicit discard decision; hidden Question drafts remain
+preserved. Questions use a compact Q/A transcript with one status label, while
+Step save actions live in the editor header and Context attachment keeps its own
+equally styled but semantically separate action.
+
+Instruction and Context work now also occupy separate visual submodes inside
+editing. The instruction submode shows only **Save step**; the Context submode
+hides that action and shows only the relevant **Attach note** or **Save & attach
+note** control. Returning to the instruction preserves the Context draft. This
+makes the independent backend operations visible in the action hierarchy instead
+of asking explanatory text to resolve competing green buttons. Question history
+uses compact neutral conversation groups with an evergreen answer field, placing
+Q/A identity and status beside the text they describe.
+
+## Reviews, Questions, and Workspace refinement (2026-10-29)
+
+After the Playbooks pass I went back to the three screens that still felt busy
+and tried to give each one a single clear path.
+
+**Reviews.** The Reviews page shows every Context change as a small lavender
+card with a word-level diff — removed words struck through in red, added
+words highlighted in green — so you can see what changed at a glance. If you
+want the full text, there's a "Show full text" link that opens the before and
+after as plain blocks. Under each change are small pills for the Steps it
+affects. Clicking a pill opens the Playbook preview, scrolled to that Step.
+
+The preview is now the only place you repair things. Every Step in the
+Playbook is visible there, so you keep the context of the whole procedure.
+Affected Steps get a thin amber line on the left — subtle, not a big colored
+block. A small pencil next to an affected Step opens a textarea with Save and
+Cancel; nothing starts out expanded. Each changed attachment has a Manage
+button with two options: replace the Context on just this Step, or detach it
+from just this Step. Unchanged attachments show up too but in grey, so you
+can see them without thinking they need attention.
+
+Editing the shared Context Note itself isn't offered here because that would
+change every Playbook using it. A small Global note at the bottom of the
+modal points to the Context page for that.
+
+The main page ends with one decision: **Complete Review** finishes the task,
+**Other** opens the preview to make repairs. Finished Reviews drop into a
+quiet archive below; each one can be expanded to see the same compact diff.
+
+**Questions.** Each open Question is a soft blue card with a round blue **Q**
+badge, the question, what it's about, and an Open tag. The answer form sits
+right under it, with a green **A** badge, a short textarea, and a blue Answer
+button — so a question and its reply read like a conversation.
+
+Answered Questions use the same Q and A layout. If you wrote the answer, a
+small pencil at the end of the answer row lets you edit it. A red × next to
+the Answered tag deletes the question. The old row of text buttons underneath
+is gone — only the actions that apply are shown, right where you'd look.
+
+**Workspace.** The Workspace page used to be a stack of bordered sections,
+each shouting for the same amount of attention. Now it reads as one page.
+The borders between Switch club, Members, and Pending invitations are gone;
+spacing does the grouping instead. Only two thin lines remain: between
+individual members (so people are easy to tell apart), and above Advanced
+workspace management (so you know it's a different kind of thing).
+
+Each Member row has a small **Manage ▾** button that opens a short menu with
+Change role and Remove member — one place to go instead of three scattered
+buttons. Inviting someone is a small link next to the Members heading; click
+it and the email field appears, with a **Generate invite code** button. The
+old "Create code" button was ambiguous — people weren't sure whether an
+email was being sent — so the new label spells out what actually happens.
+
+When you're only in one club, Switch club doesn't repeat the current one;
+when there are no pending invitations, the whole section collapses into one
+quiet line inside Members.
+
+Advanced workspace management is an accordion. Rename, Transfer ownership,
+and Archive each start collapsed, with a chevron that rotates so you know
+it's clickable. Opening one closes the others. Rename opens straight to the
+input — no second button to press. Transfer stacks labels above inputs, with
+the Transfer button right below the form.
+
+None of this changed any backend behavior. Permissions, Review generation,
+and the sync-engine boundary all work the same way.
+
 ## Intent
 
 Relay should read like a shared knowledge base, not a component inventory. The

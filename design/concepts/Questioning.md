@@ -30,6 +30,7 @@ a set of Questions with
   a subject Subject
   a text String
   a status QuestionStatus
+  an optional askedAt String
   an optional answer String
   an optional answerer Answerer
   a version Number
@@ -47,6 +48,7 @@ ask (subject: Subject, text: String) : returns (question: Question)
   then
     create a new Question with given subject and text
     set question status to OPEN
+    set question askedAt to the current time in ISO 8601 format
     set question answer to absent
     set question answerer to absent
     set question version to 1
@@ -87,6 +89,18 @@ reviseAnswer (question: Question, answer: String, answerer: Answerer, expectedVe
     increment question version
     returns
 
+remove (question: Question, expectedVersion?: Number) : returns ()
+  where question does not exist
+  then
+    refuses QUESTION_NOT_FOUND "There is no such Question."
+  where question exists and question version is not expectedVersion
+  then
+    refuses VERSION_CONFLICT "The Question changed after it was loaded."
+  where question exists
+  then
+    permanently remove the Question and its answer, if present
+    returns
+
 removeForSubject (subject: Subject) : returns ()
   where true
   then
@@ -113,4 +127,7 @@ _get (question: Question) : optional (subject: Subject, text: String, status: Qu
   answers no row for an unknown Question
 _getVersion (question: Question) : optional (version: Number)
   answers the current version of a known Question
+_getAskedAt (question: Question) : optional (askedAt: String)
+  answers the recorded ISO 8601 creation time of a known Question
+  answers no row for a legacy Question without a recorded creation time
 ```

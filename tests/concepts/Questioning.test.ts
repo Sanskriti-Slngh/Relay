@@ -6,6 +6,7 @@ import {
   QuestioningConcept,
   QuestionNotFound,
   QuestionNotOpen,
+  VersionConflict,
 } from "../../src/concepts/Questioning.ts";
 
 const configuredUrl = process.env.MONGODB_URL;
@@ -49,12 +50,17 @@ describe("Questioning concept", () => {
   });
 
   test("asks an OPEN Question about a stable Subject", async () => {
+    const beforeAsk = Date.now();
     const { question } = await concept.ask({
       subject: "stable-step-identity",
       text: "Does this still happen before payment?",
     });
 
     expect(question).toMatch(/^[0-9a-f-]{36}$/i);
+    const askedAt = await concept._getAskedAt({ question });
+    expect(askedAt).toHaveLength(1);
+    expect(Date.parse(askedAt[0]!.askedAt)).toBeGreaterThanOrEqual(beforeAsk);
+    expect(Date.parse(askedAt[0]!.askedAt)).toBeLessThanOrEqual(Date.now());
     expect(await concept._get({ question })).toEqual([{
       subject: "stable-step-identity",
       text: "Does this still happen before payment?",
@@ -195,5 +201,17 @@ describe("Questioning concept", () => {
     const [stored] = await concept._get({ question });
     expect(stored.status).toBe("ANSWERED");
     expect(stored.answer === "Answer A" || stored.answer === "Answer B").toBe(true);
+  });
+
+  test("permanently removes one versioned Question and its answer", async () => {
+    const { question } = await concept.ask({ subject: "removable-subject", text: "Remove this?" });
+    await concept.answer({ question, answer: "This answer is removed too.", answerer: "officer-one" });
+
+    await expect(concept.remove({ question, expectedVersion: 1 })).rejects.toBeInstanceOf(VersionConflict);
+    expect(await concept._get({ question })).toHaveLength(1);
+
+    expect(await concept.remove({ question, expectedVersion: 2 })).toEqual({});
+    expect(await concept._get({ question })).toEqual([]);
+    await expect(concept.remove({ question, expectedVersion: 2 })).rejects.toBeInstanceOf(QuestionNotFound);
   });
 });

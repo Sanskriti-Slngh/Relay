@@ -182,6 +182,8 @@ describe("Relay browser API client", () => {
     await api.answerContextQuestion("context-question", "Context answer.", 1, "csrf");
     await api.reviseStepQuestionAnswer("step-question", "Revised step answer.", 2, "csrf");
     await api.reviseContextQuestionAnswer("context-question", "Revised context answer.", 2, "csrf");
+    await api.removeStepQuestion("step-question", 3, "csrf");
+    await api.removeContextQuestion("context-question", 3, "csrf");
 
     expect(calls.map(({ input }) => input)).toEqual([
       "/api/workspaces/questions",
@@ -191,6 +193,8 @@ describe("Relay browser API client", () => {
       "/api/workspaces/questions/context/answer",
       "/api/workspaces/questions/steps/revise",
       "/api/workspaces/questions/context/revise",
+      "/api/workspaces/questions/steps/remove",
+      "/api/workspaces/questions/context/remove",
     ]);
     expect(calls.map(({ init }) => JSON.parse(String(init?.body)))).toEqual([
       {},
@@ -200,6 +204,8 @@ describe("Relay browser API client", () => {
       { question: "context-question", answer: "Context answer.", expectedVersion: 1 },
       { question: "step-question", answer: "Revised step answer.", expectedVersion: 2 },
       { question: "context-question", answer: "Revised context answer.", expectedVersion: 2 },
+      { question: "step-question", expectedVersion: 3 },
+      { question: "context-question", expectedVersion: 3 },
     ]);
     expect(calls.every(({ init }) => !String(init?.body).includes("user"))).toBe(true);
   });
