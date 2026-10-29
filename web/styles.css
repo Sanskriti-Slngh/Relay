@@ -408,6 +408,7 @@ textarea.autoresize { resize: none; overflow: hidden; }
 
 /* Inline editor */
 .context-inline-editor { padding: 10px 14px; border-left: 3px solid var(--context-border); border-radius: 3px; }
+.attached-context-row .context-inline-editor { padding: 0; border-left: 0; border-radius: 0; }
 .edit-context-heading { margin: 0 0 6px; }
 .edit-context-heading small { color: var(--context-fg); font-size: 12px; font-weight: 600; }
 .context-inline-editor .context-note-editor { margin-top: 0; gap: 4px; }
