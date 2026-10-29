@@ -64,12 +64,11 @@ function openSubjectLabel(kind: "step" | "context") {
         <span class="qa-badge">Q</span>
         <div class="qa-copy">
           <p class="qa-text">{{ entry.question.text }}</p>
-          <small class="qa-subject">
-            <button type="button" class="qa-subject-link" :disabled="isRemovedStep(entry.kind, entry.question)" @click="openSubject(entry.kind, entry.question)">{{ subjectLabel(entry.kind, entry.question) }} ↗</button>
-            · {{ entry.kind === "step" ? "Step" : "Context" }}
-          </small>
+          <small class="qa-subject">{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small>
         </div>
-        <span class="row-status question-status">Open</span>
+        <button type="button" class="qa-open-button" :disabled="isRemovedStep(entry.kind, entry.question)" :title="openSubjectLabel(entry.kind)" :aria-label="openSubjectLabel(entry.kind)" @click="openSubject(entry.kind, entry.question)">
+          {{ openSubjectLabel(entry.kind) }} <span aria-hidden="true">↗</span>
+        </button>
       </div>
       <div class="qa-about"><span>About</span><p>{{ entry.question.subjectText }}</p><small v-if="isRemovedStep(entry.kind, entry.question)">The original Step was removed. This question is still preserved.</small></div>
       <form v-if="canAnswer" class="qa-answer-form" @submit.prevent="answerQuestion(entry.kind, entry.question)">
@@ -91,11 +90,11 @@ function openSubjectLabel(kind: "step" | "context") {
           <span class="qa-badge">Q</span>
           <div class="qa-copy">
             <p class="qa-text">{{ entry.question.text }}</p>
-            <small class="qa-subject">
-              <button type="button" class="qa-subject-link" :disabled="isRemovedStep(entry.kind, entry.question)" @click="openSubject(entry.kind, entry.question)">{{ subjectLabel(entry.kind, entry.question) }} ↗</button>
-              · {{ entry.kind === "step" ? "Step" : "Context" }}
-            </small>
+            <small class="qa-subject">{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small>
           </div>
+          <button type="button" class="qa-open-button" :disabled="isRemovedStep(entry.kind, entry.question)" :title="openSubjectLabel(entry.kind)" :aria-label="openSubjectLabel(entry.kind)" @click="openSubject(entry.kind, entry.question)">
+            {{ openSubjectLabel(entry.kind) }} <span aria-hidden="true">↗</span>
+          </button>
           <span class="row-status complete">Answered</span>
           <button v-if="canAnswer" class="qa-icon-button qa-icon-danger" type="button" :disabled="!!actionBusy" aria-label="Delete question" title="Delete question" @click="removeQuestion(entry.kind, entry.question)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
