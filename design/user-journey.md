@@ -2,7 +2,7 @@
 
 > This is the original P1 product-direction journey. Its member-facing
 > Questions and full Review resolution are implemented in P3 Beta. See the
-> [P3 Beta user journey](../mvp/p3-beta-user-journey.md) for the current
+> [P3 Beta user journey](../milestones/p3-beta-user-journey.md) for the current
 > multi-user workflow. Policy statements below are hypothetical design
 > examples, not assertions about current MIT rules.
 

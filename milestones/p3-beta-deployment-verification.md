@@ -23,7 +23,7 @@ not write application files at runtime.
 ## Automated checks
 
 The final October 18 local run is saved verbatim in
-[`artifacts/p3-verification-output.txt`](../artifacts/p3-verification-output.txt).
+[`milestones/p3-verification-output.txt`](../milestones/p3-verification-output.txt).
 It records 148 passing tests and 936 assertions with no failures, successful Vue and TypeScript
 checks, a successful production build, passing design and generated-artifact
 checks, a clean `git diff --check` result, and a successful production

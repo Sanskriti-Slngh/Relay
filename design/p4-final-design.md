@@ -1,61 +1,79 @@
 # Relay — Final Design
 
-## 1. The problem
+## 1. The idea behind Relay
 
-Two Playbooks in a club lean on one room-access policy: _access renews annually_. The policy becomes _semesterly renewal_. If someone edits both procedures by hand they can miss one, or erase the reason it changed in the first place.
+I started Relay because student-club handoffs can fail in two ways: important knowledge disappears when officers leave, or outdated knowledge keeps being passed down as if it were still correct.
 
-Relay keeps official procedures as ordered **Playbooks** and keeps the policies, decisions, and lessons behind them as reusable **Context Notes**. One Note can support Steps in several Playbooks. A meaningful change preserves the exact old and new text and asks an Officer to reconsider every affected Playbook — Relay never silently rewrites instructions underneath them.
+Consider two club procedures that rely on the same room-access policy. If renewal changes from once a year to every semester, someone could update one procedure and forget the other. Even if both are corrected, future officers might never know why those instructions changed.
 
-The core idea hasn't moved since [P1](https://github.com/Sanskriti-Slngh/Relay/tree/703eb27dc7ea2d3b47c6d7ac5f61d6a572b746fb/design). Five concepts — **ProcedureMaintaining**, **ContextTracking**, **Questioning**, **Reviewing**, **RoleBasedAccessing** — each own one kind of state. The [composition](https://github.com/Sanskriti-Slngh/Relay/blob/705e368127fc899d3a578bb21b0964f566975ea3/design/compositions/Relay.md) wires them through stable identities. In particular, ContextTracking records a meaningful Change; Reviewing only knows that a generic Item needs reconsideration for one or more generic Causes.
+Relay addresses this by separating **Playbooks**, which contain ordered instructions, from **Context Notes**, which preserve the policies, decisions, and experience behind them. A Note can support several Playbooks. When its meaning changes, Relay preserves the old and new information and creates Reviews for the affected procedures.
 
-## 2. From P1 concept to a working app
+The goal is to help officers recognize when their instructions need attention, not to decide automatically what those instructions should say.
 
-P1 already had the behavior that makes Relay distinctive: shared Context, stable Step identity, Questions pinned to their subject, a split between **Fix wording** and a meaningful change, and one open Review that can collect several Causes. P4 turns those models into a real multi-user system without changing what they mean.
+## 2. From P1 concepts to the P4 application
 
-- **Accounts and workspaces.** The original "provisioned workspace and trusted Officer" became authenticated accounts, durable sessions, multiple workspaces, email-bound invitations, and Owner / Officer / Member roles. The server, not the browser, decides who you are before authorization. Every reaction runs behind `RoleBasedAccessing` checks in [`multiUserHttp.ts`](../src/host/multiUserHttp.ts).
-- **Concurrent edits are safe.** MongoDB implementations enforce the concept invariants. Playbook, Step, Context, Question, and Review mutations each take an `expectedVersion`; stale saves are rejected. The UI then shows both the losing draft and the newer saved value instead of silently overwriting either.
-- **Reversible destruction.** Detaching Context removes one connection; the shared Note survives. Permanent deletion is explicit, cleans up attachments and Questions, and keeps Review evidence that was already recorded. Workspaces archive the same way; Owner-only deletion requires typing the workspace name.
-- **Partial-success recovery.** Creating a Context Note beside a Step is really two actions — `record` then `attach`. If recording succeeds but attachment fails, Relay reports the partial success and reuses the saved Note for retry instead of creating a duplicate.
+My P1 design established five concepts: `ProcedureMaintaining`, `ContextTracking`, `Questioning`, `Reviewing`, and `RoleBasedAccessing`.
 
-## 3. The refinement I'm most proud of — cross-concept recovery in the composition
+I kept these boundaries throughout development. `ContextTracking` owns shared knowledge and its changes, while `Reviewing` only knows that an Item needs reconsideration for one or more Causes. The composition connects them without making either concept responsible for the other's state.
 
-When two Context Notes changed almost simultaneously, Relay could record only one reason for reviewing a Playbook. Each concept was individually correct: `ContextTracking` recorded both Changes; `Reviewing.request` correctly refused the second one because an open Review for the same item already existed. The _application_ still lost the second Cause.
+P4 made me reconsider what happens when these concepts are used by real people.
 
-The temptation was to weaken Reviewing's uniqueness rule to let duplicate Reviews exist, then "fix it up" later. I kept the invariant and fixed the integration instead. In [`Relay.ts`](../src/compositions/Relay.ts) a new reaction, `Relay.ContextChanges.AddCauseAfterConcurrentRequestRefusal`, catches a refusal that cites the open Review and attaches the losing Cause to it. The composition tests prove this: [`concurrent Changes retain one Review and every Cause for one Procedure`](../tests/compositions/Relay.test.ts) fires four simultaneous `change` actions and asserts (a) exactly one Review exists, (b) every refusal is paired with a successful recovery `addCause`, and (c) every observed Change ends up as a Cause on the Review.
+- **From a trusted officer to multiple users.** P1 assumed an already-established workspace and officer. Relay now supports authenticated accounts, persistent sessions, invitations, multiple workspaces, and Owner, Officer, and Member roles. The server verifies identity and permissions instead of trusting information supplied by the browser.
 
-The lesson generalises: **concepts can each be correct and the application can still lose information between them**. Cross-concept recovery doesn't belong in either concept; it belongs in the composition. This is the modularity move that let every other P4 feature stay simple.
+- **From individual edits to concurrent work.** I added version checks so two officers cannot silently overwrite each other's changes. When a save conflicts with newer information, Relay preserves the unsaved draft and displays the current version for comparison. Protecting the database would have been insufficient if the officer still lost their writing.
 
-## 4. A second refinement — making wording fixes visible without breaking Review semantics
+- **From removing information to managing its relationships.** Detaching a Context Note from one Step must not delete a Note shared by other Playbooks. Detachment and deletion are separate operations, and previously recorded Review evidence is preserved. I also added recovery for partial failures, such as successfully creating a Note but failing to attach it.
 
-In P1, `correct` just replaced a Note's text and left no trace. During P4 I noticed officers couldn't tell whether a Note had been fixed quietly or had never changed, and the Context page's change count ignored corrections. The naive fix would be to route corrections through `change`, but that would create Reviews for every typo.
+### The bug that changed my understanding of composition
 
-Instead `ContextTracking.correct` now writes a Change record tagged `kind: "correction"` and returns the new Change ID. `Reviewing` still only reacts to `change` (not `correct`), so corrections never create Reviews. The UI shows both kinds in one history timeline but labels them differently: `Fix wording` (grey) vs `Information changed` (amber). Users get a complete history; the Review-generation boundary stays exactly where it was.
+The most important issue I encountered involved concurrent Context changes.
 
-## 5. From P3 visual design to P4
+When two Notes changed almost simultaneously, both Changes were recorded, but one could disappear from the resulting Review. `Reviewing` correctly prevented duplicate unfinished Reviews; the composition failed to preserve the second Cause after that rejection.
 
-[P3](https://github.com/Sanskriti-Slngh/Relay/tree/b607d9059104cff9f36f5e12c48e56b6d51565bb) established Relay's editorial, document-first look. P4 keeps that system and fixes the pages where officers still had to work too hard to understand a consequence.
+I considered relaxing the uniqueness constraint, but duplicate Reviews would make the officer's work harder. Instead, I kept **one unfinished Review per Playbook** and added a composition reaction that recovers a rejected request by attaching its Cause to the existing Review.
 
-- **Reviews, now one surface.** The old Review repair screen showed Step editing, Context replacement, detachment, target details, and resolution all at once — complete but noisy, and it forced officers to piece together the data model (what Change affects which Step?). The new flow is Context-first. Each Review opens with lavender change cards showing a word-level diff. Small Step pills under each change say which Playbooks and Steps that change affects. Clicking a pill opens the Playbook preview modal, scrolled to that Step. The modal is the only repair surface: every Step is visible for context, affected Steps get a thin amber accent on the left, a small pencil opens an inline textarea, and each changed attachment has a Manage button offering **Replace Context** or **Detach from this Step** — both local to the attachment. Unchanged attachments appear in grey, so officers see the full picture without mistaking supporting context for work. The main page ends with one decision: **Complete Review** or **Other**. This change gives officers one map of change → affected Step → repair without ever reading the composition's internal structure.
-- **Rewriting the shared Note is deliberately not a local repair option.** A small Global note at the bottom of the modal sends officers to the Context page for that edit — because the Note is shared across Playbooks and changing it there is what generates fresh Reviews. The interaction mirrors the composition's semantics.
-- **Questions as a Q and A.** Each Question renders as a soft blue card with a round blue **Q** badge; the answer form sits right beneath led by a green **A** badge, with a blue Answer button. Answered Questions keep the Q/A layout; the officer who wrote the answer sees a small inline pencil and a red × beside the Answered tag to delete the Question.
-- **A continuous Workspace page.** Dividers between **Switch club**, **Members**, and **Pending invitations** are gone; vertical spacing does the grouping. Each Member row has a **Manage ▾** menu with Change role and Remove — one place instead of three buttons. Inviting someone is an inline link next to the Members heading that reveals the email input and a **Generate invite code** button (the earlier "Create code" made people wonder whether an email was being sent). Advanced management is an accordion of Rename, Transfer ownership, Archive — each collapsed by default with a rotating chevron so the control reads as clickable.
+This taught me that each concept can satisfy its own specification while the application still loses information between them. The fix belonged in the [composition](https://github.com/Sanskriti-Slngh/Relay/blob/8c1638897719b00de7e8cbfc76c6bf02806236d9/src/compositions/Relay.ts), not in either concept.
 
-Everywhere: unsaved drafts are guarded during navigation, workspace changes, sign-out, and reload. Busy labels, partial-failure messages, conflict panels, bounded reading measures, long-text wrapping, and mobile reflow make state changes legible without introducing a second visual language.
+## 3. From P3 visual design to P4
 
-## 6. Hard decisions
+The P3 interface already had the visual direction I wanted: document-like Playbooks, Inter typography, neutral backgrounds, evergreen accents, and restrained use of color.
 
-- **Keep Reviewing independent.** A `needsReview` flag inside ContextTracking or ProcedureMaintaining would simplify one workflow, but it would mix knowledge, procedures, and human judgment. Generic Items and Causes let each concept keep a clear invariant.
-- **Recover races in the composition, not in Reviewing.** See §3. Weakening uniqueness would allow duplicate work; the composition reaction fixes the drop without touching the invariant.
-- **Poll, don't subscribe.** Three-second polling plus a refresh on tab visibility reuses one read path and fits the class deployment. Sequence numbers prevent stale responses from replacing newer state. Local drafts stay in components. The tradeoff is short update latency rather than real-time delivery.
-- **Diff first, exact text on demand.** A word-level diff on the Reviews page shows what changed at a glance; the exact recorded before and after live under a "Show full text" disclosure for evidence.
+However, some screens were still organized around all the operations Relay supported rather than the task an officer was trying to complete.
 
-## 7. Final state and remaining limits
+### Making Reviews easier to follow
 
-The [final P4 code commit](https://github.com/Sanskriti-Slngh/Relay/commit/705e368127fc899d3a578bb21b0964f566975ea3) supports the full Owner/Member journey, Context and workspace lifecycles, Review repair, conflict recovery, responsive interaction, and the final interaction fixes. The separate [deployment record](../mvp/p4-deployment-verification.md) distinguishes local verification from release-specific live evidence.
+The original Review interface put Context changes, affected instructions, editing forms, replacement options, and resolution controls close together. I thought showing everything would make the functionality easier to discover. Instead, it made the primary task harder to identify.
 
-Relay has deliberate reliability limits:
-- Reaction handling is not a crash-safe outbox.
-- Standalone-Mongo serialization assumes a single application process.
-- Recent Activity is an awareness feed, not an atomic audit log.
+For P4, I organized Reviews into a clearer sequence:
 
-These are known limitations, not places where the implementation couldn't do more.
+1. **Understand the change.** Show the recorded Context before and after the update.
+2. **Check the affected instructions.** Identify the Steps that depend on that Context, with access to the rest of the Playbook.
+3. **Make a decision.** Choose **Still correct** or **Needs updating**. Repair options become relevant when the officer chooses to update the Playbook.
+
+I kept uncommon actions, including replacing or detaching Context, without giving them the same visual importance as the main decision. Saving an edited Step also remains separate from resolving the Review, since an officer may still need to check other instructions.
+
+### Applying the same approach elsewhere
+
+- **Playbooks and Context:** Supporting information stays close to the Step it explains. Editing controls appear where officers need them, while secondary forms and history can stay collapsed.
+- **Questions:** Questions remain attached to the specific Step or Note that prompted them, rather than becoming disconnected conversations.
+- **Feedback and recovery:** Conflict messages preserve drafts, actions show their progress, and errors explain what happened. Responsive layouts and visible keyboard focus make the same workflows usable on smaller screens.
+
+I learned that visual polish wasn't primarily about adding more styling. Often, the better change was to remove repeated explanations or delay showing a control until it was relevant.
+
+## 4. Decisions and tradeoffs
+
+There are three decisions I would keep:
+
+- **Let officers make the final judgment.** A Context change is evidence that a procedure might be outdated, not proof that it is wrong. Relay identifies the impact but does not rewrite instructions automatically.
+- **Preserve concept independence.** A `needsReview` flag inside Playbooks would simplify one workflow, but it would mix procedural knowledge with the separate responsibility of tracking human review.
+- **Use polling rather than subscriptions.** Relay refreshes every three seconds and when a tab becomes visible. This is sufficient for the project's scale and avoids a more complicated real-time system, at the cost of a short delay.
+
+Relay also has limits. Relay currently shows pending Reviews inside the app rather than notifying officers when something changes. Invitations also require manually sharing a code. I still need to test Relay with officers who haven't seen it before to understand whether they can navigate these workflows without guidance which will come in P5.
+
+## 5. Final result
+
+The P4 implementation supports the complete multi-user workflow, including shared Context changes, Reviews, Questions, access control, conflict recovery, and responsive interactions. The [testing record](../milestones/p4-deployment-verification.md) contains the automated and deployed-app evidence.
+
+The core concept from P1 remained intact. What changed most was my understanding of what it takes to make that concept reliable and understandable. P4 forced me to think about the moments when an officer might lose work, misunderstand a consequence, or be unsure what to do next.
+
+Those details matter because Relay is meant to preserve knowledge that someone else will eventually have to trust.

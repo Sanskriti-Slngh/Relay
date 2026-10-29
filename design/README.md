@@ -21,22 +21,22 @@ files are either current technical specifications or preserved milestone work.
   [application pitch](./application-pitch.md)
 - [P1 concept design and low-fidelity sketches](./concept-design.md)
 - [P1 product-direction user journey](./user-journey.md)
-- [P2 MVP user journey](../mvp/p2-mvp-user-journey.md)
-- [P3 Beta user journey](../mvp/p3-beta-user-journey.md)
-- [P3 deployment record](../mvp/p3-beta-deployment-verification.md)
+- [P2 MVP user journey](../milestones/p2-mvp-user-journey.md)
+- [P3 Beta user journey](../milestones/p3-beta-user-journey.md)
+- [P3 deployment record](../milestones/p3-beta-deployment-verification.md)
 - [Historical P3 demonstration](https://youtu.be/2jB5J9K8b5Y)
 
 The original P1 sketches remain available as
 [workspace](./club-workspace.png), [Playbook](./playbook-detail.png),
 [Context change](./context-change.png), and
 [Review](./review-playbook.png) images. The visual studies began in P3 and were
-refined for P4. The current rendered [typography](../slide-catalog/typography-slide.png)
-and [color](../slide-catalog/color-slide.png) slides document Relay's final
+refined for P4. The current rendered [typography](slides/typography-slide.png)
+and [color](slides/color-slide.png) slides document Relay's final
 visual system, with editable
-[typography](../slide-catalog/typography-slide.svg) and
-[color](../slide-catalog/color-slide.svg) sources. Earlier explorations are
-preserved separately as [typography](../slide-catalog/typography-slide-early.png)
-and [color](../slide-catalog/color-slide-early.png) studies and explained in the
+[typography](slides/typography-slide.svg) and
+[color](slides/color-slide.svg) sources. Earlier explorations are
+preserved separately as [typography](slides/typography-slide-early.png)
+and [color](slides/color-slide-early.png) studies and explained in the
 [visual-design record](./visual-design.md).
 
 The gray [`early-prototype-styles.css`](./early-prototype-styles.css) file was

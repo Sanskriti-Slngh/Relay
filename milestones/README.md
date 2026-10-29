@@ -16,7 +16,7 @@ current release.
 
 - P3: [user journey](./p3-beta-user-journey.md),
   [deployment record](./p3-beta-deployment-verification.md),
-  [saved automated output](../artifacts/p3-verification-output.txt), and
+  [saved automated output](../milestones/p3-verification-output.txt), and
   [narrated demo](https://youtu.be/2jB5J9K8b5Y)
 - P2: [MVP user journey](./p2-mvp-user-journey.md)
 
