@@ -67,7 +67,7 @@ Together these tests detect regression at both levels of the stack: the composit
 
 ## 3. Testing the deployed application
 
-### 3a. October 24 manual browser checks (October 26 code)
+### 3a. October 24 manual browser checks (earlier deployed revision)
 
 On October 24, I manually tested Relay in two Chrome sessions using controlled Owner and Member accounts. I recorded **21 out of 21 checks as passing**, covering:
 
@@ -100,7 +100,7 @@ I also attempted another browser walkthrough of that release, but the controlled
 
 ### 3c. October 29 final revision — code-level verification only
 
-The final P4 revision is preserved in commit [`1a587c9`](https://github.com/Sanskriti-Slngh/Relay/commit/1a587c90dc3bc49c37d5fde9b56cf0586ef1b76b). It is a direct successor to the October 26 code and keeps the earlier verification record (`origin/main` was fast-forwarded from the October 26 commits).
+The October 29 test results in §2b were recorded against commit [`1a587c9`](https://github.com/Sanskriti-Slngh/Relay/commit/1a587c9fa94b085fcb3e029fd5d22801dd6041e2). The current `origin/main` head is one commit newer — a specification alignment for `ContextTracking` that updates `design/concepts/ContextTracking.md` and the regenerated artifacts to match the already-implemented correction behavior. It does not change application behavior.
 
 What I verified on October 29:
 
@@ -117,7 +117,7 @@ The tests provide evidence that Relay's concepts, compositions, backend permissi
 
 Two limitations remain:
 
-- **Forgetting to update context:** Users can get lazy and forget to change the context for something and keep creating new ones instead of updating the original context which can create same issues as previous. This relies on good usage and intended usage of the app.
+- **Reliance on maintained Context:** Relay can identify affected Playbooks when an existing Context Note changes, but it cannot detect when officers forget to update shared information or create duplicate Notes instead. The quality of its Reviews therefore depends on how consistently clubs maintain their Context.
 - **Activity history:** Recent Activity helps users understand what happened, but it is not an atomic audit log.
 
 These are limitations I accepted for the scope of P4.
