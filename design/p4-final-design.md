@@ -32,7 +32,7 @@ When two Notes changed almost simultaneously, both Changes were recorded, but on
 
 I considered relaxing the uniqueness constraint, but duplicate Reviews would make the officer's work harder. Instead, I kept **one unfinished Review per Playbook** and added a composition reaction that recovers a rejected request by attaching its Cause to the existing Review.
 
-This taught me that each concept can satisfy its own specification while the application still loses information between them. The fix belonged in the [composition](https://github.com/Sanskriti-Slngh/Relay/blob/8c1638897719b00de7e8cbfc76c6bf02806236d9/src/compositions/Relay.ts), not in either concept.
+This taught me that each concept can satisfy its own specification while the application still loses information between them. The fix belonged in the [composition](https://github.com/Sanskriti-Slngh/Relay/blob/1a587c9fa94b085fcb3e029fd5d22801dd6041e2/src/compositions/Relay.ts), not in either concept.
 
 ## 3. From P3 visual design to P4
 

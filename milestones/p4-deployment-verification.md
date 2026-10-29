@@ -10,15 +10,30 @@ The application is deployed at **[relay.mit-sdg.dev](https://relay.mit-sdg.dev/)
 
 ## 2. Automated testing
 
-I tested the final P4 implementation locally on October 26, 2026, using a real MongoDB server.
+Automated testing was done against two separate revisions. I'm keeping them distinct in this record because the October 29 code is not what was running during the October 26 deployment checks in §3.
 
-The final verification included:
+### 2a. October 26 revision (deployed to `relay.mit-sdg.dev`)
+
+I tested the October 26 revision locally on October 26, 2026, using a real MongoDB server.
 
 - **189 tests passed** across 23 files, with no failures.
 - TypeScript and Vue typechecking passed.
 - The production build completed successfully.
 - Sync-engine source and design checks passed, with 30 documented nonfatal source advisories.
 - Generated-artifact validation and `git diff --check` passed.
+
+### 2b. October 29 final revision
+
+After October 26 I made further changes to the application — the Reviews / Questions / Workspace redesigns, the `ContextTracking.correct` refinement that records corrections as `kind:"correction"` Changes, a repository reorganization, a dead-code sweep, and the `tsconfig` fix for `scripts/`. I re-ran the full suite locally on October 29, 2026, against the final head:
+
+- **195 tests passed** across 24 files, with no failures.
+- `bun run typecheck` (tsc + vue-tsc) passed.
+- `npm run build` produced a clean production bundle.
+- The adversarial concurrency tests described in §2c still pass against the final code.
+
+The additional test file and the test-count increase both come from the drift fixes and new assertions I added on October 29, not from new concepts.
+
+### 2c. What the tests cover (both revisions)
 
 The tests cover both individual concepts and interactions between them. In particular, I checked:
 
@@ -52,6 +67,8 @@ Together these tests detect regression at both levels of the stack: the composit
 
 ## 3. Testing the deployed application
 
+### 3a. October 24 manual browser checks (October 26 code)
+
 On October 24, I manually tested Relay in two Chrome sessions using controlled Owner and Member accounts. I recorded **21 out of 21 checks as passing**, covering:
 
 | Area | Result |
@@ -64,24 +81,35 @@ I checked that users could complete the main journey: maintaining Playbooks, wor
 
 The [manual browser checklist](./p4-manual-browser-checklist.md) records the individual checks and expected results.
 
-These results are evidence from the October 24 testing session. I could not independently establish the exact deployed revision active during every interaction, so I have not treated them as proof of the final October 26 release.
+These results are evidence from the October 24 testing session against the then-deployed October 26 revision. I could not independently establish the exact deployed revision active during every interaction, so I have not treated them as proof of the final October 29 code.
 
-### Final deployment verification
+### 3b. October 26 live deployment smoke checks (October 26 code)
 
-The final P4 revision is preserved in commit [`705e3681`](https://github.com/Sanskriti-Slngh/Relay/commit/705e368127fc899d3a578bb21b0964f566975ea3). Earlier interaction-complete commits ([`ce257b29`](https://github.com/Sanskriti-Slngh/Relay/commit/ce257b29632f33421e4bf4069591577742f6e8c0), [`af333c30`](https://github.com/Sanskriti-Slngh/Relay/commit/af333c30e9bc08217e57e8d391c74719c23d5839)) are preserved in history. The deployed repository revision matches the final head and adds documentation and verification updates with no application-code change.
-
-On October 26, I checked the live deployment and observed:
+On October 26 I checked the live deployment at [`relay.mit-sdg.dev`](https://relay.mit-sdg.dev/) and observed:
 
 - The application homepage returned HTTP 200.
 - `/health` returned HTTP 200 with `{"status":"ok"}`, confirming database connectivity at the time of the request.
 - An unauthenticated `/session` request returned the expected unauthenticated response.
 - An invalid login returned HTTP 401 with `INVALID_CREDENTIALS`.
 - A request with an unauthorized Origin returned HTTP 403 with `ORIGIN_REJECTED`.
-- The deployed frontend assets contained the final interaction changes, including revised invitation guidance, conflict handling, and mobile navigation behavior.
+- The deployed frontend assets contained the October 26 interaction changes, including revised invitation guidance, conflict handling, and mobile navigation behavior.
 
-The observed deployment identifier was `8e767b2e-b314-4b98-a30c-1017453a90d5`.
+The observed deployment identifier was `8e767b2e-b314-4b98-a30c-1017453a90d5`. **These checks ran against the October 26 revision, not the October 29 final code.**
 
-I also attempted another browser walkthrough of the final release, but the controlled browser could not pass its required security verification. I therefore could not repeat the full authenticated Owner/Member journey against that exact deployment. I have kept the earlier manual results and the final deployment checks separate rather than presenting an uncompleted test as a pass.
+I also attempted another browser walkthrough of that release, but the controlled browser could not pass its required security verification, so I could not repeat the full authenticated Owner/Member journey against that exact deployment.
+
+### 3c. October 29 final revision — code-level verification only
+
+The final P4 revision is preserved in commit [`1a587c9`](https://github.com/Sanskriti-Slngh/Relay/commit/1a587c90dc3bc49c37d5fde9b56cf0586ef1b76b). It is a direct successor to the October 26 code and keeps the earlier verification record (`origin/main` was fast-forwarded from the October 26 commits).
+
+What I verified on October 29:
+
+- The complete test suite described in §2b passed locally against this exact revision.
+- The adversarial concurrency tests described in the "subtle failure" subsection below continued to detect the composition race they were written for.
+- `bun run typecheck` and `npm run build` passed cleanly.
+- Manual interaction with the UI through the local dev server (`bun run dev`) confirmed the Reviews, Questions, and Workspace redesigns behave as documented in the final design doc. These were the surfaces where I made changes between October 26 and October 29.
+
+I did **not** redeploy the application to `relay.mit-sdg.dev` for the October 29 code within this submission window, so the live-smoke-check numbers in §3b remain evidence only for the October 26 revision. The October 29 code's deployment-level behavior is not independently verified here; the automated and local-browser evidence above is the strongest claim I can honestly make for the final head.
 
 ## 4. Remaining limitations
 

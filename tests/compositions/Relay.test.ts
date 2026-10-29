@@ -204,7 +204,13 @@ describe("Relay internal composition reactions", () => {
 
     expect(await application.concepts.ContextTracking._get({ context: correctionContext }))
       .toEqual([{ scope: "relay-composition-test-workspace", text: "Annual renewal" }]);
-    expect(await changesFor(correctionContext)).toEqual([]);
+    const correctionChanges = await changesFor(correctionContext);
+    expect(correctionChanges).toHaveLength(1);
+    expect(correctionChanges[0]).toMatchObject({
+      before: "Annual renewel",
+      after: "Annual renewal",
+      kind: "correction",
+    });
     expect(await reviewsFor(correctionProcedure)).toEqual([]);
 
     const priorFirstReviewId = firstReviews[0].review;
