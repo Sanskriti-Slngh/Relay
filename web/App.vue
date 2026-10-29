@@ -683,6 +683,14 @@ async function reviseQuestionAnswer({ kind, question, answer, expectedVersion, o
   }, "Answer updated. The original question and answer ownership are preserved.");
 }
 
+function openQuestionSubject({ kind, question }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion }) {
+  if (kind === "step") {
+    navigate({ section: "procedures", procedure: (question as StepQuestion).procedure });
+  } else {
+    navigate({ section: "context" });
+  }
+}
+
 async function removeQuestion({ kind, question, onSuccess }: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; onSuccess?: () => void }) {
   const answerWarning = question.answer ? " and its answer" : "";
   if (!window.confirm(`Permanently delete this Question${answerWarning}? It will be deleted forever. This cannot be undone.`)) return;
@@ -805,7 +813,7 @@ onUnmounted(() => {
           <PlaybooksView v-else-if="section === 'procedures'" :key="playbooksEditorKey" :procedures="procedures" :contexts="contexts" :step-questions="stepQuestions" :members="workspaceMembers" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :can-remove-questions="canAnswer" :focus-procedure="focusedProcedure" :focus-context-step="focusedContextStep" :start-create="startNewPlaybook" :review="focusedReview" @create="createProcedure" @add-step="addStep" @rename="renameProcedure" @edit-step="editStep" @move-step="moveStep" @remove-step="removeStep" @ask-question="askStepQuestion" @remove-question="removeQuestion" @attach-context="attachStepContext" @record-context="recordStepContext" @detach-context="detachContext" @correct-context="correctContext" @change-context="changeContext" @archive="archiveProcedure" @return-to-review="returnToReview" @dirty-change="hasUnsavedWork = $event" />
           <ContextView v-else-if="section === 'context'" :contexts="contexts" :procedures="procedures" :context-questions="contextQuestions" :action-busy="actionBusy" :can-edit="canEditContext" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :change-result="contextChangeResult" @record="recordContext" @attach="attachContext" @detach="detachContext" @delete-note="deleteContextNote" @correct="correctContext" @change="changeContext" @ask-question="askContextQuestion" @answer-question="answerQuestion" @validation-error="showValidationError" @review-affected="reviewAffectedPlaybooks" @dismiss-change-result="contextChangeResult = undefined" @dirty-change="hasUnsavedWork = $event" />
           <ReviewsView v-else-if="section === 'reviews'" :reviews="reviews" :review-history="reviewHistory" :procedures="procedures" :contexts="contexts" :action-busy="actionBusy" :can-edit="canEdit" :can-edit-context="canEditContext" :focus-review="focusedReviewId" @confirm="confirmReview" @require-changes="requireReviewChanges" @resolve="resolveReview" @cancel="cancelReview" @edit-playbook="editReviewedPlaybook" @edit-step="editStep" @replace-context="replaceReviewContext" @detach-context="detachContext" @dirty-change="hasUnsavedWork = $event" />
-          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @remove="removeQuestion" @dirty-change="hasUnsavedWork = $event" />
+          <QuestionsView v-else-if="section === 'questions'" :step-questions="stepQuestions" :context-questions="contextQuestions" :action-busy="actionBusy" :can-answer="canAnswer" :current-user-id="currentUser?.id ?? ''" :focus-question="focusedQuestionId" :focus-kind="focusedQuestionKind" @answer="answerQuestion" @revise="reviseQuestionAnswer" @remove="removeQuestion" @open-subject="openQuestionSubject" @dirty-change="hasUnsavedWork = $event" />
           <WorkspaceView v-else :workspace="workspace" :workspace-name="workspaceName" :role="role" :user="currentUser" :workspaces="workspaces" :members="workspaceMembers" :pending-invitations="pendingInvitations" :can-invite="canEdit" :created-invite="createdInvite" :action-busy="actionBusy" :ownership-configured="ownershipConfigured" @create-club="createClub" @join-club="acceptInvitation" @invite="inviteMember" @reissue="reissueInvitation" @select="selectClub" @claim-ownership="claimOwnership" @change-role="changeMemberRole" @remove-member="removeWorkspaceMember" @transfer-ownership="transferOwnership" @rename-workspace="renameWorkspace" @archive-workspace="archiveWorkspace" @restore-workspace="restoreWorkspace" @delete-workspace="deleteWorkspace" @dirty-change="hasUnsavedWork = $event" />
         </div>
       </section>

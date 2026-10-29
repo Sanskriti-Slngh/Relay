@@ -8,6 +8,7 @@ const emit = defineEmits<{
   answer: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }];
   revise: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; answer: string; expectedVersion: number; onSuccess: () => void }];
   remove: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion; onSuccess: () => void }];
+  openSubject: [payload: { kind: "step" | "context"; question: StepQuestion | ContextQuestion }];
   dirtyChange: [dirty: boolean];
 }>();
 const answerDraft = reactive<Record<string, string>>({});
@@ -44,6 +45,12 @@ function isRemovedStep(kind: "step" | "context", question: StepQuestion | Contex
 function removeQuestion(kind: "step" | "context", question: StepQuestion | ContextQuestion) {
   emit("remove", { kind, question, onSuccess: () => cancelAnswerRevision(question) });
 }
+function openSubject(kind: "step" | "context", question: StepQuestion | ContextQuestion) {
+  emit("openSubject", { kind, question });
+}
+function openSubjectLabel(kind: "step" | "context") {
+  return kind === "step" ? "Open Playbook" : "Open Context";
+}
 </script>
 
 <template>
@@ -57,7 +64,10 @@ function removeQuestion(kind: "step" | "context", question: StepQuestion | Conte
         <span class="qa-badge">Q</span>
         <div class="qa-copy">
           <p class="qa-text">{{ entry.question.text }}</p>
-          <small class="qa-subject">{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small>
+          <small class="qa-subject">
+            <button type="button" class="qa-subject-link" :disabled="isRemovedStep(entry.kind, entry.question)" @click="openSubject(entry.kind, entry.question)">{{ subjectLabel(entry.kind, entry.question) }} ↗</button>
+            · {{ entry.kind === "step" ? "Step" : "Context" }}
+          </small>
         </div>
         <span class="row-status question-status">Open</span>
       </div>
@@ -81,7 +91,10 @@ function removeQuestion(kind: "step" | "context", question: StepQuestion | Conte
           <span class="qa-badge">Q</span>
           <div class="qa-copy">
             <p class="qa-text">{{ entry.question.text }}</p>
-            <small class="qa-subject">{{ subjectLabel(entry.kind, entry.question) }} · {{ entry.kind === "step" ? "Step" : "Context" }}</small>
+            <small class="qa-subject">
+              <button type="button" class="qa-subject-link" :disabled="isRemovedStep(entry.kind, entry.question)" @click="openSubject(entry.kind, entry.question)">{{ subjectLabel(entry.kind, entry.question) }} ↗</button>
+              · {{ entry.kind === "step" ? "Step" : "Context" }}
+            </small>
           </div>
           <span class="row-status complete">Answered</span>
           <button v-if="canAnswer" class="qa-icon-button qa-icon-danger" type="button" :disabled="!!actionBusy" aria-label="Delete question" title="Delete question" @click="removeQuestion(entry.kind, entry.question)">
