@@ -71,13 +71,14 @@ function openSubjectLabel(kind: "step" | "context") {
         </button>
       </div>
       <div class="qa-about"><span>About</span><p>{{ entry.question.subjectText }}</p><small v-if="isRemovedStep(entry.kind, entry.question)">The original Step was removed. This question is still preserved.</small></div>
-      <form v-if="canAnswer" class="qa-answer-form" @submit.prevent="answerQuestion(entry.kind, entry.question)">
+      <form v-if="canAnswer" class="qa-answer-form qa-answer-inline" @submit.prevent="answerQuestion(entry.kind, entry.question)">
         <span class="qa-badge qa-badge-answer">A</span>
-        <div class="qa-answer-body">
-          <label class="sr-only" :for="`answer-${entry.question.question}`">Answer</label>
-          <textarea :id="`answer-${entry.question.question}`" v-model="answerDraft[entry.question.question]" placeholder="Write an answer…" required maxlength="2000" rows="2" @focus="answerVersion[entry.question.question] ??= entry.question.version"></textarea>
-          <div class="form-actions"><button class="button button-primary qa-primary" type="submit" :disabled="!!actionBusy || !(answerDraft[entry.question.question] ?? '').trim()">{{ actionBusy === `answer-${entry.question.question}` ? "Answering…" : "Answer" }}</button><button class="button button-quiet danger-text" type="button" :disabled="!!actionBusy" @click="removeQuestion(entry.kind, entry.question)">Delete question</button></div>
-        </div>
+        <label class="sr-only" :for="`answer-${entry.question.question}`">Answer</label>
+        <textarea :id="`answer-${entry.question.question}`" v-model="answerDraft[entry.question.question]" placeholder="Write an answer…" required maxlength="2000" rows="1" @focus="answerVersion[entry.question.question] ??= entry.question.version"></textarea>
+        <button class="button button-primary qa-primary" type="submit" :disabled="!!actionBusy || !(answerDraft[entry.question.question] ?? '').trim()">{{ actionBusy === `answer-${entry.question.question}` ? "Answering…" : "Answer" }}</button>
+        <button class="qa-icon-button qa-icon-danger" type="button" :disabled="!!actionBusy" aria-label="Delete question" title="Delete question" @click="removeQuestion(entry.kind, entry.question)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </form>
     </article>
   </div>

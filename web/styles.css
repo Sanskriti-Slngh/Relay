@@ -606,6 +606,10 @@ textarea.autoresize { resize: none; overflow: hidden; }
 .qa-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .qa-text { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
 .qa-subject { color: var(--muted); font-size: 12px; }
+.qa-answer-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qa-answer-inline { display: flex; align-items: center; gap: 8px; }
+.qa-answer-inline textarea { flex: 1; min-width: 0; min-height: 36px; }
+.qa-answer-inline .button { flex-shrink: 0; }
 .qa-open-button { flex-shrink: 0; border: 1px solid var(--question-border); border-radius: 12px; padding: 3px 12px; background: var(--surface); color: var(--question-fg); font-size: 12px; font-weight: 650; cursor: pointer; }
 .qa-open-button:not(:disabled):hover { background: var(--question-bg); }
 .qa-open-button:disabled { opacity: .4; cursor: not-allowed; }
