@@ -126,7 +126,7 @@ These are limitations I accepted for the scope of P4.
 
 - **Deployed application:** [Relay](https://relay.mit-sdg.dev/)
 - **Final design document:** [Relay — Final Design](../design/p4-final-design.md)
-- **Narrated demo:** [Watch on YouTube](https://youtu.be/0bwM4Pb3J-0) (2:59)
+- **Narrated demo:** [Watch on YouTube](https://youtu.be/JUJNRax3gsw) (2:59)
 - **Manual testing checklist:** [P4 browser checks](./p4-manual-browser-checklist.md)
 
 My main takeaway from testing was that an application can pass its individual concept tests and still fail when those concepts interact. The concurrent Review bug made that especially clear. By the end of P4, I had put more emphasis on integration tests, recoverable failures, and making sure the deployed behavior matched what the interface promised.

@@ -91,4 +91,4 @@ The manual checks provide evidence that the deployed application supported the p
 
 The results are project-owner observations, not an independent automated browser report. The checklist does not establish the absence of all accessibility issues, concurrency races, or deployment failures. In particular, overlapping browser sessions cannot prove correctness for every possible concurrent execution schedule or crash.
 
-The [P4 deployment and test evidence](./p4-deployment-verification.md) records the automated results, HTTP verification, release attribution, and remaining reliability limitations. The [P4 narrated demonstration](https://youtu.be/0bwM4Pb3J-0) provides a separate visual walkthrough of Relay's user-facing functionality.
+The [P4 deployment and test evidence](./p4-deployment-verification.md) records the automated results, HTTP verification, release attribution, and remaining reliability limitations. The [P4 narrated demonstration](https://youtu.be/JUJNRax3gsw) provides a separate visual walkthrough of Relay's user-facing functionality.
