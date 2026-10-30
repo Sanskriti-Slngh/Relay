@@ -457,14 +457,17 @@ function recordStepContext(procedure: Procedure, step: Step) {
         </li>
       </ol>
 
-      <div v-else-if="canEdit" class="empty-playbook-state">
-        <strong>Add the first Step</strong>
-        <p>Write one instruction at a time. Each Step saves when you choose Add step, and you can reorder it afterward.</p>
-      </div>
-
       <div v-if="canEdit" class="add-step-control">
-        <button v-if="!showAddStep" :class="selectedProcedure.steps.length ? 'text-button' : 'button button-primary'" type="button" @click="beginAddStep(selectedProcedure)">{{ selectedProcedure.steps.length ? "+ Add step" : "Add first step" }}</button>
-        <form v-else class="disclosure-form" @submit.prevent="addStep(selectedProcedure)"><label :for="`step-${selectedProcedure.procedure}`">New step</label><textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3"></textarea><div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button><button class="button button-small button-quiet" type="button" @click="discardAddedStep(selectedProcedure)">Cancel</button></div><VersionConflict v-if="addStepVersion[selectedProcedure.procedure] !== selectedProcedure.version" subject="playbook structure" saved-label="Current saved steps" :saved-value="`${selectedProcedure.steps.length} ${selectedProcedure.steps.length === 1 ? 'step' : 'steps'}, shown above`" draft-label="Your unsaved new step" :draft-value="stepDraft[selectedProcedure.procedure] ?? ''" use-saved-label="Keep current steps" save-mine-label="Add my step" save-consequence="Adding your step keeps the current steps and appends your draft only if the structure has not changed again." :busy="!!actionBusy" @use-saved="discardAddedStep(selectedProcedure)" @save-mine="retryAddedStep(selectedProcedure)" /></form>
+        <button v-if="!showAddStep && selectedProcedure.steps.length" class="text-button" type="button" @click="beginAddStep(selectedProcedure)">+ Add step</button>
+        <form v-else class="add-step-form" @submit.prevent="addStep(selectedProcedure)">
+          <label class="sr-only" :for="`step-${selectedProcedure.procedure}`">New step</label>
+          <textarea :id="`step-${selectedProcedure.procedure}`" v-model="stepDraft[selectedProcedure.procedure]" placeholder="Write one clear instruction…" required maxlength="500" rows="3" @focus="addStepVersion[selectedProcedure.procedure] ??= selectedProcedure.version"></textarea>
+          <div class="form-actions">
+            <button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(stepDraft[selectedProcedure.procedure] ?? '').trim()">{{ actionBusy === `step-${selectedProcedure.procedure}` ? "Adding…" : "Add step" }}</button>
+            <button v-if="selectedProcedure.steps.length" class="button button-small button-quiet" type="button" @click="discardAddedStep(selectedProcedure)">Cancel</button>
+          </div>
+          <VersionConflict v-if="addStepVersion[selectedProcedure.procedure] !== undefined && addStepVersion[selectedProcedure.procedure] !== selectedProcedure.version" subject="playbook structure" saved-label="Current saved steps" :saved-value="`${selectedProcedure.steps.length} ${selectedProcedure.steps.length === 1 ? 'step' : 'steps'}, shown above`" draft-label="Your unsaved new step" :draft-value="stepDraft[selectedProcedure.procedure] ?? ''" use-saved-label="Keep current steps" save-mine-label="Add my step" save-consequence="Adding your step keeps the current steps and appends your draft only if the structure has not changed again." :busy="!!actionBusy" @use-saved="discardAddedStep(selectedProcedure)" @save-mine="retryAddedStep(selectedProcedure)" />
+        </form>
       </div>
 
     </article>

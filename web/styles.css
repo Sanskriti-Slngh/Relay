@@ -345,9 +345,10 @@ textarea.autoresize { resize: none; overflow: hidden; }
 .playbook-context-row p { flex: 1; margin: 0; font-size: 15px; line-height: 1.55; color: var(--ink); }
 .playbook-context-row .context-icon-actions { position: static; transform: none; display: flex; flex: 0 0 auto; gap: 4px; }
 .add-step-control { border-bottom: 1px solid var(--line); padding: 20px 0 28px 54px; }
-.empty-playbook-state { border-bottom: 1px solid var(--line); padding: 26px 0 0 54px; }
-.empty-playbook-state strong { font-size: 16px; font-weight: 600; }
-.empty-playbook-state p { max-width: 540px; margin: 6px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }.document-context h3, .context-dependencies h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+.add-step-form { display: grid; gap: 8px; }
+.add-step-form textarea { width: 100%; max-width: 68ch; font-size: 15px; }
+.add-step-form .form-actions { justify-content: flex-start; }
+.document-context h3, .context-dependencies h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
 .document-context > p, .context-dependencies > p { margin: 0; color: var(--quiet); font-size: 13px; }.step-context-list blockquote, .context-callouts blockquote, .preserved-answer, .history-change > *, .dependency-list strong, .management-row small, .inbox-row-copy strong { overflow-wrap: anywhere; }
 
 .quiet-history { margin-top: 42px; border-top: 1px solid var(--line); padding-top: 16px; }
@@ -889,7 +890,6 @@ details[open] > summary > .admin-summary-chevron { transform: rotate(45deg); mar
   .step-question-form .form-row { flex-direction: row; }
   .step-question-form .button { width: auto; min-width: 44px; }
   .add-step-control { padding-left: 42px; }
-  .empty-playbook-state { padding-left: 42px; }
   .form-row, .review-decision { align-items: stretch; flex-direction: column; }
   .review-edit-context { grid-template-columns: 1fr; }
   .review-edit-context .button { justify-self: start; }
