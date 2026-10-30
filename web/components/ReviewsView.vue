@@ -12,9 +12,9 @@ const emit = defineEmits<{
   resolve: [review: PendingReview];
   cancel: [review: PendingReview];
   editPlaybook: [review: PendingReview];
-  editStep: [payload: { procedure: Procedure; step: Step; text: string; expectedVersion: number; onSuccess: () => void }];
-  replaceContext: [payload: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void }];
-  detachContext: [payload: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean }];
+  editStep: [payload: { procedure: Procedure; step: Step; text: string; expectedVersion: number; onSuccess: () => void; review?: PendingReview }];
+  replaceContext: [payload: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void; review?: PendingReview }];
+  detachContext: [payload: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean; review?: PendingReview }];
   openContext: [];
   dirtyChange: [dirty: boolean];
 }>();
@@ -148,9 +148,6 @@ function openContextPage() {
   emit("openContext");
 }
 
-function ensureNeedsUpdating(review: PendingReview) {
-  if (review.status === "PENDING") emit("requireChanges", review);
-}
 
 function openPreview(review: PendingReview, stepId: string | null) {
   preview.value = { review, focusStepId: stepId };
@@ -242,12 +239,12 @@ function saveStepEdit(step: Step) {
   const procedure = previewProcedure.value;
   const text = stepDraft.value.trim();
   if (!procedure || !text) return;
-  ensureNeedsUpdating(preview.value.review);
   emit("editStep", {
     procedure,
     step,
     text,
     expectedVersion: stepVersion.value || step.version,
+    review: preview.value.review,
     onSuccess: () => {
       stepSaved.value = true;
       stepDraft.value = text;
@@ -299,12 +296,12 @@ function submitReplace() {
     : undefined;
   const text = replacementMode.value === "new" ? newContextDraft.value.trim() : undefined;
   if ((!replacementNote && !text) || (replacementNote && text)) return;
-  if (preview.value) ensureNeedsUpdating(preview.value.review);
   emit("replaceContext", {
     currentNote: connection.note,
     attachment: connection.attachment,
     replacementNote,
     text,
+    review: preview.value?.review,
     onSuccess: () => {
       manageAttachment.value = "";
       actionMode.value = "";
@@ -316,8 +313,8 @@ function submitReplace() {
 function submitDetach() {
   const connection = previewConnections.value.find(({ attachment }) => attachment.attachment === manageAttachment.value);
   if (!connection) return;
-  if (preview.value) ensureNeedsUpdating(preview.value.review);
   emit("detachContext", {
+    review: preview.value?.review,
     note: connection.note,
     attachment: connection.attachment,
     skipConfirmation: true,

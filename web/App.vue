@@ -408,8 +408,15 @@ async function renameProcedure({ procedure, title, expectedVersion, onSuccess }:
   await runAction(`rename-${procedure.procedure}`, async () => { await api.renameProcedure(procedure.procedure, title, expectedVersion, csrfToken.value); onSuccess(); }, "Playbook renamed.");
 }
 
-async function editStep({ procedure, step, text, expectedVersion, onSuccess }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; expectedVersion: number; onSuccess: () => void }) {
-  await runAction(`edit-${step.step}`, async () => { await api.editStep(procedure.procedure, step.step, text, expectedVersion, csrfToken.value); onSuccess(); }, "Step updated.");
+async function editStep({ procedure, step, text, expectedVersion, onSuccess, review }: { procedure: Procedure; step: Procedure["steps"][number]; text: string; expectedVersion: number; onSuccess: () => void; review?: PendingReview }) {
+  const needsReviewTransition = review?.status === "PENDING";
+  await runAction(`edit-${step.step}`, async () => {
+    if (needsReviewTransition) {
+      await api.requireReviewChanges(review!.review, review!.procedure, review!.version, csrfToken.value);
+    }
+    await api.editStep(procedure.procedure, step.step, text, expectedVersion, csrfToken.value);
+    onSuccess();
+  }, needsReviewTransition ? "Step updated and Review marked as needing updates." : "Step updated.");
 }
 
 async function moveStep({ procedure, step, position }: { procedure: Procedure; step: Procedure["steps"][number]; position: number }) {
@@ -451,16 +458,20 @@ async function attachStepContext({ note, procedure, step, onSuccess }: { note: C
   }, "Context attached to the step.");
 }
 
-async function detachContext({ note, attachment, onSuccess, skipConfirmation }: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean }) {
+async function detachContext({ note, attachment, onSuccess, skipConfirmation, review }: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean; review?: PendingReview }) {
   const procedure = procedures.value.find(({ procedure }) => procedure === attachment.subject);
   const step = attachment.anchor ? procedure?.steps.find(({ step }) => step === attachment.anchor) : undefined;
   const target = step
     ? `Step ${step.position} of "${procedure?.title ?? "this Playbook"}"`
     : `"${procedure?.title ?? "this Playbook"}"`;
   if (!skipConfirmation && !window.confirm(`Remove this Context from ${target}? The shared Context Note and its change history will remain available.`)) return;
+  const needsReviewTransition = review?.status === "PENDING";
   await runAction(
     `detach-${attachment.attachment}`,
     async () => {
+      if (needsReviewTransition) {
+        await api.requireReviewChanges(review!.review, review!.procedure, review!.version, csrfToken.value);
+      }
       await api.detachContextNote(attachment.attachment, note.context, attachment.subject, csrfToken.value);
       contexts.value = contexts.value.map((item) => item.context === note.context
         ? { ...item, attachments: item.attachments.filter((itemAttachment) => itemAttachment.attachment !== attachment.attachment) }
@@ -490,7 +501,7 @@ async function deleteContextNote(note: ContextNote) {
   }, "Context Note permanently deleted from Shared context and every Playbook.");
 }
 
-async function replaceReviewContext({ currentNote, attachment, replacementNote, text, onSuccess }: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void }) {
+async function replaceReviewContext({ currentNote, attachment, replacementNote, text, onSuccess, review }: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void; review?: PendingReview }) {
   if (actionBusy.value) {
     showValidationError("Please wait for the current Review update to finish.");
     return;
@@ -502,6 +513,9 @@ async function replaceReviewContext({ currentNote, attachment, replacementNote, 
   clearMessages();
   actionBusy.value = `replace-context-${attachment.attachment}`;
   try {
+    if (review?.status === "PENDING") {
+      await api.requireReviewChanges(review.review, review.procedure, review.version, csrfToken.value);
+    }
     const result = await replaceContextConnection({
       replacementContext: replacementNote?.context,
       record: text ? async () => (await api.recordContextNote(text.trim(), csrfToken.value)).context : undefined,

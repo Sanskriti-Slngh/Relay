@@ -24,6 +24,27 @@ describe("visual disclosure hierarchy", () => {
     expect(source).toContain('!notes.length && replacementMode.value === "existing"');
   });
 
+  test("Reviews modal passes the Review alongside each mutation instead of firing a separate requireChanges emit", async () => {
+    const source = await Bun.file(new URL("../../web/components/ReviewsView.vue", import.meta.url)).text();
+    // The previous ensureNeedsUpdating helper raced requireChanges against the mutation
+    // because both emits became separate runAction calls in App.vue. The Review is now
+    // bundled into each mutation payload so App.vue can sequence them in one runAction.
+    expect(source).not.toContain("function ensureNeedsUpdating");
+    expect(source).not.toContain("ensureNeedsUpdating(preview.value.review)");
+    expect(source).toContain("review: preview.value.review,");
+    expect(source).toContain("review: preview.value?.review,");
+  });
+
+  test("Pending-Review mutations run requireReviewChanges and the mutation inside one runAction", async () => {
+    const source = await Bun.file(new URL("../../web/App.vue", import.meta.url)).text();
+    // editStep sequences the transition then the save in one busy window.
+    expect(source).toMatch(/needsReviewTransition = review\?\.status === "PENDING";[\s\S]*?runAction\(`edit-\$\{step\.step\}`[\s\S]*?if \(needsReviewTransition\) \{[\s\S]*?api\.requireReviewChanges[\s\S]*?api\.editStep/);
+    // detachContext sequences the transition then the detach in one busy window.
+    expect(source).toMatch(/needsReviewTransition = review\?\.status === "PENDING";[\s\S]*?runAction\([\s\S]*?`detach-\$\{attachment\.attachment\}`[\s\S]*?if \(needsReviewTransition\) \{[\s\S]*?api\.requireReviewChanges[\s\S]*?api\.detachContextNote/);
+    // replaceReviewContext calls requireReviewChanges before attempting the replacement.
+    expect(source).toMatch(/replace-context-\$\{attachment\.attachment\}[\s\S]*?review\?\.status === "PENDING"[\s\S]*?api\.requireReviewChanges[\s\S]*?replaceContextConnection/);
+  });
+
   test("keeps Step Questions compact and preserves hidden drafts", async () => {
     const source = await Bun.file(new URL("../../web/components/PlaybooksView.vue", import.meta.url)).text();
     expect(source).toContain('class="step-question-item"');
