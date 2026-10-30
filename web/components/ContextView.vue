@@ -271,9 +271,14 @@ function autoresizeEl(el: unknown) {
 
       <!-- Inline editing -->
       <section v-if="updateOpen === note.context" class="context-inline-editor">
-        <header class="edit-context-heading">
-          <small>Editing shared note<span v-if="attachmentPlaybookCount(note)"> · Used in {{ attachmentPlaybookCount(note) }} {{ attachmentPlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</span></small>
-        </header>
+        <div class="context-edit-help">
+          <button type="button" class="context-help-trigger" aria-label="How this edit works" tabindex="0"><span aria-hidden="true">?</span></button>
+          <div class="context-help-popover" role="tooltip">
+            <p v-if="attachmentPlaybookCount(note)"><strong>Used in {{ attachmentPlaybookCount(note) }} {{ attachmentPlaybookCount(note) === 1 ? "Playbook" : "Playbooks" }}.</strong></p>
+            <p><strong>Fix wording:</strong> corrects spelling or phrasing — no Reviews created.</p>
+            <p><strong>Information changed:</strong> records the change and flags affected Playbooks for Review.</p>
+          </div>
+        </div>
         <form class="context-note-editor" @submit.prevent="submitEdit(note)">
           <label class="sr-only" :for="`edit-${note.context}`">Revised Context Note</label>
           <textarea v-if="updateMode[note.context] === 'change'" :id="`edit-${note.context}`" :ref="autoresizeEl" v-model="changeDraft[note.context]" class="autoresize" required maxlength="4000" rows="1" @input="autoresize"></textarea>
@@ -282,9 +287,7 @@ function autoresizeEl(el: unknown) {
             <label :class="{ active: updateMode[note.context] === 'correct' }"><input v-model="updateMode[note.context]" type="radio" value="correct">Fix wording</label>
             <label :class="{ active: updateMode[note.context] === 'change' }"><input v-model="updateMode[note.context]" type="radio" value="change">Information changed</label>
           </div>
-          <p v-if="updateMode[note.context] === 'correct'" class="form-guidance edit-type-hint">Corrects spelling or phrasing — no Reviews created.</p>
-          <p v-else-if="updateMode[note.context] === 'change' && hasChangedDraft(note.text, [changeDraft[note.context]])" class="form-guidance pending-guidance">{{ meaningfulChangeConsequence(affectedActivePlaybookCount(note)) }}</p>
-          <p v-else class="form-guidance edit-type-hint">Records the change and flags affected Playbooks for Review.</p>
+          <p v-if="updateMode[note.context] === 'change' && hasChangedDraft(note.text, [changeDraft[note.context]])" class="form-guidance pending-guidance">{{ meaningfulChangeConsequence(affectedActivePlaybookCount(note)) }}</p>
           <div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(updateMode[note.context] === 'change' ? changeDraft[note.context] : correctionDraft[note.context] ?? '').trim() || !hasChangedDraft(note.text, [updateMode[note.context] === 'change' ? changeDraft[note.context] : correctionDraft[note.context]])">{{ updateMode[note.context] === "change" && hasChangedDraft(note.text, [changeDraft[note.context]]) ? meaningfulChangeActionLabel(affectedActivePlaybookCount(note)) : "Save wording" }}</button><button class="button button-small button-quiet" type="button" @click="toggleUpdate(note)">Cancel</button></div>
           <VersionConflict v-if="updateVersion[note.context] !== note.version" subject="context note" saved-label="Current saved note" :saved-value="note.text" draft-label="Your unsaved edit" :draft-value="(updateMode[note.context] === 'change' ? changeDraft[note.context] : correctionDraft[note.context]) ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" />
         </form>

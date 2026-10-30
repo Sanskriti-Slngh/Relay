@@ -358,16 +358,21 @@ function recordStepContext(procedure: Procedure, step: Step) {
             </div>
           </div>
           <div v-else class="context-inline-editor">
-            <header class="edit-context-heading"><small>Editing shared note<span v-if="affectedActivePlaybookCount(note)"> · Used in {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</span></small></header>
+            <div class="context-edit-help">
+              <button type="button" class="context-help-trigger" aria-label="How this edit works" tabindex="0"><span aria-hidden="true">?</span></button>
+              <div class="context-help-popover" role="tooltip">
+                <p v-if="affectedActivePlaybookCount(note)"><strong>Used in {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "Playbook" : "Playbooks" }}.</strong></p>
+                <p><strong>Fix wording:</strong> corrects spelling or phrasing — no Reviews created.</p>
+                <p><strong>Information changed:</strong> records the change and flags affected Playbooks for Review.</p>
+              </div>
+            </div>
             <form class="context-note-editor" @submit.prevent="saveContextEdit(note)">
               <textarea :id="`context-edit-${note.context}`" :ref="autoresizeEl" v-model="contextEditDraft[note.context]" required maxlength="4000" rows="1" class="autoresize" @input="autoresize"></textarea>
               <div class="edit-type-chooser">
                 <label :class="{ active: contextEditMode[note.context] === 'correct' }"><input v-model="contextEditMode[note.context]" type="radio" value="correct">Fix wording</label>
                 <label :class="{ active: contextEditMode[note.context] === 'change' }"><input v-model="contextEditMode[note.context]" type="radio" value="change">Information changed</label>
               </div>
-              <p v-if="contextEditMode[note.context] === 'correct'" class="form-guidance edit-type-hint">Corrects spelling or phrasing — no Reviews created.</p>
-              <p v-else-if="contextEditMode[note.context] === 'change' && hasChangedDraft(note.text, [contextEditDraft[note.context]])" class="form-guidance pending-guidance">{{ meaningfulChangeConsequence(affectedActivePlaybookCount(note)) }}</p>
-              <p v-else class="form-guidance edit-type-hint">Records the change and flags affected Playbooks for Review.</p>
+              <p v-if="contextEditMode[note.context] === 'change' && hasChangedDraft(note.text, [contextEditDraft[note.context]])" class="form-guidance pending-guidance">{{ meaningfulChangeConsequence(affectedActivePlaybookCount(note)) }}</p>
               <div class="form-actions"><button class="button button-small button-primary" type="submit" :disabled="!!actionBusy || !(contextEditDraft[note.context] ?? '').trim() || !hasChangedDraft(note.text, [contextEditDraft[note.context]])">{{ contextEditMode[note.context] === "change" && hasChangedDraft(note.text, [contextEditDraft[note.context]]) ? meaningfulChangeActionLabel(affectedActivePlaybookCount(note)) : "Save wording" }}</button><button class="button button-small button-quiet" type="button" @click="cancelContextEdit(note)">Cancel</button></div>
               <VersionConflict v-if="contextEditVersion[note.context] !== note.version" subject="context note" saved-label="Current saved note" :saved-value="note.text" draft-label="Your unsaved note" :draft-value="contextEditDraft[note.context] ?? ''" :busy="!!actionBusy" @use-saved="useSavedContext(note)" @save-mine="saveMyContext(note)" />
             </form>
@@ -401,7 +406,14 @@ function recordStepContext(procedure: Procedure, step: Step) {
                     <blockquote v-if="editingContext !== note.context">{{ note.text }}</blockquote>
                     <div v-if="canEditContext && editingContext !== note.context" class="context-icon-actions"><button class="context-icon-button" type="button" :aria-label="`Edit shared Context Note for step ${step.position}`" title="Edit" @click="beginContextEdit(note)"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="m4 14.8.6-3.4L13 3l4 4-8.4 8.4-3.4.6Z"/><path d="m11.8 4.2 4 4"/></svg></button><button v-if="attachmentForStep(note, selectedProcedure.procedure, step.step)" class="context-icon-button" type="button" :disabled="!!actionBusy" :aria-label="`Remove Context Note from step ${step.position}`" title="Remove" @click="emit('detachContext', { note, attachment: attachmentForStep(note, selectedProcedure.procedure, step.step)! })"><svg aria-hidden="true" viewBox="0 0 20 20"><path d="M6 6l8 8M14 6l-8 8"/></svg></button></div>
                     <div v-if="editingContext === note.context" class="context-inline-editor">
-                      <header class="edit-context-heading"><small>Editing shared note<span v-if="affectedActivePlaybookCount(note)"> · Used in {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "playbook" : "playbooks" }}</span></small></header>
+                      <div class="context-edit-help">
+              <button type="button" class="context-help-trigger" aria-label="How this edit works" tabindex="0"><span aria-hidden="true">?</span></button>
+              <div class="context-help-popover" role="tooltip">
+                <p v-if="affectedActivePlaybookCount(note)"><strong>Used in {{ affectedActivePlaybookCount(note) }} {{ affectedActivePlaybookCount(note) === 1 ? "Playbook" : "Playbooks" }}.</strong></p>
+                <p><strong>Fix wording:</strong> corrects spelling or phrasing — no Reviews created.</p>
+                <p><strong>Information changed:</strong> records the change and flags affected Playbooks for Review.</p>
+              </div>
+            </div>
                       <form class="context-note-editor" @submit.prevent="saveContextEdit(note)">
                         <textarea :id="`context-edit-${note.context}`" :ref="autoresizeEl" v-model="contextEditDraft[note.context]" required maxlength="4000" rows="1" class="autoresize" @input="autoresize"></textarea>
                         <div class="edit-type-chooser">

@@ -409,10 +409,18 @@ textarea.autoresize { resize: none; overflow: hidden; }
 .context-delete-action:not(:disabled):hover { background: var(--error-bg); }
 
 /* Inline editor */
-.context-inline-editor { padding: 10px 14px; border-left: 3px solid var(--context-border); border-radius: 3px; }
+.context-inline-editor { position: relative; padding: 10px 14px; border-left: 3px solid var(--context-border); border-radius: 3px; }
 .attached-context-row .context-inline-editor { padding: 0; border-left: 0; border-radius: 0; }
-.edit-context-heading { margin: 0 0 6px; }
-.edit-context-heading small { color: var(--context-fg); font-size: 12px; font-weight: 600; }
+.context-edit-help { position: absolute; top: 6px; right: 8px; z-index: 5; }
+.attached-context-row .context-edit-help, .playbook-context-card .context-edit-help { top: 0; right: 0; }
+.context-help-trigger { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--context-border); border-radius: 50%; background: var(--surface); color: var(--context-fg); font-size: 11px; font-weight: 700; line-height: 1; cursor: help; padding: 0; }
+.context-help-trigger:hover, .context-help-trigger:focus-visible { background: var(--context-bg); outline: none; }
+.context-help-popover { position: absolute; top: calc(100% + 6px); right: 0; width: 260px; display: none; padding: 10px 12px; border: 1px solid var(--context-border); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 24px rgba(0, 0, 0, .1); color: var(--ink); font-size: 12px; line-height: 1.45; }
+.context-help-popover p { margin: 0 0 6px; }
+.context-help-popover p:last-child { margin-bottom: 0; }
+.context-help-popover strong { color: var(--context-fg); }
+.context-edit-help:hover .context-help-popover,
+.context-edit-help:focus-within .context-help-popover { display: block; }
 .context-inline-editor .context-note-editor { margin-top: 0; gap: 4px; }
 .context-inline-editor textarea:focus-visible, .context-inline-editor textarea:focus { outline: none; border-color: var(--context-border); }
 .context-inline-editor .context-note-editor .form-actions { margin-top: 2px; justify-content: flex-start; }
