@@ -4,7 +4,7 @@
 
 Relay helps student clubs preserve recurring procedures and the knowledge behind them. When shared information changes, Relay identifies which Playbooks may need updating, preserving the original context so officers can make informed decisions.
 
-**[Live Application](https://relay.mit-sdg.dev/)** · **[Narrated Demo](https://youtu.be/0bwM4Pb3J-0)** (2:59) · **[Final Design Document](design/p4-final-design.md)**
+**[Live Application](https://relay.mit-sdg.dev/)** · **[Narrated Demo](https://youtu.be/JUJNRax3gsw)** (3:00) · **[Final Design Document](design/p4-final-design.md)**
 
 ## What Relay does
 
