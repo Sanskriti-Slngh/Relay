@@ -71,6 +71,11 @@ function openAttentionItem(item: AttentionItem) {
   emit("navigate", { section: "questions", question: item.id, questionKind: item.questionKind });
 }
 
+function playbookHue(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
+  return Math.abs(hash) % 8;
+}
 function fullTimestamp(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeStyle: "long" }).format(new Date(value));
 }
@@ -100,7 +105,7 @@ function fullTimestamp(value: string): string {
       </header>
       <div class="overview-playbook-list">
         <button v-for="procedure in visiblePlaybooks" :key="procedure.procedure" class="overview-playbook-row" type="button" @click="emit('navigate', { section: 'procedures', procedure: procedure.procedure })">
-          <span class="playbook-identifier" aria-hidden="true">{{ procedure.title.trim().charAt(0).toUpperCase() || "P" }}</span>
+          <span class="playbook-identifier" :class="`playbook-hue-${playbookHue(procedure.procedure)}`" aria-hidden="true">{{ procedure.title.trim().charAt(0).toUpperCase() || "P" }}</span>
           <span class="playbook-row-copy"><strong>{{ procedure.title }}</strong><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small></span>
           <span class="playbook-row-arrow" aria-hidden="true">→</span>
         </button>

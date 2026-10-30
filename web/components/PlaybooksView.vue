@@ -153,6 +153,11 @@ function answererName(answerer: string | null | undefined) {
   if (!answerer) return "";
   return props.members.find(({ user }) => user === answerer)?.name ?? "Former member";
 }
+function playbookHue(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
+  return Math.abs(hash) % 8;
+}
 function autoresize(event: Event) {
   const el = event.target as HTMLTextAreaElement;
   el.style.height = "auto";
@@ -319,8 +324,9 @@ function recordStepContext(procedure: Procedure, step: Step) {
   <div v-else class="playbook-workspace">
     <aside class="playbook-index" aria-label="Active playbooks">
       <div v-if="activeProcedures.length > 6" class="playbook-search"><label class="sr-only" for="playbook-search">Find a playbook</label><input id="playbook-search" v-model="playbookSearch" type="search" placeholder="Find a playbook…"></div>
-      <button v-for="procedure in filteredProcedures" :key="procedure.procedure" class="playbook-index-row" :class="{ selected: procedure.procedure === selectedProcedureId }" type="button" :aria-pressed="procedure.procedure === selectedProcedureId" @click="selectProcedure(procedure)">
-        <span>{{ procedure.title }}</span><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small>
+      <button v-for="procedure in filteredProcedures" :key="procedure.procedure" class="playbook-index-row" :class="[`playbook-hue-${playbookHue(procedure.procedure)}`, { selected: procedure.procedure === selectedProcedureId }]" type="button" :aria-pressed="procedure.procedure === selectedProcedureId" @click="selectProcedure(procedure)">
+        <span class="playbook-index-dot" aria-hidden="true"></span>
+        <span class="playbook-index-copy"><span>{{ procedure.title }}</span><small>{{ procedure.steps.length }} {{ procedure.steps.length === 1 ? "step" : "steps" }}</small></span>
       </button>
       <p v-if="!filteredProcedures.length" class="playbook-search-empty">No matching playbooks.</p>
     </aside>
