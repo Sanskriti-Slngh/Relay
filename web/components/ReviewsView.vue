@@ -15,6 +15,7 @@ const emit = defineEmits<{
   editStep: [payload: { procedure: Procedure; step: Step; text: string; expectedVersion: number; onSuccess: () => void }];
   replaceContext: [payload: { currentNote: ContextNote; attachment: Attachment; replacementNote?: ContextNote; text?: string; onSuccess: () => void }];
   detachContext: [payload: { note: ContextNote; attachment: Attachment; onSuccess?: () => void; skipConfirmation?: boolean }];
+  openContext: [];
   dirtyChange: [dirty: boolean];
 }>();
 
@@ -137,6 +138,14 @@ function completeReview(review: PendingReview) {
 function openOther(review: PendingReview) {
   const firstStep = affectedStepList(review)[0]?.step ?? null;
   openPreview(review, firstStep);
+}
+
+function openContextPage() {
+  if (modalDirty.value && !window.confirm("Discard the unsaved edit before leaving the Playbook preview?")) return;
+  preview.value = null;
+  resetModalState();
+  stepRefs.clear();
+  emit("openContext");
 }
 
 function ensureNeedsUpdating(review: PendingReview) {
@@ -459,7 +468,10 @@ watch(() => props.procedures, () => {
 
       <aside class="playbook-preview-global">
         <span class="review-global-badge">Global</span>
-        <p>Edits to the shared Context Note itself apply to every Playbook using it, so they live on the Context page — not here.</p>
+        <div class="playbook-preview-global-body">
+          <p>Edits to the shared Context Note itself apply to every Playbook using it, so they live on the Context page — not here.</p>
+          <button type="button" class="button button-small button-secondary" @click="openContextPage">Open Context page</button>
+        </div>
       </aside>
     </div>
   </div>

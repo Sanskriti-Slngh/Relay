@@ -578,7 +578,10 @@ textarea.autoresize { resize: none; overflow: hidden; }
 .playbook-preview-whole-attachments { display: grid; gap: 8px; }
 
 .playbook-preview-global { margin-top: 16px; border-top: 1px dashed var(--line-strong); padding-top: 12px; display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
-.playbook-preview-global p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }.playbook-preview-empty { margin: 0; color: var(--muted); font-size: 13px; }.review-change-selector button.selected { background: var(--context-fg); color: #fff; border-color: var(--context-fg); }.review-change-step-pills button.selected { background: var(--pending); color: #fff; border-color: var(--pending); }
+.playbook-preview-global p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.playbook-preview-global-body { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.playbook-preview-global-body p { flex: 1; min-width: 220px; }
+.playbook-preview-global-body .button { flex-shrink: 0; }.playbook-preview-empty { margin: 0; color: var(--muted); font-size: 13px; }.review-change-selector button.selected { background: var(--context-fg); color: #fff; border-color: var(--context-fg); }.review-change-step-pills button.selected { background: var(--pending); color: #fff; border-color: var(--pending); }
 .review-change-step-pills button.resolved::after { content: " ✓"; color: var(--complete); }
 .review-change-step-pills button.selected.resolved::after { color: #fff; }.review-global-badge { display: inline-flex; padding: 1px 8px; border-radius: 10px; background: var(--ink); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }.review-evidence h3, .review-instructions h3, .review-decision h3 { margin: 0 0 10px; color: var(--ink); font-size: 17px; font-weight: 650; }.review-cause-card .context-attachment-label { grid-column: 1 / -1; margin: 0; color: var(--pending); font-size: 12px; font-weight: 650; }
 .review-evidence .evidence-before { color: var(--muted); }
