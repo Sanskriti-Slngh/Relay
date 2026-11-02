@@ -8,7 +8,7 @@
 
 MIT SAAS organizes recurring cultural events, including South Asian Formal, Garba Night, and C-Show. Planning these events involves procedures, policies, and organizational decisions that must be passed between student officers as leadership changes.
 
-Participants will take the role of an incoming SAAS officer responsible for preparing upcoming events and keeping the club's procedures accurate. They will work in a prepopulated Relay workspace containing Playbooks, Shared Context Notes, and Questions from club members. The scenarios and policies are realistic examples created for testing, not necessarily the club's actual operating policies.
+Participants take the role of an incoming SAAS officer responsible for preparing upcoming events and keeping the club's procedures accurate. They work in a prepopulated Relay workspace containing Playbooks, Shared Context Notes, and Questions from club members. The scenarios and policies are realistic examples created for testing, not necessarily the club's actual operating policies.
 
 The study investigates three central design questions:
 
@@ -32,7 +32,7 @@ Tasks progress from locating and interpreting information to modifying procedure
 
 **Total estimated task time: 40 minutes.**
 
-The estimated durations are planning targets, not strict deadlines. Participants will be allowed to work through difficulties without being interrupted simply because a task is taking longer than expected. I am not going to interrupt to speed them unless it explicitiy is getting too hard for them to navigate the page.
+The estimated durations are planning targets, not strict deadlines. Participants will be allowed to work through difficulties without being interrupted simply because a task is taking longer than expected. 
 
 ## 3. Study Setup
 
@@ -49,6 +49,12 @@ The workspace will also contain a guest-access policy linked to South Asian Form
 The volunteer-lead decision and updated seven-day catering requirement will not exist in the initial state. Participants will introduce these changes during the study.
 
 Both participants will have Officer permissions and receive equivalent starting data. Separate identically prepared workspaces, or a verified reset of the original state, will prevent changes from the first study from affecting the second. The initial state will be checked before each session, including the absence of Reviews created by the seven-day policy change.
+
+The app requires login info but to see the setup see 
+- [overview page](user-testing/screenshotswithdeployedapp/overviewpage.png)
+- [playbooks page](user-testing/screenshotswithdeployedapp/playbookspage.png)
+- [shared context page](user-testing/screenshotswithdeployedapp/sharedcontextpage.png)
+- [questions page](user-testing/screenshotswithdeployedapp/questionspage.png)
 
 ## 4. Study Conduct
 
