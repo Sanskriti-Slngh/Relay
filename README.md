@@ -53,6 +53,8 @@ shared policies, and member questions.
 - **[Study Reports](user-testing/study.md)** — Observations and analysis from two participant sessions.
 - **[Design Findings and Improvements](user-testing/design-improvement.md)** — Four prioritized design opportunities, their causes, severity classifications, and proposed improvements.
 
+- **[Test Workspace Screenshots](user-testing/tasklist.md#test-workspace-screenshots)** — Screenshots of the prepopulated MIT SAAS workspace used in the studies, including Playbooks, shared policies, and Questions.
+
 ## Run Relay locally
 
 ### Requirements
