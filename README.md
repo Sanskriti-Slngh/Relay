@@ -4,7 +4,13 @@
 
 Relay helps student clubs preserve recurring procedures and the knowledge behind them. When shared information changes, Relay identifies which Playbooks may need updating, preserving the original context so officers can make informed decisions.
 
-**[Live Application](https://relay.mit-sdg.dev/)** · **[Narrated Demo](https://youtu.be/JUJNRax3gsw)** (3:00) · **[Final Design Document](design/p4-final-design.md)**
+- **[Live Application](https://relay.mit-sdg.dev/)**
+- **[Narrated Demo](https://youtu.be/JUJNRax3gsw)** (3:00)
+- **[Final Design Document](design/p4-final-design.md)**
+
+- **[Task List](user-testing/tasklist.md)**
+- **[Study Reports](user-testing/study.md)**
+- **[Design Findings and Improvements](user-testing/design-improvement.md)**
 
 ## What Relay does
 
@@ -36,6 +42,16 @@ The main P4 materials and supporting documents are organized below.
 | [Milestone Archive](milestones/README.md) | Earlier P2 and P3 deliverables and supporting materials |
 
 The personal notebooks are kept in my separate 6.1040 course repository. The application code, current specifications, and tests are in this repository.
+
+## P5: User Testing
+
+Relay was evaluated with two MIT SAAS participants using a
+prepopulated workspace containing recurring event procedures,
+shared policies, and member questions.
+
+- **[Task List](user-testing/tasklist.md)** — Seven tasks covering knowledge discovery, procedure maintenance, and change management.
+- **[Study Reports](user-testing/study.md)** — Observations and analysis from two participant sessions.
+- **[Design Findings and Improvements](user-testing/design-improvement.md)** — Four prioritized design opportunities, their causes, severity classifications, and proposed improvements.
 
 ## Run Relay locally
 
