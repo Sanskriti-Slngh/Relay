@@ -51,17 +51,11 @@ The volunteer-lead decision and seven-day catering requirement were not present 
 
 Both participants used Officer permissions and equivalent starting data. The setup was designed to prevent changes from one session from affecting the other.
 
-### Access to Test Data
-
-Relay uses authenticated, account-specific workspaces. The MIT SAAS testing data is therefore only visible to accounts with access to that workspace. Someone opening the public deployed application with a different account will not automatically see the three Playbooks or associated Context Notes.
-
-The study setup is described above so that the initial state and task dependencies can be understood independently of workspace access. Screenshots of the prepared workspace can also provide visual evidence of the data used during testing.
-
 ### Test Workspace Screenshots
 
 Relay uses authenticated, account-specific workspaces, so the MIT SAAS testing data is not automatically visible to someone opening the deployed application with a different account. The screenshots below document the initial workspace used for the studies.
 
-- [SAAS Overview](screenshots/overviewpage.png) — The first screen the participant will see which is overview of whole app.
+- [SAAS Overview](screenshots/overviewpage.png) — The initial workspace overview shown to participants.
 - [SAAS Playbooks](screenshots/playbookspage.png) — The three event procedures available to participants.
 - [Shared Catering Policy](screenshots/sharedcontextpage.png) — The original three-day requirement and its connections to multiple Playbooks.
 - [Member Question](screenshots/questionspage.png) — The unanswered guest-policy question provided at the start of testing.
