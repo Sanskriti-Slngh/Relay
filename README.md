@@ -28,11 +28,11 @@ Relay supports multiple club workspaces with Owner, Officer, and Member roles. I
 
 ## Project documentation
 
-The main P4 materials and supporting documents are organized below.
+The main materials and supporting documents are organized below.
 
 | Document | Contents |
 |---|---|
-| **[P4 Final Design](design/p4-final-design.md)** | How Relay evolved from P1 and P3, significant decisions, and remaining tradeoffs |
+| **[Final Design](design/p4-final-design.md)** | How Relay evolved from P1 and P3, significant decisions, and remaining tradeoffs |
 | [Personal Design Notebook](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-design-notebook.md) | My design reasoning, alternatives, challenges, and reflections |
 | [Implementation Notebook](https://github.com/Sanskriti-Slngh/6.1040/blob/main/relay-implementation-notebook.md) | Development progress, technical decisions, and implementation records |
 | [Concepts and Composition](design/README.md) | Current specifications, reactions, and earlier milestone designs |
